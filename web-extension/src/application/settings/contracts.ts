@@ -48,9 +48,11 @@ export const cancellationResponseSchema = z.strictObject({
 
 export const systemPingResponseSchema = z.strictObject({
   extensionVersion: z.string().check(z.minLength(1), z.maxLength(32)),
-  phase: z.literal(1),
+  phase: z.literal(2),
   protocol: z.literal(1),
-  settingsSchemaVersion: z.literal(1)
+  settingsSchemaVersion: z.literal(1),
+  tabId: z.optional(z.int().check(z.nonnegative())),
+  frameId: z.optional(z.int().check(z.nonnegative()))
 })
 
 export type SettingsUpdatePayload = z.infer<typeof settingsUpdatePayloadSchema>

@@ -1,15 +1,72 @@
 import { ReplayGuard } from '../../infrastructure/messaging/replay-guard'
+import {
+  createPageMediaResponse,
+  parsePageMediaMessage,
+  type PageMediaMessage,
+  type PageMediaPayloadByType,
+  type PageMediaResponseType
+} from '../../infrastructure/messaging/page-media-protocol'
 import { systemClock } from '../../infrastructure/time/system-time'
 import { createBridgeMessage, parseBridgeMessage } from '../../shared/protocol'
+import { MediaPageRuntime } from './media-page-runtime'
+
+const RUNTIME_KEY = Symbol.for('h5player.web-extension.page-runtime.v1')
+const RUNTIME_BRAND = 'h5player.web-extension.page-runtime'
+
+type RuntimeMarker = {
+  readonly brand: string
+  readonly version: 1
+}
+
+function installRuntimeMarker(currentWindow: Window): RuntimeMarker | null {
+  const existing = Object.getOwnPropertyDescriptor(currentWindow, RUNTIME_KEY)
+  if (existing !== undefined) return null
+
+  const marker: RuntimeMarker = Object.freeze({ brand: RUNTIME_BRAND, version: 1 })
+  try {
+    Object.defineProperty(currentWindow, RUNTIME_KEY, {
+      configurable: true,
+      enumerable: false,
+      writable: false,
+      value: marker
+    })
+    return marker
+  } catch {
+    return marker
+  }
+}
 
 export function startPageMainRuntime(window: Window, document: Document): () => void {
   const root = document.documentElement
   if (root) root.dataset['h5playerWebextMain'] = 'ready'
 
+  const marker = installRuntimeMarker(window)
+  if (marker === null) return () => undefined
+
   const replayGuard = new ReplayGuard(systemClock)
   let session: { sessionId: string; nonce: string; origin: string } | null = null
+  let mediaRuntime: MediaPageRuntime | null = null
+  let mediaFrameId = 0
+  let stopped = false
 
-  const post = (
+  const teardown = (): void => {
+    if (stopped) return
+    stopped = true
+    window.removeEventListener('message', onMessage)
+    mediaRuntime?.teardown()
+    mediaRuntime = null
+    session = null
+    const descriptor = Object.getOwnPropertyDescriptor(window, RUNTIME_KEY)
+    if (descriptor?.value === marker) {
+      try {
+        delete (window as unknown as Record<PropertyKey, unknown>)[RUNTIME_KEY]
+      } catch {
+        // A hostile page may make the marker non-configurable after startup.
+      }
+    }
+  }
+
+  const postLifecycle = (
     type: 'bridge.ready' | 'bridge.pong',
     requestId: string,
     activeSession: { sessionId: string; nonce: string; origin: string }
@@ -26,41 +83,141 @@ export function startPageMainRuntime(window: Window, document: Document): () => 
     )
   }
 
-  const onMessage = (event: MessageEvent<unknown>): void => {
-    if (event.source !== window || event.origin !== window.location.origin) return
-    const message = parseBridgeMessage(event.data)
-    if (!message || message.source !== 'content') return
+  const postMedia = <T extends PageMediaResponseType>(
+    type: T,
+    requestId: string,
+    payload: PageMediaPayloadByType[T],
+    activeSession: { sessionId: string; nonce: string; origin: string }
+  ): void => {
+    try {
+      const message = createPageMediaResponse(
+        type,
+        activeSession.sessionId,
+        activeSession.nonce,
+        payload,
+        requestId
+      )
+      window.postMessage(message, activeSession.origin)
+    } catch {
+      // Invalid page data is contained at the page boundary.
+    }
+  }
 
-    if (message.type === 'bridge.init') {
-      if (session && (session.sessionId !== message.sessionId || session.nonce !== message.nonce)) {
-        return
+  const postMediaError = (
+    request: PageMediaMessage,
+    code: 'INVALID_PAYLOAD' | 'RUNTIME_UNAVAILABLE' | 'INTERNAL_ERROR',
+    messageKey: string
+  ): void => {
+    if (!session) return
+    postMedia(
+      'media.error',
+      request.requestId,
+      {
+        requestType:
+          request.type === 'media.context' ||
+          request.type === 'media.get-state' ||
+          request.type === 'media.execute'
+            ? request.type
+            : 'media.get-state',
+        code,
+        messageKey
+      },
+      session
+    )
+  }
+
+  const handleMediaMessage = (message: PageMediaMessage): void => {
+    if (!session) return
+    const scope = `content:${session.sessionId}`
+    if (!replayGuard.accept(scope, message.requestId)) return
+
+    if (message.type === 'media.context') {
+      if (mediaRuntime !== null && mediaFrameId !== message.payload.frameId) {
+        mediaRuntime.teardown()
+        mediaRuntime = null
       }
-      session ??= {
-        sessionId: message.sessionId,
-        nonce: message.nonce,
-        origin: event.origin
+      try {
+        mediaRuntime ??= new MediaPageRuntime(window, document, message.payload.frameId)
+        mediaFrameId = message.payload.frameId
+        postMedia('media.context-ready', message.requestId, {}, session)
+      } catch {
+        postMediaError(message, 'INTERNAL_ERROR', 'media.error.runtime-init')
       }
-      if (!replayGuard.accept(`content:${session.sessionId}`, message.requestId)) return
-      post('bridge.ready', message.requestId, session)
       return
     }
 
+    if (mediaRuntime === null) {
+      postMediaError(message, 'RUNTIME_UNAVAILABLE', 'media.error.runtime-unavailable')
+      return
+    }
+
+    if (message.type === 'media.get-state') {
+      try {
+        postMedia('media.state', message.requestId, { state: mediaRuntime.getState() }, session)
+      } catch {
+        postMediaError(message, 'INTERNAL_ERROR', 'media.error.state-failed')
+      }
+      return
+    }
+
+    if (message.type === 'media.execute') {
+      void mediaRuntime
+        .execute(message.payload.command)
+        .then((response) => {
+          if (session) postMedia('media.command-result', message.requestId, response, session)
+        })
+        .catch(() => postMediaError(message, 'INTERNAL_ERROR', 'media.error.command-failed'))
+    }
+  }
+
+  const onMessage = (event: MessageEvent<unknown>): void => {
+    if (stopped || event.source !== window || event.origin !== window.location.origin) return
+
+    const lifecycle = parseBridgeMessage(event.data)
+    if (lifecycle && lifecycle.source === 'content') {
+      if (lifecycle.type === 'bridge.init') {
+        if (
+          session &&
+          (session.sessionId !== lifecycle.sessionId || session.nonce !== lifecycle.nonce)
+        ) {
+          return
+        }
+        session ??= {
+          sessionId: lifecycle.sessionId,
+          nonce: lifecycle.nonce,
+          origin: event.origin
+        }
+        if (!replayGuard.accept(`content:${session.sessionId}`, lifecycle.requestId)) return
+        postLifecycle('bridge.ready', lifecycle.requestId, session)
+        return
+      }
+
+      if (
+        !session ||
+        lifecycle.sessionId !== session.sessionId ||
+        lifecycle.nonce !== session.nonce ||
+        !replayGuard.accept(`content:${session.sessionId}`, lifecycle.requestId)
+      ) {
+        return
+      }
+
+      if (lifecycle.type === 'bridge.ping')
+        postLifecycle('bridge.pong', lifecycle.requestId, session)
+      if (lifecycle.type === 'bridge.dispose') teardown()
+      return
+    }
+
+    const media = parsePageMediaMessage(event.data)
     if (
+      !media ||
+      media.source !== 'content' ||
       !session ||
-      message.sessionId !== session.sessionId ||
-      message.nonce !== session.nonce ||
-      !replayGuard.accept(`content:${session.sessionId}`, message.requestId)
+      media.sessionId !== session.sessionId ||
+      media.nonce !== session.nonce
     ) {
       return
     }
-
-    if (message.type === 'bridge.ping') post('bridge.pong', message.requestId, session)
-    if (message.type === 'bridge.dispose') teardown()
-  }
-
-  const teardown = (): void => {
-    window.removeEventListener('message', onMessage)
-    session = null
+    handleMediaMessage(media)
   }
 
   window.addEventListener('message', onMessage)

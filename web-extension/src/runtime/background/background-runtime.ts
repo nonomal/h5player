@@ -1,4 +1,11 @@
 import type { LoggerPort } from '../../application/ports/logging'
+import type { TabsPort } from '../../application/ports/browser'
+import {
+  mediaCommandResultResponseSchema,
+  mediaExecutePayloadSchema,
+  mediaGetStatePayloadSchema,
+  mediaPageStateSchema
+} from '../../application/media'
 import {
   cancellationResponseSchema,
   emptyPayloadSchema,
@@ -22,6 +29,12 @@ import {
   type RuntimeRequestEnvelope
 } from '../../shared/protocol'
 import { authorizeRuntimeSender, type RuntimeSenderMetadata } from './sender-policy'
+import {
+  createTabRequest,
+  parseTabResponse,
+  type TabRequestType,
+  type TabTransportErrorCode
+} from '../../shared/tab-protocol'
 
 type BackgroundRuntimeOptions = {
   extensionId: string
@@ -29,6 +42,11 @@ type BackgroundRuntimeOptions = {
   settings: SettingsService
   replayGuard: ReplayGuard
   logger: LoggerPort
+  tabs: TabsPort
+}
+
+type SafeParser<T> = {
+  safeParse(value: unknown): { success: true; data: T } | { success: false }
 }
 
 function mapSettingsError(error: SettingsError): ProtocolErrorCode {
@@ -57,6 +75,22 @@ function responseContext(authorized: {
   if (authorized.frameId !== undefined) context.frameId = authorized.frameId
   if (authorized.sessionId !== undefined) context.sessionId = authorized.sessionId
   return context
+}
+
+function mapTabTransportError(code: TabTransportErrorCode): ProtocolErrorCode {
+  switch (code) {
+    case 'INVALID_PAYLOAD':
+      return 'INVALID_PAYLOAD'
+    case 'UNAUTHORIZED_SOURCE':
+      return 'UNAUTHORIZED_SOURCE'
+    case 'REPLAY_DETECTED':
+      return 'REPLAY_DETECTED'
+    case 'PAGE_RUNTIME_UNAVAILABLE':
+      return 'TARGET_UNAVAILABLE'
+    case 'INVALID_ENVELOPE':
+    case 'INTERNAL_ERROR':
+      return 'INTERNAL_ERROR'
+  }
 }
 
 export class BackgroundRuntime {
@@ -164,16 +198,22 @@ export class BackgroundRuntime {
         if (!emptyPayloadSchema.safeParse(request.payload).success) {
           return this.invalidPayload(request, context)
         }
-        return createRuntimeSuccess(
-          request,
-          systemPingResponseSchema.parse({
-            extensionVersion: this.options.extensionVersion,
-            phase: 1,
-            protocol: 1,
-            settingsSchemaVersion: 1
-          }),
-          context
-        )
+        const response: {
+          extensionVersion: string
+          phase: 2
+          protocol: 1
+          settingsSchemaVersion: 1
+          tabId?: number
+          frameId?: number
+        } = {
+          extensionVersion: this.options.extensionVersion,
+          phase: 2,
+          protocol: 1,
+          settingsSchemaVersion: 1
+        }
+        if (context.tabId !== undefined) response.tabId = context.tabId
+        if (context.frameId !== undefined) response.frameId = context.frameId
+        return createRuntimeSuccess(request, systemPingResponseSchema.parse(response), context)
       }
       case 'settings.get': {
         if (!emptyPayloadSchema.safeParse(request.payload).success) {
@@ -241,6 +281,30 @@ export class BackgroundRuntime {
             )
           : this.settingsFailure(request, result.error, context)
       }
+      case 'media.get-state': {
+        const payload = mediaGetStatePayloadSchema.safeParse(request.payload)
+        if (!payload.success) return this.invalidPayload(request, context)
+        return this.forwardToActiveTab(
+          request,
+          'media.get-state',
+          payload.data,
+          mediaPageStateSchema,
+          context,
+          signal
+        )
+      }
+      case 'media.execute': {
+        const payload = mediaExecutePayloadSchema.safeParse(request.payload)
+        if (!payload.success) return this.invalidPayload(request, context)
+        return this.forwardToActiveTab(
+          request,
+          'media.execute',
+          payload.data,
+          mediaCommandResultResponseSchema,
+          context,
+          signal
+        )
+      }
       case 'protocol.cancel':
         return createRuntimeSuccess(
           request,
@@ -248,6 +312,104 @@ export class BackgroundRuntime {
           context
         )
     }
+  }
+
+  private async forwardToActiveTab<T>(
+    request: RuntimeRequestEnvelope,
+    type: TabRequestType,
+    payload: unknown,
+    parser: SafeParser<T>,
+    context: EnvelopeContext,
+    signal: AbortSignal
+  ): Promise<unknown> {
+    let activeTab: Awaited<ReturnType<TabsPort['getActive']>>
+    try {
+      activeTab = await this.options.tabs.getActive()
+    } catch {
+      return createRuntimeError(
+        request,
+        'TARGET_UNAVAILABLE',
+        'media.error.active-tab-unavailable',
+        true,
+        context
+      )
+    }
+    if (!activeTab) {
+      return createRuntimeError(
+        request,
+        'TARGET_UNAVAILABLE',
+        'media.error.no-active-tab',
+        false,
+        context
+      )
+    }
+    if (signal.aborted) {
+      return createRuntimeError(
+        request,
+        'REQUEST_CANCELLED',
+        'protocol.error.request-cancelled',
+        false,
+        context
+      )
+    }
+
+    const tabRequest = createTabRequest(type, payload)
+    let rawResponse: unknown
+    try {
+      rawResponse = await this.options.tabs.send(activeTab.id, tabRequest, 0)
+    } catch {
+      return createRuntimeError(
+        request,
+        'TARGET_UNAVAILABLE',
+        'media.error.content-unavailable',
+        true,
+        context
+      )
+    }
+    if (signal.aborted) {
+      return createRuntimeError(
+        request,
+        'REQUEST_CANCELLED',
+        'protocol.error.request-cancelled',
+        false,
+        context
+      )
+    }
+
+    const tabResponse = parseTabResponse(rawResponse)
+    if (
+      !tabResponse ||
+      tabResponse.requestId !== tabRequest.requestId ||
+      tabResponse.payload.requestType !== tabRequest.type
+    ) {
+      return createRuntimeError(
+        request,
+        'INTERNAL_ERROR',
+        'media.error.invalid-content-response',
+        false,
+        context
+      )
+    }
+    if (tabResponse.type === 'protocol.error') {
+      return createRuntimeError(
+        request,
+        mapTabTransportError(tabResponse.payload.error.code),
+        tabResponse.payload.error.messageKey,
+        tabResponse.payload.error.retryable,
+        context
+      )
+    }
+
+    const parsed = parser.safeParse(tabResponse.payload.data)
+    return parsed.success
+      ? createRuntimeSuccess(request, parsed.data, context)
+      : createRuntimeError(
+          request,
+          'INTERNAL_ERROR',
+          'media.error.invalid-content-payload',
+          false,
+          context
+        )
   }
 
   private cancelRequest(

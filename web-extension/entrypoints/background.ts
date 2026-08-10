@@ -1,6 +1,6 @@
 import { browser } from 'wxt/browser'
 import { SettingsService } from '../src/application/settings/settings-service'
-import { WxtStoragePort } from '../src/infrastructure/browser/wxt-browser-ports'
+import { WxtStoragePort, WxtTabsPort } from '../src/infrastructure/browser/wxt-browser-ports'
 import { StructuredLogger } from '../src/infrastructure/logging/structured-logger'
 import { ReplayGuard } from '../src/infrastructure/messaging/replay-guard'
 import { SettingsRepository } from '../src/infrastructure/storage/settings-repository'
@@ -27,7 +27,8 @@ export default defineBackground(() => {
     extensionVersion: browser.runtime.getManifest().version,
     settings: new SettingsService(repository),
     replayGuard: new ReplayGuard(systemClock),
-    logger
+    logger,
+    tabs: new WxtTabsPort()
   })
 
   void runtime.initialize()

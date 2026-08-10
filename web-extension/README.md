@@ -11,7 +11,7 @@
 - WXT 0.21.3 + Vite 8.2.1
 - TypeScript 5.9.3 strict（TypeScript 7 暂不满足 typescript-eslint 兼容范围）
 - Vue 3.5.41
-- Vitest 4.1.10 + Playwright 1.62.1
+- Vitest 4.1.10 + Playwright 1.62.1 + Selenium WebDriver 4.46.0
 - ESLint 10.8.1 + typescript-eslint 8.66.0
 - Zod Mini 4.4.3，用于运行时边界校验且避免标准构建中的 Function/JIT 路径
 
@@ -27,16 +27,19 @@ corepack pnpm@11.21.0 test:security
 corepack pnpm@11.21.0 build:all
 corepack pnpm@11.21.0 test:e2e
 corepack pnpm@11.21.0 test:e2e:firefox
+corepack pnpm@11.21.0 test:churn:smoke
+corepack pnpm@11.21.0 test:churn
 corepack pnpm@11.21.0 test:legacy
 ```
 
 Chrome 与 Firefox 均构建 Manifest V3。Chromium E2E 加载真实打包扩展并实际终止 service
-worker，验证设置恢复；Firefox 当前通过 MV3 构建和 `web-ext lint`。Phase 1 证据与已知项见
-`../project/09-reviews/phase-1-exit-review-2026-08-10.md`。
+worker，验证媒体生命周期、设置恢复和长稳态；Firefox E2E 使用 Selenium Manager 与 Firefox
+153 临时安装真实 MV3 包，覆盖核心媒体命令。Phase 2 证据与已知项见
+`../project/09-reviews/phase-2-exit-review-2026-08-10.md`。
 
 当前 required permission 只有 `storage`，`<all_urls>` 仅为 optional host permission 且不会静默
-请求。静态 content script 和 `page-main.js` 暂时只匹配 localhost fixture；真实站点授权/注册完成前
-本工程仍是 Preview。
+请求。isolated content 与声明式 MAIN world content script 暂时只匹配 localhost fixture；page-main
+不使用 WAR 或运行时脚本注入。真实站点授权/注册完成前本工程仍是 Preview。
 
 ## 目录边界
 
@@ -48,6 +51,6 @@ worker，验证设置恢复；Firefox 当前通过 MV3 构建和 `web-ext lint`�
 - `src/shared/`：协议基础、ID、Result 等无副作用工具。
 - `src/ui/`：Vue 展示组件。
 - `tests/`：unit、component、integration、security、compatibility、E2E 和固定页面。
-- `scripts/`：安全扫描与 Legacy 构建回归。
+- `scripts/`：安全扫描、Firefox 真扩展 E2E 与 Legacy 构建回归。
 - 旧 `background.js`、`content.js`、`inject.*`、`manifest.json`、`popup.*`：Legacy prototype，
   只供旧 `build:inject` 使用；新代码不得导入。

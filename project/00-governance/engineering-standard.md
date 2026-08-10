@@ -29,18 +29,18 @@ Phase 0 已决定采用嵌套独立 package/lockfile：
 
 以下为 ADR-0004 已接受基线：
 
-| 领域 | 推荐 | 说明 |
-| --- | --- | --- |
-| 扩展框架/构建 | WXT（Vite-based）或等价薄封装 | manifest profile、多入口、Chrome/Firefox 开发与打包 |
-| 语言 | TypeScript strict | 新业务代码强制；避免先 JS 后补类型 |
-| UI | Vue 3 Composition API | 复用团队经验；只存在于 presentation 层 |
-| Runtime Schema | Zod 或等价库 | 消息、配置、导入、环境变量 |
-| Unit/Integration | Vitest | 与 Vite/TS 一致，支持 fake timers/coverage |
-| Component | Testing Library + axe | 以用户行为和可访问性测试 |
-| E2E | Playwright | 加载真实扩展与 fixture 页面 |
-| Static | ESLint flat config + typescript-eslint + Prettier | 代码质量、import/安全规则 |
-| Release | GitHub Actions + release-please/Changesets 二选一 | 单一版本源、可审查发布 PR |
-| Supply chain | audit + license check + SBOM | 进入 RC 门禁 |
+| 领域             | 推荐                                              | 说明                                                |
+| ---------------- | ------------------------------------------------- | --------------------------------------------------- |
+| 扩展框架/构建    | WXT（Vite-based）或等价薄封装                     | manifest profile、多入口、Chrome/Firefox 开发与打包 |
+| 语言             | TypeScript strict                                 | 新业务代码强制；避免先 JS 后补类型                  |
+| UI               | Vue 3 Composition API                             | 复用团队经验；只存在于 presentation 层              |
+| Runtime Schema   | Zod 或等价库                                      | 消息、配置、导入、环境变量                          |
+| Unit/Integration | Vitest                                            | 与 Vite/TS 一致，支持 fake timers/coverage          |
+| Component        | Testing Library + axe                             | 以用户行为和可访问性测试                            |
+| E2E              | Playwright                                        | 加载真实扩展与 fixture 页面                         |
+| Static           | ESLint flat config + typescript-eslint + Prettier | 代码质量、import/安全规则                           |
+| Release          | GitHub Actions + release-please/Changesets 二选一 | 单一版本源、可审查发布 PR                           |
+| Supply chain     | audit + license check + SBOM                      | 进入 RC 门禁                                        |
 
 不用框架生成器的内部全局状态作为领域状态；不用大型状态库解决简单 popup/options 状态。只有出现多页面共享复杂 client state 时，才以 ADR 引入 Pinia 等依赖。
 
@@ -63,7 +63,7 @@ test:unit           领域与应用单测
 test:component      UI 组件测试
 test:integration    runtime/port 集成测试
 test:e2e            Chrome 扩展 E2E
-test:e2e:firefox    Firefox 扩展 E2E/受支持 smoke
+test:e2e:firefox    Firefox build + web-ext lint + Selenium 真扩展 core E2E
 test:coverage       覆盖率报告
 test:security       禁止模式、消息与 manifest 安全检查
 test:compat         浏览器/页面/adapter 矩阵

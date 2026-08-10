@@ -57,7 +57,7 @@
 - 多 Tab 订阅、并发更新、worker 重启模拟。
 - media discovery、adapter setup/teardown 和 command execution。
 
-### 2.5 扩展 E2E（Playwright）
+### 2.5 扩展 E2E（Playwright / Selenium WebDriver）
 
 必须加载构建后的 unpacked extension，覆盖：
 
@@ -69,6 +69,13 @@
 - options 保存、导入、导出、恢复和错误回滚。
 - service worker 休眠/重启后恢复。
 - Chrome 与 Firefox 最低支持版本/当前稳定版本 smoke。
+
+执行约定：
+
+- Chromium 使用 Playwright persistent context 加载 unpacked MV3，并通过 CDP 验证 service worker restart、listener 和 heap。
+- Firefox 使用 Selenium WebDriver 临时安装 `.output/firefox-mv3`；Selenium Manager 解析 geckodriver，禁止在 pnpm 依赖安装阶段执行驱动下载脚本。
+- Firefox popup 测试不申请 `tabs`/`activeTab`；测试夹具保持目标网页为 active tab，再从后台 popup context 发出真实 runtime 请求。
+- 浏览器版本、扩展 ID、命令集合和聚合指标必须输出为机器可读事件，供阶段审查和 CI artifact 引用。
 
 ### 2.6 兼容性与差分测试
 
@@ -97,17 +104,17 @@
 
 `web-extension/tests/e2e/pages/` 至少维护：
 
-| 页面 | 验证内容 |
-| --- | --- |
-| `basic.html` | 单 video、常见属性和命令 |
-| `multi.html` | 多 video、active player 选择 |
-| `spa.html` | 路由切换、动态插入/销毁 |
-| `shadow-open.html` | open Shadow DOM |
-| `iframe-same-origin.html` | 同源 frame |
-| `iframe-cross-origin.html` | 跨源 frame 与权限降级 |
-| `hostile-page.html` | 重写属性、伪造消息、异常 DOM |
-| `strict-csp.html` | 严格 CSP/Trusted Types |
-| `adapter-fixtures/*` | 站点选择器和特例 |
+| 页面                       | 验证内容                     |
+| -------------------------- | ---------------------------- |
+| `basic.html`               | 单 video、常见属性和命令     |
+| `multi.html`               | 多 video、active player 选择 |
+| `spa.html`                 | 路由切换、动态插入/销毁      |
+| `shadow-open.html`         | open Shadow DOM              |
+| `iframe-same-origin.html`  | 同源 frame                   |
+| `iframe-cross-origin.html` | 跨源 frame 与权限降级        |
+| `hostile-page.html`        | 重写属性、伪造消息、异常 DOM |
+| `strict-csp.html`          | 严格 CSP/Trusted Types       |
+| `adapter-fixtures/*`       | 站点选择器和特例             |
 
 ## 4. 测试数据与隔离
 
@@ -126,4 +133,3 @@
 ## 6. 测试缺口处理
 
 暂时无法自动化的真实站点/浏览器能力必须登记：场景、手工步骤、风险、owner、替代 fixture 和补齐里程碑。没有记录的手工“已验证”不计入 Stable 证据。
-

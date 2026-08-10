@@ -17,7 +17,7 @@ describe('runtime API client', () => {
           return Promise.resolve(
             createRuntimeSuccess(request, {
               extensionVersion: '0.1.0',
-              phase: 1,
+              phase: 2,
               protocol: 1,
               settingsSchemaVersion: 1
             })
@@ -42,7 +42,7 @@ describe('runtime API client', () => {
       new RuntimeRequestClient('options', transport, systemScheduler)
     )
 
-    await expect(api.ping()).resolves.toMatchObject({ phase: 1 })
+    await expect(api.ping()).resolves.toMatchObject({ phase: 2 })
     await expect(api.getSettings()).resolves.toMatchObject({ settings: { revision: 4 } })
     await expect(api.updateSettings({ global: { enabled: false } }, 4)).resolves.toMatchObject({
       changedPaths: ['global.enabled']

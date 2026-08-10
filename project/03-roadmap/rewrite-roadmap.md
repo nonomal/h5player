@@ -66,6 +66,7 @@ Phase 0 基线与脚手架
 - play/pause、seek、rate、volume/mute。
 - 通用 adapter、命令注册表、快捷键只读默认映射。
 - 当前页面连接状态和最小 popup 控制。
+- Chrome 与 Firefox 的真实扩展 core smoke；Firefox 驱动由 Selenium Manager 在测试运行时治理。
 
 退出条件：
 
@@ -73,6 +74,9 @@ Phase 0 基线与脚手架
 - 30 分钟 churn 测试无 listener/session 单调增长。
 - 与 Legacy 的核心命令差分用例通过或差异已批准。
 - Chrome/Firefox 核心 E2E 全绿。
+
+Phase 2 的 Firefox 证据以当前自动化 Firefox 153.0 为基线；Firefox 最低版本 `142.0` 与 ESR
+权限矩阵仍需在 Stable 前按兼容矩阵补齐，不得把单一版本结果扩写为全版本承诺。
 
 ## Phase 3：配置、快捷键与原生扩展 UI
 
@@ -167,4 +171,3 @@ Phase 0 基线与脚手架
 - 一个阶段可提前实现后续 spike，但不能宣告后续功能完成。
 - 每个阶段结束都必须在 `09-reviews/` 新增评审记录，并更新 backlog、progress、矩阵和风险。
 - 若连续两个里程碑质量门禁未过，暂停新增功能，优先偿还架构和测试债。
-

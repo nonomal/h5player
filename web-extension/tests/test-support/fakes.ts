@@ -3,6 +3,7 @@ import type {
   ClockPort,
   RuntimeTransportPort,
   StorageChange,
+  TabsPort,
   Teardown
 } from '../../src/application/ports/browser'
 import type { LoggerPort, LogRecord } from '../../src/application/ports/logging'
@@ -90,5 +91,23 @@ export class FakeTransport implements RuntimeTransportPort {
   reconnect(): Promise<void> {
     this.reconnectCount += 1
     return Promise.resolve()
+  }
+}
+
+export class FakeTabsPort implements TabsPort {
+  activeTab: { id: number; url?: string } | null = { id: 1, url: 'https://example.com/' }
+  readonly sent: Array<{ tabId: number; message: unknown; frameId?: number }> = []
+  handler: (message: unknown, tabId: number, frameId?: number) => Promise<unknown> = () =>
+    Promise.resolve(null)
+
+  getActive(): Promise<{ id: number; url?: string } | null> {
+    return Promise.resolve(this.activeTab)
+  }
+
+  send(tabId: number, message: unknown, frameId?: number): Promise<unknown> {
+    const sent: { tabId: number; message: unknown; frameId?: number } = { tabId, message }
+    if (frameId !== undefined) sent.frameId = frameId
+    this.sent.push(sent)
+    return this.handler(message, tabId, frameId)
   }
 }

@@ -9,12 +9,6 @@ export default defineConfig({
     description: 'H5Player 的独立 Manifest V3 Web Extension 预览版',
     permissions: ['storage'],
     optional_host_permissions: ['<all_urls>'],
-    web_accessible_resources: [
-      {
-        resources: ['page-main.js'],
-        matches: ['http://localhost/*', 'http://127.0.0.1/*']
-      }
-    ],
     action: {
       default_title: 'H5Player'
     },

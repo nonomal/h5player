@@ -17,7 +17,14 @@ export type AuthorizedSender = {
 
 const allowedRequestTypes = {
   content: new Set(['protocol.cancel', 'system.ping', 'settings.get']),
-  popup: new Set(['protocol.cancel', 'system.ping', 'settings.get', 'settings.update']),
+  popup: new Set([
+    'protocol.cancel',
+    'system.ping',
+    'settings.get',
+    'settings.update',
+    'media.get-state',
+    'media.execute'
+  ]),
   options: new Set([
     'protocol.cancel',
     'system.ping',

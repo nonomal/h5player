@@ -16,7 +16,9 @@ export const runtimeRequestTypeSchema = z.enum([
   'settings.update',
   'settings.export',
   'settings.import',
-  'settings.restore-backup'
+  'settings.restore-backup',
+  'media.get-state',
+  'media.execute'
 ])
 
 export const runtimeClientSourceSchema = z.enum(['content', 'popup', 'options'])
@@ -36,6 +38,7 @@ export const protocolErrorCodeSchema = z.enum([
   'IMPORT_INVALID',
   'FUTURE_SCHEMA',
   'PERMISSION_DENIED',
+  'TARGET_UNAVAILABLE',
   'INTERNAL_ERROR'
 ])
 

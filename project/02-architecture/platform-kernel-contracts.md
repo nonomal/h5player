@@ -16,16 +16,16 @@
 
 ```ts
 type RuntimeRequestEnvelope = {
-  protocol: 1
-  type: RuntimeRequestType
-  requestId: string
-  source: 'content' | 'popup' | 'options'
-  tabId?: number
-  frameId?: number
-  sessionId?: string
-  nonce?: string
-  payload: unknown
-}
+  protocol: 1;
+  type: RuntimeRequestType;
+  requestId: string;
+  source: "content" | "popup" | "options";
+  tabId?: number;
+  frameId?: number;
+  sessionId?: string;
+  nonce?: string;
+  payload: unknown;
+};
 ```
 
 `requestId` 至少 16 字符；外部输入先由严格 Envelope Schema 解析，再由每个 `type` 的 payload Schema 解析。响应统一为 `protocol.response` 或 `protocol.error`，错误只暴露固定 code、message key 和 retryable，不传 Error、stack、URL 或原始数据。
@@ -34,11 +34,11 @@ Phase 1 注册的请求：`system.ping`、`settings.get/update/export/import/res
 
 ## 3. Sender 与能力矩阵
 
-| Source | 真实 sender 要求 | 允许请求 |
-| --- | --- | --- |
-| content | `sender.id` 为当前扩展；真实 tab/frame 存在；request 有 sessionId | ping、settings.get、取消自身请求 |
-| popup | 当前扩展的 `/popup.html`；可位于浏览器 popup 或测试 Tab | ping、settings.get/update、取消自身请求 |
-| options | 当前扩展的 `/options.html` | 全部 settings 管理操作和取消自身请求 |
+| Source  | 真实 sender 要求                                                  | 允许请求                                |
+| ------- | ----------------------------------------------------------------- | --------------------------------------- |
+| content | `sender.id` 为当前扩展；真实 tab/frame 存在；request 有 sessionId | ping、settings.get、取消自身请求        |
+| popup   | 当前扩展的 `/popup.html`；可位于浏览器 popup 或测试 Tab           | ping、settings.get/update、取消自身请求 |
+| options | 当前扩展的 `/options.html`                                        | 全部 settings 管理操作和取消自身请求    |
 
 background 不信任 request 自报的 tab/frame；若携带，必须与真实 sender 一致。Popup/Options 不得携带 tab/frame/session/nonce。重放键包含 source、真实 sender context、session 和 requestId，默认保存 5 分钟并有容量上限。
 
@@ -46,8 +46,8 @@ background 不信任 request 自报的 tab/frame；若携带，必须与真实 s
 
 ## 4. 页面桥握手
 
-1. isolated content 生成 session ID 和 256-bit 随机 nonce，先注册 listener，再注入打包内 `page-main.js`。
-2. content 发送 `bridge.init`；page-main 绑定首个 session 并返回同 requestId 的 `bridge.ready`。
+1. isolated content 与声明式 MAIN world 入口均在 `document_start`、`allFrames` 启动；content 生成 session ID 和 256-bit 随机 nonce，先注册 listener。
+2. content 发送 `bridge.init`；page-main 绑定首个 session 并返回同 requestId 的 `bridge.ready`。生产入口不调用运行时 `injectScript()`，也不依赖 WAR。
 3. content 校验 `event.source === window`、精确 origin、协议、source、session、nonce、requestId/replay 后才建立连接。
 4. frame 失效或 content teardown 时发送 `bridge.dispose` 并移除 listener。
 

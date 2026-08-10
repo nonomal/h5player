@@ -8,14 +8,14 @@
 
 ## 1. 信任边界
 
-| 边界 | 不可信输入 | 允许能力 | 必须控制 |
-| --- | --- | --- | --- |
-| 网页 → MAIN | 页面脚本、DOM 属性、URL、postMessage | 媒体/DOM 受控操作 | nonce、来源、Schema、生命周期 |
-| MAIN → content | 页面运行时快照/请求 | bridge 白名单 | requestId、frame/session、超时 |
-| content → background | 页面状态、用户操作 | 最小扩展能力 | sender tab/frame、权限、payload 校验 |
-| popup/options → background | 用户表单、导入文件 | 设置/诊断/当前 Tab | Schema、CSRF-like request context、大小限制 |
-| background → 外部网络 | 固定 API（若未来批准） | 只读且最小字段 | allowlist、HTTPS、超时、响应 Schema |
-| 构建链 → 产物 | npm 包、配置、资源 | 编译/打包 | lockfile、审计、来源和 hash |
+| 边界                       | 不可信输入                           | 允许能力           | 必须控制                                    |
+| -------------------------- | ------------------------------------ | ------------------ | ------------------------------------------- |
+| 网页 → MAIN                | 页面脚本、DOM 属性、URL、postMessage | 媒体/DOM 受控操作  | nonce、来源、Schema、生命周期               |
+| MAIN → content             | 页面运行时快照/请求                  | bridge 白名单      | requestId、frame/session、超时              |
+| content → background       | 页面状态、用户操作                   | 最小扩展能力       | sender tab/frame、权限、payload 校验        |
+| popup/options → background | 用户表单、导入文件                   | 设置/诊断/当前 Tab | Schema、CSRF-like request context、大小限制 |
+| background → 外部网络      | 固定 API（若未来批准）               | 只读且最小字段     | allowlist、HTTPS、超时、响应 Schema         |
+| 构建链 → 产物              | npm 包、配置、资源                   | 编译/打包          | lockfile、审计、来源和 hash                 |
 
 ## 2. 当前高风险基线（必须消除）
 
@@ -58,7 +58,7 @@ Phase 1 补充：MAIN world 与页面脚本共享 realm，nonce 不能替代 cap
 
 - 新 UI 采用安全 DOM API/框架模板，禁止把不可信内容拼入 `innerHTML`。
 - 页面样式使用 Shadow DOM、CSS module 或严格前缀；不修改站点 CSP。
-- MAIN world 只加载打包内的静态资源；不使用远程 script、Data URI script、`eval`、`new Function`。
+- MAIN world 只通过 manifest 声明的打包内 content script 在 `document_start` 加载；不使用 WAR 动态注入、远程 script、Data URI script、`eval`、`new Function`。
 - 对 `document`, `window`, `Object`, `HTMLMediaElement` 等可能被站点改写的对象保存受控引用，并有 hostile fixture 验证。
 - Hook 必须有 teardown；页面导航和 frame unload 后不能保留引用。
 
@@ -81,16 +81,16 @@ Phase 1 补充：MAIN world 与页面脚本共享 realm，nonce 不能替代 cap
 
 ## 8. 威胁模型用例
 
-| 威胁 | 影响 | 防护 | 验证 |
-| --- | --- | --- | --- |
-| 页面伪造 setValue 消息 | 篡改配置 | nonce + typed bridge + sender check | security E2E |
-| 恶意页面触发下载 | 本地文件滥用 | 不把页面消息映射到 downloads；用户命令 + allowlist | adversarial test |
-| XSS 进入 popup/options | 扩展权限窃取 | 安全渲染、CSP、Schema、无 innerHTML | static + E2E |
-| CSP 绕过导致任意脚本 | 页面/扩展被利用 | 删除改写规则和动态执行 | forbidden scan |
-| worker 重启丢配置 | 数据损失 | storage authority + backup/migration | restart test |
-| 依赖供应链投毒 | 全量用户影响 | lockfile、审计、SBOM、review | release gate |
-| 诊断包泄露 URL/内容 | 隐私泄露 | 默认脱敏、预览、用户确认 | redaction test |
-| 站点 Hook 被污染 | 功能/安全异常 | 原始引用、能力隔离、teardown | hostile fixture |
+| 威胁                   | 影响            | 防护                                               | 验证             |
+| ---------------------- | --------------- | -------------------------------------------------- | ---------------- |
+| 页面伪造 setValue 消息 | 篡改配置        | nonce + typed bridge + sender check                | security E2E     |
+| 恶意页面触发下载       | 本地文件滥用    | 不把页面消息映射到 downloads；用户命令 + allowlist | adversarial test |
+| XSS 进入 popup/options | 扩展权限窃取    | 安全渲染、CSP、Schema、无 innerHTML                | static + E2E     |
+| CSP 绕过导致任意脚本   | 页面/扩展被利用 | 删除改写规则和动态执行                             | forbidden scan   |
+| worker 重启丢配置      | 数据损失        | storage authority + backup/migration               | restart test     |
+| 依赖供应链投毒         | 全量用户影响    | lockfile、审计、SBOM、review                       | release gate     |
+| 诊断包泄露 URL/内容    | 隐私泄露        | 默认脱敏、预览、用户确认                           | redaction test   |
+| 站点 Hook 被污染       | 功能/安全异常   | 原始引用、能力隔离、teardown                       | hostile fixture  |
 
 ## 9. 安全发布门槛
 

@@ -1,4 +1,6 @@
 import type { RuntimeApiPort } from '../../application/runtime/runtime-api-port'
+import { mediaCommandResultResponseSchema, mediaPageStateSchema } from '../../application/media'
+import type { MediaCommand } from '../../domain/command'
 import {
   settingsExportResponseSchema,
   settingsMutationResponseSchema,
@@ -13,6 +15,19 @@ export class RuntimeApiClient implements RuntimeApiPort {
 
   ping(options: { signal?: AbortSignal } = {}) {
     return this.client.request('system.ping', {}, systemPingResponseSchema, options)
+  }
+
+  getMediaState(options: { signal?: AbortSignal } = {}) {
+    return this.client.request('media.get-state', {}, mediaPageStateSchema, options)
+  }
+
+  executeMediaCommand(command: MediaCommand, options: { signal?: AbortSignal } = {}) {
+    return this.client.request(
+      'media.execute',
+      { command },
+      mediaCommandResultResponseSchema,
+      options
+    )
   }
 
   getSettings(options: { signal?: AbortSignal } = {}) {

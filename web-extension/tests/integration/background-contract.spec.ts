@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { SettingsService } from '../../src/application/settings/settings-service'
+import { mediaCommandResultResponseSchema, mediaPageStateSchema } from '../../src/application/media'
 import {
   settingsExportResponseSchema,
   settingsSnapshotResponseSchema
@@ -12,22 +13,26 @@ import {
   parseRuntimeResponse,
   type RuntimeRequestEnvelope
 } from '../../src/shared/protocol'
-import { FakeClock, FakeLogger, FakeStoragePort } from '../test-support/fakes'
+import { createTabSuccess, parseTabRequest } from '../../src/shared/tab-protocol'
+import { FakeClock, FakeLogger, FakeStoragePort, FakeTabsPort } from '../test-support/fakes'
 
 function createRuntime() {
   const clock = new FakeClock()
   const logger = new FakeLogger()
   const repository = new SettingsRepository(new FakeStoragePort(), clock, logger)
+  const tabs = new FakeTabsPort()
   return {
     runtime: new BackgroundRuntime({
       extensionId: 'extension-id',
       extensionVersion: '0.1.0',
       settings: new SettingsService(repository),
       replayGuard: new ReplayGuard(clock),
-      logger
+      logger,
+      tabs
     }),
     repository,
-    logger
+    logger,
+    tabs
   }
 }
 
@@ -47,7 +52,7 @@ describe('background runtime contract boundary', () => {
     const settings = await handle(createRuntimeRequest('popup', 'settings.get', {}))
 
     expect(ping?.type).toBe('protocol.response')
-    if (ping?.type === 'protocol.response') expect(ping.payload.data).toMatchObject({ phase: 1 })
+    if (ping?.type === 'protocol.response') expect(ping.payload.data).toMatchObject({ phase: 2 })
     expect(settings?.type).toBe('protocol.response')
   })
 
@@ -199,7 +204,8 @@ describe('background runtime contract boundary', () => {
       extensionVersion: '0.1.0',
       settings: new SettingsService(repository),
       replayGuard: new ReplayGuard(clock),
-      logger
+      logger,
+      tabs: new FakeTabsPort()
     })
     await runtime.initialize()
     expect(
@@ -247,5 +253,117 @@ describe('background runtime contract boundary', () => {
       })
     )
     expect(mismatch?.type).toBe('protocol.error')
+  })
+
+  it('forwards typed media state and commands to the active top frame', async () => {
+    const { runtime, tabs } = createRuntime()
+    const state = mediaPageStateSchema.parse({
+      frameId: 0,
+      revision: 1,
+      activeMediaId: 'media-0-1',
+      observedAt: 1,
+      media: [
+        {
+          id: 'media-0-1',
+          frameId: 0,
+          kind: 'video',
+          state: 'paused',
+          metrics: {
+            width: 640,
+            height: 360,
+            duration: 100,
+            currentTime: 10,
+            volume: 0.5,
+            playbackRate: 1,
+            muted: false,
+            visible: true
+          },
+          capabilities: {
+            playback: true,
+            seek: true,
+            playbackRate: true,
+            volume: true,
+            mute: true,
+            fullscreen: false,
+            pictureInPicture: false,
+            capture: false,
+            downloadExperimental: false
+          },
+          adapterId: 'generic',
+          updatedAt: 1
+        }
+      ]
+    })
+    const active = state.media[0]
+    if (!active) throw new Error('active fixture missing')
+    tabs.handler = (raw) => {
+      const request = parseTabRequest(raw)
+      if (!request) throw new Error('invalid tab request')
+      if (request.type === 'media.get-state') {
+        return Promise.resolve(createTabSuccess(request, state))
+      }
+      return Promise.resolve(
+        createTabSuccess(
+          request,
+          mediaCommandResultResponseSchema.parse({
+            result: {
+              ok: true,
+              value: {
+                commandType: 'media.set-volume',
+                mediaId: 'media-0-1',
+                changed: true,
+                snapshot: {
+                  ...active,
+                  metrics: { ...active.metrics, volume: 0.8 }
+                }
+              }
+            },
+            state
+          })
+        )
+      )
+    }
+
+    const sender = { id: 'extension-id', url: 'chrome-extension://extension-id/popup.html' }
+    const stateResponse = parseRuntimeResponse(
+      await runtime.handle(createRuntimeRequest('popup', 'media.get-state', {}), sender)
+    )
+    const commandResponse = parseRuntimeResponse(
+      await runtime.handle(
+        createRuntimeRequest('popup', 'media.execute', {
+          command: { type: 'media.set-volume', mediaId: 'media-0-1', value: 0.8 }
+        }),
+        sender
+      )
+    )
+
+    expect(stateResponse?.type).toBe('protocol.response')
+    expect(commandResponse?.type).toBe('protocol.response')
+    expect(tabs.sent).toHaveLength(2)
+    expect(tabs.sent.every((message) => message.frameId === 0)).toBe(true)
+  })
+
+  it('reports an unavailable active page without trusting a popup tab claim', async () => {
+    const { runtime, tabs } = createRuntime()
+    tabs.activeTab = null
+    const sender = { id: 'extension-id', url: 'chrome-extension://extension-id/popup.html' }
+    const unavailable = parseRuntimeResponse(
+      await runtime.handle(createRuntimeRequest('popup', 'media.get-state', {}), sender)
+    )
+    const claimed = parseRuntimeResponse(
+      await runtime.handle(
+        createRuntimeRequest('popup', 'media.get-state', {}, { tabId: 99 }),
+        sender
+      )
+    )
+
+    expect(unavailable?.type).toBe('protocol.error')
+    if (unavailable?.type === 'protocol.error') {
+      expect(unavailable.payload.error.code).toBe('TARGET_UNAVAILABLE')
+    }
+    expect(claimed?.type).toBe('protocol.error')
+    if (claimed?.type === 'protocol.error') {
+      expect(claimed.payload.error.code).toBe('UNAUTHORIZED_SOURCE')
+    }
   })
 })
