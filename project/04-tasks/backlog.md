@@ -12,18 +12,18 @@
 
 | ID | 任务 | 优先级 | 估算 | 依赖 | 验收摘要 | 状态 |
 | --- | --- | --- | --- | --- | --- | --- |
-| EXT-001 | 建立 `web-extension/src`、多入口和 profile 配置 | P0 | L | — | Chrome/Firefox dev 包可加载 | Proposed |
-| EXT-002 | TypeScript strict、路径别名、声明输出 | P0 | M | EXT-001 | typecheck 通过，无业务 JS 新增 | Proposed |
-| EXT-003 | ESLint/Prettier/依赖边界/循环依赖检查 | P0 | M | EXT-002 | CI 命令可执行并有失败样例 | Proposed |
-| EXT-004 | Vitest 基础配置与测试工具箱 | P0 | M | EXT-002 | unit 命令与覆盖率报告可生成 | Proposed |
-| EXT-005 | Playwright 扩展加载 smoke | P0 | L | EXT-001 | Chrome 真包可安装并打开 popup | Proposed |
-| EXT-006 | Firefox 扩展加载 spike | P0 | M | EXT-001 | 记录可行性/阻塞和替代方案 | Proposed |
-| EXT-007 | 固定测试页 basic/multi-player | P0 | M | EXT-005 | 页面可稳定复现媒体元素 | Proposed |
-| EXT-008 | 固定测试页 SPA/Shadow/iframe | P0 | L | EXT-007 | 生命周期场景可自动驱动 | Proposed |
-| EXT-009 | Legacy 行为快照与允许差异清单 | P0 | L | EXT-007 | 核心命令快照可重放 | Proposed |
-| EXT-010 | 新旧构建互不影响的 CI job | P0 | M | EXT-001 | Legacy build 与新 build 同时绿 | Proposed |
-| EXT-011 | 版本、产物目录和 source map 规范 | P0 | S | EXT-001 | 产物命名和 metadata 固定 | Proposed |
-| EXT-012 | Phase 0 基线审查 | P0 | M | EXT-001..011 | 评审记录 Approved | Proposed |
+| EXT-001 | 建立 `web-extension/src`、多入口和 profile 配置 | P0 | L | — | Chrome/Firefox dev 包可加载 | Verified |
+| EXT-002 | TypeScript strict、路径别名、声明输出 | P0 | M | EXT-001 | typecheck 通过，无业务 JS 新增 | Verified |
+| EXT-003 | ESLint/Prettier/依赖边界/循环依赖检查 | P0 | M | EXT-002 | CI 命令可执行并有失败样例 | Verified |
+| EXT-004 | Vitest 基础配置与测试工具箱 | P0 | M | EXT-002 | unit 命令与覆盖率报告可生成 | Verified |
+| EXT-005 | Playwright 扩展加载 smoke | P0 | L | EXT-001 | Chrome 真包可安装并打开 popup | Verified |
+| EXT-006 | Firefox 扩展加载 spike | P0 | M | EXT-001 | 记录可行性/阻塞和替代方案 | Verified |
+| EXT-007 | 固定测试页 basic/multi-player | P0 | M | EXT-005 | 页面可稳定复现媒体元素 | Verified |
+| EXT-008 | 固定测试页 SPA/Shadow/iframe | P0 | L | EXT-007 | 生命周期场景可自动驱动 | Verified |
+| EXT-009 | Legacy 行为快照与允许差异清单 | P0 | L | EXT-007 | 核心命令快照可重放 | Verified |
+| EXT-010 | 新旧构建互不影响的 CI job | P0 | M | EXT-001 | Legacy build 与新 build 同时绿 | Verified |
+| EXT-011 | 版本、产物目录和 source map 规范 | P0 | S | EXT-001 | 产物命名和 metadata 固定 | Verified |
+| EXT-012 | Phase 0 基线审查 | P0 | M | EXT-001..011 | 评审记录 Approved | Verified |
 
 ## EPIC-01：消息、存储与安全基础（Phase 1）
 
@@ -123,4 +123,3 @@
 | EXT-142 | 声明式自定义规则 Schema | P2 | L | EXT-126 | 不执行任意代码 | Proposed |
 | EXT-143 | 共享核心成本收益评估 | P2 | M | EXT-127 | 数据化 ADR | Proposed |
 | EXT-144 | 油猴脚本后续项目决策 | P2 | S | EXT-143 | 新章程或明确关闭 | Proposed |
-

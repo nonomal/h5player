@@ -1,7 +1,7 @@
 # Web Extension 工程开发规范
 
 > 文档 ID：GOV-004  
-> 状态：Approved as Planning Baseline  
+> 状态：Approved  
 > 负责人：Engineering Owner  
 > 最后更新：2026-08-10  
 > 关联：ADR-0004、QA-001、QA-002
@@ -17,11 +17,17 @@ project                          # 项目治理文档
 docs                             # 面向用户/现有工程说明
 ```
 
-Phase 0 对“Yarn workspace + 单 lockfile”与“web-extension 独立 package”做最小 spike。推荐单仓 workspace、扩展独立 package 边界，因为便于统一锁文件与 CI；前提是 `yarn build` 的 Legacy 行为和依赖解析不发生改变。若无法证明隔离性，则使用嵌套独立 package/lockfile。
+Phase 0 已决定采用嵌套独立 package/lockfile：
+
+- 根目录继续使用 Yarn 3.7.0、现有 `package.json`/`yarn.lock` 和 Rollup 配置，命令及依赖解析语义保持不变。
+- `web-extension/` 使用 Node 24.13.x、pnpm 11.21.0、独立 `package.json`、`pnpm-lock.yaml`、`pnpm-workspace.yaml` 和 `.npmrc`。
+- 两套 package 不互相声明 workspace，不提升、复用或改写对方依赖；CI 分别执行 immutable/frozen install。
+- 新扩展 PR 不得顺带修改 `src/h5player/`、`src/libs/`、`config/rollup*` 或 Legacy 产物。确需修改时必须建立独立 Legacy 任务、评审和回归基线。
+- Legacy 保护基线为 `dist/h5player.user.js` SHA-256 `91b5312d7cf150cd852d005b1e5d5f3d8ed2ed7cd8a481dfa1d561d48f7b3f27`、561788 bytes；仅在批准的 Legacy 发布变更中更新。
 
 ## 2. 推荐技术栈
 
-以下是推荐默认，最终以 ADR-0004 spike 为准：
+以下为 ADR-0004 已接受基线：
 
 | 领域 | 推荐 | 说明 |
 | --- | --- | --- |
@@ -137,4 +143,3 @@ release: all gates + package + provenance + draft release
 ## 11. 工程规范验收
 
 Phase 0 Exit 时必须证明：全新 clone 按 README 能完成 install、typecheck、test、build 和至少一个 E2E；Legacy build 同时通过；无隐式全局依赖、未记录安装步骤或维护者本机专属路径。
-

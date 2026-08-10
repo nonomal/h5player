@@ -1,0 +1,88 @@
+name: Web Extension
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/web-extension.yml'
+      - 'web-extension/**'
+      - 'project/**'
+      - 'package.json'
+      - 'yarn.lock'
+      - 'config/rollup*'
+      - 'src/h5player/**'
+      - 'src/libs/**'
+  push:
+    branches: [master]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: web-extension-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  legacy-baseline:
+    name: Legacy userscript baseline
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 20.11.0
+      - run: corepack yarn@3.7.0 install --immutable
+      - run: corepack yarn@3.7.0 build
+      - name: Verify deterministic userscript
+        run: |
+          echo '91b5312d7cf150cd852d005b1e5d5f3d8ed2ed7cd8a481dfa1d561d48f7b3f27  dist/h5player.user.js' | sha256sum --check
+          test "$(wc -c < dist/h5player.user.js)" -eq 561788
+          git diff --exit-code -- dist/h5player.user.js
+
+  webext-static:
+    name: Web extension static, test and build
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: web-extension
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24.13.0
+      - run: corepack pnpm@11.21.0 install --frozen-lockfile
+      - run: corepack pnpm@11.21.0 check
+      - run: corepack pnpm@11.21.0 build:all
+      - run: corepack pnpm@11.21.0 test:security
+      - run: corepack pnpm@11.21.0 exec web-ext lint --source-dir .output/firefox-mv3
+      - uses: actions/upload-artifact@v4
+        with:
+          name: web-extension-builds
+          path: |
+            web-extension/.output/chrome-mv3
+            web-extension/.output/firefox-mv3
+          if-no-files-found: error
+
+  webext-e2e:
+    name: Chromium extension E2E
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: web-extension
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24.13.0
+      - run: corepack pnpm@11.21.0 install --frozen-lockfile
+      - run: corepack pnpm@11.21.0 exec playwright install --with-deps chromium
+      - run: corepack pnpm@11.21.0 test:e2e
+      - uses: actions/upload-artifact@v4
+        if: ${{ !cancelled() }}
+        with:
+          name: playwright-report
+          path: web-extension/playwright-report
+          if-no-files-found: ignore
