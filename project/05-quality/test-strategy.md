@@ -1,0 +1,129 @@
+# 自动化测试策略
+
+> 文档 ID：QA-001  
+> 状态：Approved as Planning Baseline  
+> 负责人：Quality Owner  
+> 最后更新：2026-08-10
+
+## 1. 测试目标
+
+测试要证明三件事：
+
+1. 领域逻辑在没有浏览器的情况下正确。
+2. 各运行时边界和浏览器能力在受控环境中正确协作。
+3. 真实打包扩展在真实浏览器页面中不会因为构建、权限、上下文或生命周期差异而失效。
+
+## 2. 测试分层
+
+### 2.1 静态质量
+
+- TypeScript strict/typecheck。
+- ESLint、格式、依赖边界、循环依赖。
+- Schema 与消息类型生成/一致性检查。
+- 禁止模式：`eval`、`new Function`、远程 script、内联危险注入、CSP 改写。
+- manifest 权限、host、web accessible resource 白名单校验。
+
+### 2.2 单元测试（Vitest）
+
+覆盖纯函数和领域模型：
+
+- 播放速度/音量/seek 边界、NaN/Infinity/负数。
+- active player 评分、tie-breaker 和状态转移。
+- 命令注册、能力检查、错误映射。
+- 快捷键解析、组合键冲突、editable target、repeat。
+- 配置默认值、站点覆盖合并和清理。
+- Schema 解析、版本迁移、未知字段和损坏数据。
+- 消息 Envelope 编解码、nonce、超时和重放拒绝。
+- URL/origin 规范化与诊断脱敏。
+
+要求：核心 domain/application 包行覆盖率 ≥85%、分支 ≥80%；配置/消息/迁移包分支 ≥95%。
+
+### 2.3 组件测试
+
+使用 Testing Library 或等价工具验证：
+
+- popup/options/overlay 的状态、事件、错误和 loading。
+- 键盘导航、焦点、ARIA、禁用态和空状态。
+- 多语言文本不会溢出或丢失参数。
+- UI 不直接依赖浏览器 API；使用 fake application facade。
+
+### 2.4 集成测试
+
+使用 fake browser ports + JSDOM/happy-dom 或受控 DOM：
+
+- content ↔ page-main handshake。
+- content ↔ background request/response。
+- storage repository 与 migration/backup。
+- 多 Tab 订阅、并发更新、worker 重启模拟。
+- media discovery、adapter setup/teardown 和 command execution。
+
+### 2.5 扩展 E2E（Playwright）
+
+必须加载构建后的 unpacked extension，覆盖：
+
+- 安装/首次启动/更新迁移。
+- basic 页面发现媒体、快捷键、popup 命令。
+- SPA 路由、动态媒体、多个媒体切换。
+- Shadow DOM、同源 iframe、跨源 iframe（能力可用/不可用两种）。
+- CSP 严格页面、页面伪造消息、页面重写媒体属性。
+- options 保存、导入、导出、恢复和错误回滚。
+- service worker 休眠/重启后恢复。
+- Chrome 与 Firefox 最低支持版本/当前稳定版本 smoke。
+
+### 2.6 兼容性与差分测试
+
+- 固定 HTML fixture 是主测试 Oracle，真实站点只做发布前 smoke 和人工探索。
+- 对 Legacy 和 Web 运行相同命令序列，比较可观测 snapshot。
+- 每个允许差异都有 ID、原因和批准人。
+- 站点适配器按 Tier 生成通过/失败/未测报告。
+
+### 2.7 性能与稳定性
+
+- 初始化、媒体发现、命令响应 p50/p95。
+- 空白页 CPU/长任务/内存基线。
+- 30 分钟媒体 churn、SPA 导航和 worker 重启压力。
+- bundle gzip 大小、首次执行和按需 chunk 预算。
+- 每次发布候选至少跑一次性能 smoke；每周夜间跑完整压力。
+
+### 2.8 安全测试
+
+- 页面消息伪造、nonce 缺失、重放、跨 frame、错误 tabId。
+- XSS/HTML 注入、URL scheme、任意下载、剪贴板滥用。
+- 权限缺失与 optional permission 拒绝。
+- CSP 严格页、Trusted Types/iframe sandbox 边界。
+- 依赖漏洞、许可证、产物内容和 source map 泄露检查。
+
+## 3. 固定测试页面
+
+`web-extension/tests/e2e/pages/` 至少维护：
+
+| 页面 | 验证内容 |
+| --- | --- |
+| `basic.html` | 单 video、常见属性和命令 |
+| `multi.html` | 多 video、active player 选择 |
+| `spa.html` | 路由切换、动态插入/销毁 |
+| `shadow-open.html` | open Shadow DOM |
+| `iframe-same-origin.html` | 同源 frame |
+| `iframe-cross-origin.html` | 跨源 frame 与权限降级 |
+| `hostile-page.html` | 重写属性、伪造消息、异常 DOM |
+| `strict-csp.html` | 严格 CSP/Trusted Types |
+| `adapter-fixtures/*` | 站点选择器和特例 |
+
+## 4. 测试数据与隔离
+
+- fixture 不使用真实用户数据、登录态、付费内容或未经许可的媒体地址。
+- 每个 E2E 使用独立 browser context、扩展 profile 和 storage namespace。
+- 时间、随机数、网络和权限均可控；测试不依赖生产远程站点可用性。
+- 失败时保存 trace、截图、console、service worker 日志和 manifest profile，但先执行脱敏。
+
+## 5. Flaky 测试治理
+
+- 任何重试只能掩盖偶发环境问题，不得作为通过条件。
+- Flaky 测试标记 owner、失败率、Issue 和修复期限；连续两个周期未修复则阻塞对应层级发布。
+- 等待使用可观测条件（元素、消息、状态）而非固定长 sleep。
+- 每周报告 flaky rate，目标 `<1%`；P0 E2E 目标 `<0.5%`。
+
+## 6. 测试缺口处理
+
+暂时无法自动化的真实站点/浏览器能力必须登记：场景、手工步骤、风险、owner、替代 fixture 和补齐里程碑。没有记录的手工“已验证”不计入 Stable 证据。
+
