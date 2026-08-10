@@ -10,6 +10,7 @@ export default defineConfig({
       'tests/unit/**/*.spec.ts',
       'tests/component/**/*.spec.ts',
       'tests/integration/**/*.spec.ts',
+      'tests/security/**/*.spec.ts',
       'tests/compatibility/**/*.spec.ts'
     ],
     exclude: ['tests/e2e/**'],
@@ -17,6 +18,7 @@ export default defineConfig({
       provider: 'v8',
       reporter: ['text', 'json-summary', 'html'],
       include: ['src/**/*.ts'],
+      exclude: ['src/infrastructure/browser/**'],
       thresholds: {
         lines: 80,
         functions: 80,

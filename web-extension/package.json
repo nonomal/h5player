@@ -29,14 +29,13 @@
     "test:coverage": "vitest run --coverage",
     "test:e2e": "pnpm build:chrome && playwright test",
     "test:e2e:firefox": "pnpm build:firefox && web-ext lint --source-dir .output/firefox-mv3",
-    "test:security": "tsx scripts/security-scan.ts",
+    "test:security": "tsx scripts/security-scan.ts && vitest run tests/security",
     "test:compat": "vitest run tests/compatibility",
     "test:boundaries": "depcruise --config dependency-cruiser.config.cjs src entrypoints",
     "check": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm test:unit && pnpm test:component && pnpm test:integration && pnpm test:compat && pnpm test:security && pnpm test:boundaries",
     "package": "wxt zip -b chrome && wxt zip -b firefox"
   },
   "dependencies": {
-    "@wxt-dev/storage": "1.2.9",
     "vue": "3.5.41",
     "zod": "4.4.3"
   },
@@ -46,9 +45,9 @@
     "@testing-library/vue": "8.1.0",
     "@types/node": "24.13.3",
     "@vitejs/plugin-vue": "6.0.8",
+    "@vitest/coverage-v8": "4.1.10",
     "@vue/test-utils": "2.4.11",
     "@wxt-dev/module-vue": "1.0.3",
-    "@vitest/coverage-v8": "4.1.10",
     "dependency-cruiser": "18.1.1",
     "eslint": "10.8.1",
     "eslint-plugin-vue": "10.10.0",

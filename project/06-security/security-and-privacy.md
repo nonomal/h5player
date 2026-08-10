@@ -52,6 +52,8 @@
 - background 依据 `sender.id`、`sender.tab.id`、`sender.frameId` 和请求能力再次授权，不能信任 payload 自报 tabId。
 - 需要异步响应的 listener 明确返回 true/Promise，并处理断开、超时和重复 requestId。
 
+Phase 1 补充：MAIN world 与页面脚本共享 realm，nonce 不能替代 capability authorization。页面桥只允许无特权握手/健康消息；来自 MAIN 的后续媒体数据一律按不可信输入处理，content 不得把任意 page type 翻译为 runtime type，background 仍以真实 sender 和 source allowlist 复核。
+
 ## 5. DOM 与内容注入
 
 - 新 UI 采用安全 DOM API/框架模板，禁止把不可信内容拼入 `innerHTML`。
@@ -96,4 +98,3 @@
 - 禁止模式扫描为 0 命中（测试 fixture 中的示例需有白名单路径且不进产物）。
 - 权限列表、商店描述、隐私政策和实际代码调用点一致。
 - 安全回归和升级/卸载数据处理已演练。
-

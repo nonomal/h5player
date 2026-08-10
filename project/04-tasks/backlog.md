@@ -29,19 +29,19 @@
 
 | ID | 任务 | 优先级 | 估算 | 依赖 | 验收摘要 | 状态 |
 | --- | --- | --- | --- | --- | --- | --- |
-| EXT-020 | 定义 Message Envelope 与错误码 | P0 | M | EXT-002 | 类型与 Schema 一致 | Proposed |
-| EXT-021 | 实现 nonce 握手与 frame/session 校验 | P0 | L | EXT-020 | 伪造/重放消息被拒绝 | Proposed |
-| EXT-022 | 实现 request/response、超时、取消和重连 | P0 | L | EXT-020 | worker 重启可恢复握手 | Proposed |
-| EXT-023 | 建立 Browser Ports（runtime/tabs/storage） | P0 | L | EXT-020 | domain 无浏览器导入 | Proposed |
-| EXT-024 | 定义 Settings Schema 与命名空间 | P0 | M | EXT-002 | 默认值/边界/未知字段有测试 | Proposed |
-| EXT-025 | 实现 SettingsRepository 与并发策略 | P0 | L | EXT-023,EXT-024 | 多 Tab 更新不丢字段 | Proposed |
-| EXT-026 | 实现 schema migration、backup、rollback | P0 | L | EXT-025 | N/N-1/损坏数据测试通过 | Proposed |
-| EXT-027 | 实现导入/导出格式 v1 与脱敏 | P0 | M | EXT-024,EXT-026 | 非法导入保持原状态 | Proposed |
-| EXT-028 | 生成最小权限 manifest profiles | P0 | L | EXT-001,ADR-0005 | 无未证明高危权限 | Proposed |
-| EXT-029 | 删除 CSP/unsafe-eval/任意执行路径 | P0 | M | EXT-028 | 静态禁止扫描通过 | Proposed |
-| EXT-030 | structured logger 与 redaction | P0 | M | EXT-020 | 日志不含敏感字段 | Proposed |
-| EXT-031 | 消息攻击与权限边界测试 | P0 | L | EXT-021,EXT-028 | 安全测试全绿 | Proposed |
-| EXT-032 | Phase 1 架构/安全审查 | P0 | M | EXT-020..031 | 评审记录 Approved | Proposed |
+| EXT-020 | 定义 Message Envelope 与错误码 | P0 | M | EXT-002 | 类型与 Schema 一致 | Verified |
+| EXT-021 | 实现 nonce 握手与 frame/session 校验 | P0 | L | EXT-020 | 伪造/重放消息被拒绝 | Verified |
+| EXT-022 | 实现 request/response、超时、取消和重连 | P0 | L | EXT-020 | worker 重启可恢复握手 | Verified |
+| EXT-023 | 建立 Browser Ports（runtime/tabs/storage） | P0 | L | EXT-020 | domain 无浏览器导入 | Verified |
+| EXT-024 | 定义 Settings Schema 与命名空间 | P0 | M | EXT-002 | 默认值/边界/未知字段有测试 | Verified |
+| EXT-025 | 实现 SettingsRepository 与并发策略 | P0 | L | EXT-023,EXT-024 | 多 Tab 更新不丢字段 | Verified |
+| EXT-026 | 实现 schema migration、backup、rollback | P0 | L | EXT-025 | N/N-1/损坏数据测试通过 | Verified |
+| EXT-027 | 实现导入/导出格式 v1 与脱敏 | P0 | M | EXT-024,EXT-026 | 非法导入保持原状态 | Verified |
+| EXT-028 | 生成最小权限 manifest profiles | P0 | L | EXT-001,ADR-0005 | 无未证明高危权限 | Verified |
+| EXT-029 | 删除 CSP/unsafe-eval/任意执行路径 | P0 | M | EXT-028 | 静态禁止扫描通过 | Verified |
+| EXT-030 | structured logger 与 redaction | P0 | M | EXT-020 | 日志不含敏感字段 | Verified |
+| EXT-031 | 消息攻击与权限边界测试 | P0 | L | EXT-021,EXT-028 | 安全测试全绿 | Verified |
+| EXT-032 | Phase 1 架构/安全审查 | P0 | M | EXT-020..031 | 评审记录 Approved | Verified |
 
 ## EPIC-02：通用媒体核心（Phase 2）
 

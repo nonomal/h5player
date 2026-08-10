@@ -1,7 +1,7 @@
 # 数据模型与迁移契约
 
 > 文档 ID：ARCH-005  
-> 状态：Approved as Planning Baseline  
+> 状态：Approved / V1 Implemented  
 > 负责人：Data/Architecture Owner  
 > 最后更新：2026-08-10  
 > 关联：ADR-0003、FR-CONFIG-001..006、NFR-REL-004
@@ -175,3 +175,12 @@ interface LegacyImportFile {
 - service worker 重启、浏览器升级和发布回滚不会丢失已确认配置。
 - 诊断导出和日志测试确认敏感字段被移除。
 
+## 10. Phase 1 实现记录
+
+- Schema 与静态类型事实源：`web-extension/src/domain/settings/schema.ts`。
+- 默认值、字段级合并和优先级：`defaults.ts`、`merge.ts`、`resolve.ts`。
+- V0→V1 migration、checksum 与 repository：`src/infrastructure/storage/`。
+- `revision` 冲突采用 background 队列中的 field patch rebase；无变化不增加 revision。
+- 当前保存最近一次 migration/corrupt/import/rollback backup；多代备份保留策略可在真实升级需求出现后扩展。
+- `storage.local` 是当前唯一权威；`storage.sync` 白名单仍由 DECISION-005 在 Phase 3 前定案。
+- 端侧证据包含实际终止 Chromium service worker 后重新打开 Popup，并恢复 revision 与设置。

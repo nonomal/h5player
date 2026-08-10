@@ -10,10 +10,10 @@
 
 | 需求 | 模块 | 任务 | 自动化证据 | Phase | 当前证据状态 |
 | --- | --- | --- | --- | --- | --- |
-| FR-BOOT-001 | runtime/content, page-main | EXT-021, EXT-047 | handshake integration；重复初始化 E2E | 1/2 | Planned |
+| FR-BOOT-001 | runtime/content, page-main | EXT-021, EXT-047 | `page-runtime.spec.ts` nonce handshake；真实扩展启动 E2E；Phase 2 补媒体幂等 | 1/2 | Building |
 | FR-BOOT-002 | infrastructure/dom, domain/media | EXT-041 | 动态插入/移除 fixture；teardown 压力 | 2 | Planned |
 | FR-BOOT-003 | DOM observer, runtime lifecycle | EXT-008, EXT-041, EXT-047 | SPA + Shadow fixture E2E | 0/2 | Planned |
-| FR-BOOT-004 | frame runtime/bridge | EXT-008, EXT-021, EXT-047 | same/cross-origin iframe E2E | 0/2 | Planned |
+| FR-BOOT-004 | frame runtime/bridge | EXT-008, EXT-021, EXT-047 | sender tab/frame policy 已验证；same/cross-origin media runtime 待 Phase 2 | 0/2 | Building |
 | FR-BOOT-005 | settings/site policy, popup | EXT-061, EXT-064 | 临时/永久停用 E2E | 3 | Planned |
 | FR-SESSION-001 | media selection service | EXT-042 | active-player scoring unit + multi E2E | 2 | Planned |
 | FR-SESSION-002 | media session state | EXT-040, EXT-042 | 多实例状态隔离 integration | 2 | Planned |
@@ -60,11 +60,11 @@
 
 | 需求 | 模块 | 任务 | 自动化证据 | Phase | 当前证据状态 |
 | --- | --- | --- | --- | --- | --- |
-| FR-CONFIG-001 | domain/settings, repository | EXT-024, EXT-025 | Schema/default/repository tests | 1 | Planned |
-| FR-CONFIG-002 | settings resolution | EXT-024, EXT-025 | priority table unit tests | 1 | Planned |
-| FR-CONFIG-003 | settings service/subscription | EXT-025 | multi-tab concurrency + worker restart | 1 | Planned |
-| FR-CONFIG-004 | migration/import/export | EXT-026, EXT-027, EXT-065 | corrupt/rollback/import atomicity E2E | 1/3 | Planned |
-| FR-CONFIG-005 | sync whitelist | EXT-025, DECISION-005 | quota/privacy/field whitelist tests | 1/3 | Decision pending |
+| FR-CONFIG-001 | domain/settings, repository | EXT-024, EXT-025 | strict Schema/default/unknown/range tests；repository integration | 1 | Verified |
+| FR-CONFIG-002 | settings resolution | EXT-024, EXT-025 | global/site/session priority + normalized origin unit tests | 1 | Verified |
+| FR-CONFIG-003 | settings service/subscription | EXT-025 | concurrent field patch + actual Chromium worker termination/recovery E2E；Phase 3 补 live UI subscription | 1/3 | Building |
+| FR-CONFIG-004 | migration/import/export | EXT-026, EXT-027, EXT-065 | N/N-1/corrupt/future/rollback/import atomicity；Phase 3 补完整 UI | 1/3 | Building |
+| FR-CONFIG-005 | sync whitelist | EXT-025, DECISION-005 | local authority 已验证；sync whitelist 在 Phase 3 前决策 | 1/3 | Building |
 | FR-CONFIG-006 | Legacy JSON converter | EXT-027, EXT-143 | sample mapping/golden files | 1/7 | Deferred |
 
 ## 6. UI 与诊断
@@ -76,7 +76,7 @@
 | FR-UI-003 | overlay | EXT-082 | component + visual + page integration | 4 | Planned |
 | FR-UI-004 | application facade/view model | EXT-061, EXT-062, EXT-082 | dependency-boundary check + fake facade tests | 3/4 | Planned |
 | FR-UI-005 | i18n | EXT-067, EXT-068 | locale completeness + long-text/a11y tests | 3 | Planned |
-| FR-DIAG-001 | structured logger | EXT-030 | event/schema/ring-buffer/redaction unit | 1 | Planned |
+| FR-DIAG-001 | structured logger | EXT-030 | `structured-logger.spec.ts` ring-buffer/capacity/redaction | 1 | Verified |
 | FR-DIAG-002 | diagnostics service/UI | EXT-066 | export preview/redaction/size E2E | 3 | Planned |
 | FR-DIAG-003 | status/error mapping | EXT-048, EXT-061, EXT-066 | no-permission/no-media/disabled/failure E2E | 2/3 | Planned |
 
@@ -100,4 +100,3 @@
 - `Verified`：填写测试路径、CI artifact、浏览器矩阵和评审记录。
 - `Deferred`：必须保留产品理由、风险和重新评估条件。
 - 任何 P0 在 Stable Go/No-Go 时不是 `Verified`，结论自动为 No-Go。
-

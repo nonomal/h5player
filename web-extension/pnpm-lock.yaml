@@ -8,9 +8,6 @@ importers:
 
   .:
     dependencies:
-      '@wxt-dev/storage':
-        specifier: 1.2.9
-        version: 1.2.9
       vue:
         specifier: 3.5.41
         version: 3.5.41(typescript@5.9.3)

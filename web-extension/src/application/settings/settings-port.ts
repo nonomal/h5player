@@ -1,0 +1,51 @@
+import type { Teardown } from '../ports/browser'
+import type { PersistedSettingsV1, SettingsBackup, SettingsPatch } from '../../domain/settings'
+import type { Result } from '../../shared/result'
+
+export type SettingsErrorCode =
+  | 'STORAGE_READ_FAILED'
+  | 'STORAGE_WRITE_FAILED'
+  | 'STORAGE_CORRUPT'
+  | 'MIGRATION_FAILED'
+  | 'FUTURE_SCHEMA'
+  | 'IMPORT_INVALID'
+  | 'BACKUP_NOT_FOUND'
+  | 'BACKUP_CORRUPT'
+
+export type SettingsError = {
+  code: SettingsErrorCode
+  message: string
+}
+
+export type SettingsMutation = {
+  settings: PersistedSettingsV1
+  changedPaths: string[]
+  rebased: boolean
+}
+
+export type SettingsChangedEvent = {
+  revision: number
+  changedPaths: string[]
+  source: string
+}
+
+export interface SettingsRepositoryPort {
+  get(): Promise<Result<PersistedSettingsV1, SettingsError>>
+  getSnapshot(): Promise<
+    Result<{ settings: PersistedSettingsV1; latestBackup: SettingsBackup | null }, SettingsError>
+  >
+  update(
+    patch: SettingsPatch,
+    expectedRevision: number | undefined,
+    source: string
+  ): Promise<Result<SettingsMutation, SettingsError>>
+  export(): Promise<Result<string, SettingsError>>
+  import(
+    content: string,
+    expectedRevision: number | undefined,
+    source: string
+  ): Promise<Result<SettingsMutation, SettingsError>>
+  restoreBackup(backupId: string, source: string): Promise<Result<SettingsMutation, SettingsError>>
+  getLatestBackup(): Promise<Result<SettingsBackup | null, SettingsError>>
+  subscribe(listener: (event: SettingsChangedEvent) => void): Teardown
+}

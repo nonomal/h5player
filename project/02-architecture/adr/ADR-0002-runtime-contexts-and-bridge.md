@@ -29,9 +29,12 @@
 
 需要维护桥接协议和两个页面运行时入口；但可以测试每个边界、限制权限，并使页面故障不拖垮 service worker。
 
+Phase 1 实现采用 256-bit nonce、严格 origin/source/session/requestId 校验、TTL replay guard、请求超时/取消和 transport reconnect。真实 Chromium 证明 Popup/Options 在测试 Tab 中也可能具有 `sender.tab`；授权因此以扩展 ID + 精确扩展页 URL 为准，并单独拒绝 request 自报 tab/frame，而不以“sender.tab 必须为空”作为身份条件。
+
+MAIN world nonce 是 document/session 相关性控制，不是对同 realm 站点脚本的秘密认证。所有 MAIN 数据仍是不可信输入；页面桥只承载无特权白名单，background 依据真实 sender 和 capability 再授权。完整契约见 `../platform-kernel-contracts.md`。
+
 ## Follow-ups
 
 - 定义消息 Schema、nonce 握手和拒绝码。
 - 在 Chrome/Firefox 各做 CSP、iframe、页面消息攻击测试。
 - 为桥接增加协议兼容和超时指标。
-

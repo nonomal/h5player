@@ -29,9 +29,10 @@ Legacy 同时使用页面 `localStorage`、GM storage、sessionStorage 和内存
 
 需要异步化 UI 和命令流程，并编写迁移测试；换来一致性、可恢复性、可导出和可审计的数据生命周期。
 
+Phase 1 已实现 V1：权威 key 为 `h5player.web-extension.settings`，backup key 为 `h5player.web-extension.settings.backup`。background repository 串行 mutation、每次重读权威值并执行字段 patch；落后 revision 在最新数据上 rebase，不丢失无关字段。N/N-1、损坏恢复、future schema 不覆盖、checksum backup、原子导入、rollback 和 service worker 重启恢复已有自动化证据。
+
 ## Follow-ups
 
 - 固化 `SettingsSchema` 和 key namespace。
 - 设计并测试 Legacy JSON 导入映射。
 - 定义并发更新策略（版本号/乐观锁/字段级合并）。
-

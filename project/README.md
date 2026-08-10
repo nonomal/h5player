@@ -41,6 +41,7 @@
 | 架构 | [模块目录与契约](./02-architecture/module-catalog.md) | 模块职责、依赖规则和公共接口 |
 | 架构 | [UI 组件架构](./02-architecture/ui-component-architecture.md) | 组件层级、状态、样式隔离与可访问性 |
 | 架构 | [数据模型与迁移契约](./02-architecture/data-model.md) | 配置、进度、会话、导入导出和版本迁移 |
+| 架构 | [平台内核契约](./02-architecture/platform-kernel-contracts.md) | Phase 1 消息、sender、请求生命周期、Ports 与 Settings V1 实现契约 |
 | 架构 | [迁移与 Legacy 边界](./02-architecture/migration-strategy.md) | 平行演进、功能切片、回退与共享代码条件 |
 | 决策 | [ADR 索引](./02-architecture/adr/README.md) | 已接受和待决的架构决策 |
 | 路线图 | [阶段路线图](./03-roadmap/rewrite-roadmap.md) | Phase 0～7、退出条件和依赖关系 |
@@ -51,6 +52,7 @@
 | 质量 | [质量门禁](./05-quality/quality-gates.md) | PR、夜间、候选发布和正式发布门槛 |
 | 质量 | [兼容性矩阵](./05-quality/compatibility-matrix.md) | 浏览器、页面形态、重点站点和能力覆盖 |
 | 安全 | [安全与隐私基线](./06-security/security-and-privacy.md) | 权限、消息、存储、远程通信和商店审核要求 |
+| 安全 | [权限清单](./06-security/permission-inventory.md) | 每项 manifest 权限、使用点、替代方案、测试和移除条件 |
 | 发布 | [版本与发布策略](./07-release/release-strategy.md) | 渠道、版本、构建、签名、灰度和回滚 |
 | 发布 | [商店与合规清单](./07-release/store-and-compliance.md) | 权限说明、隐私、审核材料与内容边界 |
 | 运维 | [可观测性与支持](./08-operations/observability-and-support.md) | 日志、诊断、缺陷分级和兼容性维护 |

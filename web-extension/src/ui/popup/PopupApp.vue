@@ -1,33 +1,28 @@
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
-import { browser } from 'wxt/browser'
-import { createSessionId } from '../../shared/ids'
-import { phase0PongSchema } from '../../shared/protocol'
+import { onBeforeUnmount, onMounted, ref } from 'vue'
+import type { RuntimeApiPort } from '../../application/runtime/runtime-api-port'
 
+const props = defineProps<{ api: RuntimeApiPort }>()
 const runtimeStatus = ref<'checking' | 'ready' | 'unavailable'>('checking')
 const extensionVersion = ref('0.1.0')
+const settingsRevision = ref<number | null>(null)
+const abortController = new AbortController()
 
-onMounted(() => {
-  if (!browser?.runtime) {
-    runtimeStatus.value = 'unavailable'
-    return
+onMounted(async () => {
+  try {
+    const [ping, settings] = await Promise.all([
+      props.api.ping({ signal: abortController.signal }),
+      props.api.getSettings({ signal: abortController.signal })
+    ])
+    extensionVersion.value = ping.extensionVersion
+    settingsRevision.value = settings.settings.revision
+    runtimeStatus.value = 'ready'
+  } catch {
+    if (!abortController.signal.aborted) runtimeStatus.value = 'unavailable'
   }
-
-  void browser.runtime
-    .sendMessage({ type: 'phase0.ping', requestId: createSessionId() })
-    .then((response) => {
-      const parsed = phase0PongSchema.safeParse(response)
-      if (!parsed.success) {
-        runtimeStatus.value = 'unavailable'
-        return
-      }
-      extensionVersion.value = parsed.data.extensionVersion
-      runtimeStatus.value = 'ready'
-    })
-    .catch(() => {
-      runtimeStatus.value = 'unavailable'
-    })
 })
+
+onBeforeUnmount(() => abortController.abort())
 </script>
 
 <template>
@@ -36,13 +31,14 @@ onMounted(() => {
     <p data-testid="phase-status">
       状态：{{
         runtimeStatus === 'ready'
-          ? '基础运行时已连接'
+          ? '平台内核已连接'
           : runtimeStatus === 'checking'
             ? '连接中…'
             : '不可用'
       }}
     </p>
-    <p class="version">版本 {{ extensionVersion }}</p>
+    <p v-if="settingsRevision !== null" class="revision">配置版本 {{ settingsRevision }}</p>
+    <p class="version">扩展版本 {{ extensionVersion }}</p>
   </main>
 </template>
 
@@ -61,6 +57,7 @@ h1 {
   font-size: 16px;
 }
 
+.revision,
 .version {
   color: #5b6475;
   font-size: 12px;

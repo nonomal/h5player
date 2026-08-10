@@ -1,0 +1,60 @@
+import type { RuntimeApiPort } from '../../application/runtime/runtime-api-port'
+import {
+  settingsExportResponseSchema,
+  settingsMutationResponseSchema,
+  settingsSnapshotResponseSchema,
+  systemPingResponseSchema
+} from '../../application/settings/contracts'
+import type { SettingsPatch } from '../../domain/settings'
+import type { RuntimeRequestClient } from './request-client'
+
+export class RuntimeApiClient implements RuntimeApiPort {
+  constructor(private readonly client: RuntimeRequestClient) {}
+
+  ping(options: { signal?: AbortSignal } = {}) {
+    return this.client.request('system.ping', {}, systemPingResponseSchema, options)
+  }
+
+  getSettings(options: { signal?: AbortSignal } = {}) {
+    return this.client.request('settings.get', {}, settingsSnapshotResponseSchema, options)
+  }
+
+  updateSettings(
+    patch: SettingsPatch,
+    expectedRevision?: number,
+    options: { signal?: AbortSignal } = {}
+  ) {
+    const payload: { patch: SettingsPatch; expectedRevision?: number } = { patch }
+    if (expectedRevision !== undefined) payload.expectedRevision = expectedRevision
+    return this.client.request('settings.update', payload, settingsMutationResponseSchema, options)
+  }
+
+  async exportSettings(options: { signal?: AbortSignal } = {}): Promise<string> {
+    const result = await this.client.request(
+      'settings.export',
+      {},
+      settingsExportResponseSchema,
+      options
+    )
+    return result.content
+  }
+
+  importSettings(
+    content: string,
+    expectedRevision?: number,
+    options: { signal?: AbortSignal } = {}
+  ) {
+    const payload: { content: string; expectedRevision?: number } = { content }
+    if (expectedRevision !== undefined) payload.expectedRevision = expectedRevision
+    return this.client.request('settings.import', payload, settingsMutationResponseSchema, options)
+  }
+
+  restoreBackup(backupId: string, options: { signal?: AbortSignal } = {}) {
+    return this.client.request(
+      'settings.restore-backup',
+      { backupId },
+      settingsMutationResponseSchema,
+      options
+    )
+  }
+}

@@ -22,22 +22,32 @@
 ```bash
 corepack pnpm@11.21.0 install --frozen-lockfile
 corepack pnpm@11.21.0 check
+corepack pnpm@11.21.0 test:coverage
+corepack pnpm@11.21.0 test:security
 corepack pnpm@11.21.0 build:all
 corepack pnpm@11.21.0 test:e2e
 corepack pnpm@11.21.0 test:e2e:firefox
 corepack pnpm@11.21.0 test:legacy
 ```
 
-Chrome 与 Firefox 均构建 Manifest V3。Chromium E2E 加载真实打包扩展；Firefox 当前通过
-MV3 构建和 `web-ext lint`，浏览器级自动化可用性记录在 Phase 0 评审中。
+Chrome 与 Firefox 均构建 Manifest V3。Chromium E2E 加载真实打包扩展并实际终止 service
+worker，验证设置恢复；Firefox 当前通过 MV3 构建和 `web-ext lint`。Phase 1 证据与已知项见
+`../project/09-reviews/phase-1-exit-review-2026-08-10.md`。
+
+当前 required permission 只有 `storage`，`<all_urls>` 仅为 optional host permission 且不会静默
+请求。静态 content script 和 `page-main.js` 暂时只匹配 localhost fixture；真实站点授权/注册完成前
+本工程仍是 Preview。
 
 ## 目录边界
 
 - `entrypoints/`：background、isolated content、page-main、popup、options。
 - `src/domain/`：纯领域逻辑，不依赖 Vue、WXT 或浏览器 API。
-- `src/shared/`：跨入口协议与无副作用工具。
+- `src/application/`：用例和 runtime/settings/browser Port 契约。
+- `src/infrastructure/`：WebExtension adapter、消息客户端、存储迁移、日志和时间实现。
+- `src/runtime/`：background、content、page-main 的组装与信任边界。
+- `src/shared/`：协议基础、ID、Result 等无副作用工具。
 - `src/ui/`：Vue 展示组件。
-- `tests/`：unit、component、integration、compatibility、E2E 和固定页面。
+- `tests/`：unit、component、integration、security、compatibility、E2E 和固定页面。
 - `scripts/`：安全扫描与 Legacy 构建回归。
 - 旧 `background.js`、`content.js`、`inject.*`、`manifest.json`、`popup.*`：Legacy prototype，
   只供旧 `build:inject` 使用；新代码不得导入。
