@@ -74,7 +74,7 @@ describe('DiagnosticsService', () => {
     const response = await diagnostics.get()
 
     expect(response.summary).toMatchObject({
-      phase: 3,
+      phase: 4,
       settingsSchemaVersion: 2,
       site: { hostname: 'example.com', mediaCount: 2, activeMedia: true },
       settings: { revision: 1, siteRuleCount: 1 }

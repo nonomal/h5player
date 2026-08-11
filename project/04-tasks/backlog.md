@@ -1,7 +1,7 @@
 # Web Extension 重构主任务台账
 
 > 文档 ID：TASK-003  
-> 状态：Active / Phase 3 Preview Baseline  
+> 状态：Active / Phase 4 Preview Exit  
 > 负责人：Project Owner  
 > 最后更新：2026-08-11  
 > 规则：任务状态以 `progress.md` 为当前摘要，本页保留完整规划。
@@ -88,14 +88,26 @@
 
 | ID      | 任务                                 | 优先级 | 估算 | 依赖            | 验收摘要              | 状态     |
 | ------- | ------------------------------------ | ------ | ---- | --------------- | --------------------- | -------- |
-| EXT-080 | transform/filter domain 与命令       | P1     | L    | EXT-044,EXT-047 | 状态隔离/重置通过     | Proposed |
-| EXT-081 | Fullscreen/PiP capability adapters   | P1     | L    | EXT-043,EXT-044 | 浏览器 + fixture 通过 | Proposed |
-| EXT-082 | Overlay shell 与 Shadow DOM 样式隔离 | P1     | L    | EXT-061,EXT-067 | 不污染页面            | Proposed |
-| EXT-083 | Screenshot/capture service           | P1     | M    | EXT-023,EXT-044 | CORS/DRM 错误可解释   | Proposed |
-| EXT-084 | Progress repository 与恢复策略       | P1     | M    | EXT-025,EXT-040 | 过期/容量/隐私测试    | Proposed |
-| EXT-085 | Cross-tab event service              | P1     | M    | EXT-022,EXT-025 | 不依赖高频轮询        | Proposed |
-| EXT-086 | Bundle/performance budgets           | P0     | M    | EXT-080..085    | CI 超预算失败         | Proposed |
-| EXT-087 | Phase 4 视觉/性能审查                | P1     | M    | EXT-080..086    | 评审记录 Approved     | Proposed |
+| EXT-080 | transform/filter domain 与命令       | P1     | L    | EXT-044,EXT-047 | 状态隔离/重置通过     | Verified |
+| EXT-081 | Fullscreen/PiP capability adapters   | P1     | L    | EXT-043,EXT-044 | capability/错误降级契约通过 | Verified |
+| EXT-082 | Overlay shell 与 Shadow DOM 样式隔离 | P1     | L    | EXT-061,EXT-067 | 不污染页面            | Verified |
+| EXT-083 | Screenshot/capture service           | P1     | M    | EXT-023,EXT-044 | CORS/DRM 错误可解释   | Verified |
+| EXT-084 | Progress repository 与恢复策略       | P1     | M    | EXT-025,EXT-040 | 过期/容量/隐私测试    | Verified |
+| EXT-085 | Cross-tab event service              | P1     | M    | EXT-022,EXT-025 | 不依赖高频轮询        | Verified |
+| EXT-086 | Bundle/performance budgets           | P0     | M    | EXT-080..085    | CI 超预算失败         | Verified |
+| EXT-087 | Phase 4 视觉/性能审查                | P1     | M    | EXT-080..086    | 评审记录 Conditional GO | Verified |
+
+### Phase 4 交付证据（2026-08-11）
+
+- EXT-080/081：visual domain、原子 reset、native/web fullscreen、PiP、inline style restore；unit/component/typed contract 已通过，专项浏览器 E2E 缺口单独登记。
+- EXT-082：top-frame closed ShadowRoot Overlay、hostile CSS reset、事件隔离、动态 mount/teardown；component + Chrome lifecycle fixtures。
+- EXT-083：Canvas capture、bounded artifact、CORS/DRM/ready/size/encode failure、临时 Blob 下载；unit + contract/security checks；Preview 禁用媒体下载。
+- EXT-084：匿名 identity hash、TTL、容量、隐私开关、5 秒节流、短媒体完成删除、恢复/清理；domain、repository 与 content-runtime integration。
+- EXT-085：三类 advisory event、source-tab 过滤、timestamp clamp、发送失败隔离；cross-tab unit + background contract。
+- EXT-086：Chrome/Firefox raw budget：background 150 KiB、content 250 KiB、page-main 200 KiB；manifest 无 required host/static content/WAR；CI budget script 通过。
+- 质量证据：52 files / 249 tests；coverage 85.68/76.57/87.33/89.28；check、build、budget、security、boundaries、串行 Chromium E2E、Firefox 153 E2E、5 秒 churn 和 Legacy hash 全部通过。
+- 运行约束：扩展 E2E 固定 `workers: 1`，避免多个 persistent Chromium profile 并行启动导致资源争抢和超时；这不是产品功能限制。
+- 端侧缺口：真实解码帧/CORS blocked 截图、native→web fullscreen fallback、PiP unavailable、progress restore/complete、multi-tab advisory event、iframe-only media Overlay 均未由当前 Chrome/Firefox E2E 覆盖。
 
 ## EPIC-05：站点适配与兼容（Phase 5）
 

@@ -1,7 +1,7 @@
 # 浏览器与页面兼容性矩阵
 
 > 文档 ID：QA-003  
-> 状态：Approved for Phase 3 Preview  
+> 状态：Approved for Phase 4 Preview  
 > 负责人：Quality Owner  
 > 最后更新：2026-08-11  
 > 说明：具体版本号在 Phase 0 按发布时最新稳定版本冻结。
@@ -11,10 +11,10 @@
 | 浏览器                 | Dev 目标 | Beta 目标 | Stable 目标 | 当前证据/状态                                   | 必测层级           |
 | ---------------------- | -------- | --------- | ----------- | ----------------------------------------------- | ------------------ |
 | Chrome Stable          | 需要     | 需要      | 需要        | bundled Chromium harness 已通过；发布频道未冻结 | full E2E           |
-| Chrome previous stable | 需要     | 需要      | 需要        | Phase 3 未执行，Stable 前补齐                   | smoke + core       |
-| Edge Stable            | 需要     | 需要      | 需要        | Phase 3 未执行，Phase 5/6 补齐                  | core + popup       |
+| Chrome previous stable | 需要     | 需要      | 需要        | Phase 4 未执行，Stable 前补齐                   | smoke + core       |
+| Edge Stable            | 需要     | 需要      | 需要        | Phase 4 未执行，Phase 5/6 补齐                  | core + popup       |
 | Firefox Stable         | 需要     | 需要      | 需要        | Firefox 153.0 临时安装 MV3 已通过               | full E2E           |
-| Firefox ESR            | 需要     | 需要      | 需要        | Phase 3 未执行；最低版本暂定 142.0              | core + permissions |
+| Firefox ESR            | 需要     | 需要      | 需要        | Phase 4 未执行；最低版本暂定 142.0              | core + permissions |
 | Safari                 | 不承诺   | 不承诺    | 不承诺      | 单独评估                                        | —                  |
 | 移动浏览器             | 不承诺   | 不承诺    | 不承诺      | 单独评估                                        | —                  |
 
@@ -61,8 +61,8 @@ headless harness 的证据边界、内部 API 隔离和 headed 手工门禁见 [
 | 多 video/音频          | ✅    | ✅   | ✅   | ✅       | ✅   |
 | 动态 SPA               | ✅    | ✅   | ✅   | ✅       | ✅   |
 | open Shadow DOM        | ✅    | ✅   | ✅   | ✅       | ✅   |
-| same-origin iframe     | ✅    | ✅   | ✅   | ✅       | ✅   |
-| cross-origin iframe    | ✅    | ✅   | 降级 | ✅       | ✅   |
+| same-origin iframe     | ✅    | ✅   | Overlay 降级 | ✅       | ✅   |
+| cross-origin iframe    | ✅    | ✅   | Overlay 降级 | ✅       | ✅   |
 | 严格 CSP/Trusted Types | ✅    | ✅   | ✅   | ✅       | ✅   |
 | 页面 Hook/恶意消息     | —     | —    | —    | ✅       | ✅   |
 | 无媒体页面             | ✅    | —    | 状态 | ✅       | ✅   |
@@ -78,14 +78,17 @@ headless harness 的证据边界、内部 API 隔离和 headed 手工门禁见 [
 
 每个矩阵单元至少记录：提交 SHA、扩展版本、浏览器版本、OS、页面 fixture/URL 类别、结果、失败日志 artifact、已知限制和复测日期。真实站点报告不得保存账号、完整媒体 URL 或用户内容。
 
-Phase 3 当前证据补充：
+Phase 4 当前证据补充：
 
 - Chrome/Firefox production manifest 均为 required `storage`、`activeTab`、`scripting`，optional `<all_urls>`，
   `content_scripts: []`，无 required host permission 与 WAR。
-- Chrome configured churn 在默认 E2E 中因未配置 30 分钟时长而跳过；独立 5 秒 smoke 为 5017 ms、82 cycles、1 次
-  worker restart、listeners `4→4`。Phase 2 的 30 分钟长稳证据仍引用 Phase 2 Exit Review，不能将本次 smoke 写成 30 分钟重跑。
-- 当前扩展 unpacked 产物约 484 KiB（Chrome/Firefox）；具体 hash、OS、浏览器版本由发布候选的
-  `release-manifest.json` 固化。
+- Chrome lifecycle E2E 固定单 worker，3 个场景通过；并行 persistent profile 会引入启动资源争抢和假性 timeout。
+- 独立 5 秒 smoke 为 5051 ms、94 cycles、1 次 worker restart、listeners `4→4`；Phase 2 的 30 分钟结果仍是继承证据。
+- Chrome/Firefox raw bundles：background 90150/90151 B、content 191669 B、page-main 77976 B；manifest guardrail 通过。
+- Overlay 仅 top frame；same/cross-origin iframe runtime 通过，但 iframe-only media 的 Overlay 聚合未实现。
+- fullscreen/PiP/capture/progress/cross-tab 的 domain、adapter、repository 与 runtime contract 已验证；真实解码帧截图、
+  CORS blocked 截图、native→web fullscreen fallback、PiP unavailable、progress restore/complete、multi-tab advisory event
+  和 iframe-only media Overlay 的专项浏览器矩阵仍待补。
 
 ## 5. 支持策略
 
@@ -98,6 +101,6 @@ Phase 3 当前证据补充：
 
 ## 6. 当前支持声明
 
-Phase 3 退出结论为“Preview 范围可进入 Phase 4 工程开发”。当前只承诺 Tier 0 通用
+Phase 4 退出结论为“Preview 范围可进入 Phase 5 工程开发”。当前只承诺 Tier 0 通用
 `HTMLMediaElement` 与固定 fixture 证据；不承诺 Tier 1（YouTube、Bilibili、Tencent Video、iQIYI、Youku）真实站点、
 Firefox ESR/最低版本、Chrome previous stable、Edge 或 Stable 商店发布。任何对外文案必须与此边界一致。

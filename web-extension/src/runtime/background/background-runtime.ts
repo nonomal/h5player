@@ -1,11 +1,25 @@
 import type { LoggerPort } from '../../application/ports/logging'
 import type { TabsPort } from '../../application/ports/browser'
 import {
+  crossTabPublishPayloadSchema,
+  crossTabPublishResponseSchema,
   mediaCommandResultResponseSchema,
   mediaExecutePayloadSchema,
   mediaGetStatePayloadSchema,
   mediaPageStateSchema
 } from '../../application/media'
+import type { CrossTabMediaEventService } from '../../application/media'
+import {
+  progressDeletePayloadSchema,
+  progressDeleteResponseSchema,
+  progressPrunePayloadSchema,
+  progressPruneResponseSchema,
+  progressReadPayloadSchema,
+  progressReadResponseSchema,
+  progressSavePayloadSchema,
+  progressSaveResponseSchema
+} from '../../application/progress'
+import type { ProgressService } from '../../application/progress'
 import {
   cancellationResponseSchema,
   emptyPayloadSchema,
@@ -31,6 +45,7 @@ import type { SettingsService } from '../../application/settings/settings-servic
 import type { SettingsError } from '../../application/settings/settings-port'
 import type { ReplayGuard } from '../../infrastructure/messaging/replay-guard'
 import {
+  CURRENT_EXTENSION_PHASE,
   createRuntimeError,
   createRuntimeSuccess,
   parseRuntimeRequest,
@@ -55,6 +70,8 @@ type BackgroundRuntimeOptions = {
   tabs: TabsPort
   siteAccess: SiteAccessService
   diagnostics: DiagnosticsService
+  crossTab?: CrossTabMediaEventService
+  progress?: ProgressService
 }
 
 type SafeParser<T> = {
@@ -75,6 +92,16 @@ function mapSettingsError(error: SettingsError): ProtocolErrorCode {
     default:
       return 'INTERNAL_ERROR'
   }
+}
+
+function mapProgressError(error: { code: string }): ProtocolErrorCode {
+  if (error.code.startsWith('INVALID_')) return 'INVALID_PAYLOAD'
+  if (error.code === 'FUTURE_SCHEMA') return 'FUTURE_SCHEMA'
+  if (error.code === 'STORAGE_CORRUPT' || error.code === 'BACKUP_CORRUPT') {
+    return 'STORAGE_CORRUPT'
+  }
+  if (error.code === 'MIGRATION_FAILED') return 'MIGRATION_FAILED'
+  return 'INTERNAL_ERROR'
 }
 
 function responseContext(authorized: {
@@ -222,14 +249,14 @@ export class BackgroundRuntime {
         }
         const response: {
           extensionVersion: string
-          phase: 3
+          phase: typeof CURRENT_EXTENSION_PHASE
           protocol: 1
           settingsSchemaVersion: 2
           tabId?: number
           frameId?: number
         } = {
           extensionVersion: this.options.extensionVersion,
-          phase: 3,
+          phase: CURRENT_EXTENSION_PHASE,
           protocol: 1,
           settingsSchemaVersion: 2
         }
@@ -368,6 +395,126 @@ export class BackgroundRuntime {
           context,
           signal
         )
+      }
+      case 'progress.read': {
+        const payload = progressReadPayloadSchema.safeParse(request.payload)
+        if (!payload.success) return this.invalidPayload(request, context)
+        if (this.options.progress === undefined) {
+          return createRuntimeError(
+            request,
+            'INTERNAL_ERROR',
+            'progress.error.unavailable',
+            true,
+            context
+          )
+        }
+        const result = await this.options.progress.read(payload.data, source)
+        return result.ok
+          ? createRuntimeSuccess(request, progressReadResponseSchema.parse(result.value), context)
+          : createRuntimeError(
+              request,
+              mapProgressError(result.error),
+              `progress.error.${result.error.code.toLowerCase()}`,
+              false,
+              context
+            )
+      }
+      case 'progress.save': {
+        const payload = progressSavePayloadSchema.safeParse(request.payload)
+        if (!payload.success) return this.invalidPayload(request, context)
+        if (this.options.progress === undefined) {
+          return createRuntimeError(
+            request,
+            'INTERNAL_ERROR',
+            'progress.error.unavailable',
+            true,
+            context
+          )
+        }
+        const result = await this.options.progress.save(payload.data, source)
+        return result.ok
+          ? createRuntimeSuccess(request, progressSaveResponseSchema.parse(result.value), context)
+          : createRuntimeError(
+              request,
+              mapProgressError(result.error),
+              `progress.error.${result.error.code.toLowerCase()}`,
+              false,
+              context
+            )
+      }
+      case 'progress.delete': {
+        const payload = progressDeletePayloadSchema.safeParse(request.payload)
+        if (!payload.success) return this.invalidPayload(request, context)
+        if (this.options.progress === undefined) {
+          return createRuntimeError(
+            request,
+            'INTERNAL_ERROR',
+            'progress.error.unavailable',
+            true,
+            context
+          )
+        }
+        const result = await this.options.progress.delete(payload.data, source)
+        return result.ok
+          ? createRuntimeSuccess(request, progressDeleteResponseSchema.parse(result.value), context)
+          : createRuntimeError(
+              request,
+              mapProgressError(result.error),
+              `progress.error.${result.error.code.toLowerCase()}`,
+              false,
+              context
+            )
+      }
+      case 'progress.prune': {
+        if (!progressPrunePayloadSchema.safeParse(request.payload).success) {
+          return this.invalidPayload(request, context)
+        }
+        if (this.options.progress === undefined) {
+          return createRuntimeError(
+            request,
+            'INTERNAL_ERROR',
+            'progress.error.unavailable',
+            true,
+            context
+          )
+        }
+        const result = await this.options.progress.prune(source)
+        return result.ok
+          ? createRuntimeSuccess(request, progressPruneResponseSchema.parse(result.value), context)
+          : createRuntimeError(
+              request,
+              mapProgressError(result.error),
+              `progress.error.${result.error.code.toLowerCase()}`,
+              false,
+              context
+            )
+      }
+      case 'media.cross-tab.publish': {
+        const payload = crossTabPublishPayloadSchema.safeParse(request.payload)
+        if (!payload.success) return this.invalidPayload(request, context)
+        if (context.tabId === undefined || context.frameId === undefined) {
+          return createRuntimeError(
+            request,
+            'UNAUTHORIZED_SOURCE',
+            'protocol.error.unauthorized-source',
+            false,
+            context
+          )
+        }
+        if (this.options.crossTab === undefined) {
+          return createRuntimeError(
+            request,
+            'INTERNAL_ERROR',
+            'media.error.cross-tab-unavailable',
+            true,
+            context
+          )
+        }
+        const result = await this.options.crossTab.publish(payload.data, {
+          tabId: context.tabId,
+          frameId: context.frameId
+        })
+        return createRuntimeSuccess(request, crossTabPublishResponseSchema.parse(result), context)
       }
       case 'protocol.cancel':
         return createRuntimeSuccess(

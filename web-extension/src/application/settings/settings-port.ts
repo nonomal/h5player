@@ -1,4 +1,5 @@
 import type { Teardown } from '../ports/browser'
+import type { ProgressRepositoryPort } from '../progress'
 import type { PersistedSettingsV2, SettingsBackup, SettingsPatch } from '../../domain/settings'
 import type { Result } from '../../shared/result'
 
@@ -29,7 +30,7 @@ export type SettingsChangedEvent = {
   source: string
 }
 
-export interface SettingsRepositoryPort {
+export interface SettingsRepositoryPort extends ProgressRepositoryPort {
   get(): Promise<Result<PersistedSettingsV2, SettingsError>>
   getSnapshot(): Promise<
     Result<{ settings: PersistedSettingsV2; latestBackup: SettingsBackup | null }, SettingsError>

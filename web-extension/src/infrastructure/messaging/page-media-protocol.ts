@@ -1,5 +1,9 @@
 import * as z from 'zod/mini'
-import { mediaCommandResultResponseSchema, mediaPageStateSchema } from '../../application/media'
+import {
+  mediaCommandResultResponseSchema,
+  mediaPageStateSchema,
+  mediaPageStateSummarySchema
+} from '../../application/media'
 import { mediaCommandSchema } from '../../domain/command'
 import { createRequestId } from '../../shared/ids'
 import { PROTOCOL_VERSION } from '../../shared/protocol'
@@ -43,6 +47,12 @@ export const pageMediaMessageSchema = z.union([
   }),
   z.strictObject({
     ...baseShape,
+    type: z.literal('media.state-changed'),
+    source: z.literal('page-main'),
+    payload: z.strictObject({ summary: mediaPageStateSummarySchema })
+  }),
+  z.strictObject({
+    ...baseShape,
     type: z.literal('media.execute'),
     source: z.literal('content'),
     payload: z.strictObject({ command: mediaCommandSchema })
@@ -69,7 +79,11 @@ export type PageMediaMessage = z.infer<typeof pageMediaMessageSchema>
 export type PageMediaMessageType = PageMediaMessage['type']
 export type PageMediaRequestType = 'media.context' | 'media.get-state' | 'media.execute'
 export type PageMediaResponseType =
-  'media.context-ready' | 'media.state' | 'media.command-result' | 'media.error'
+  | 'media.context-ready'
+  | 'media.state'
+  | 'media.state-changed'
+  | 'media.command-result'
+  | 'media.error'
 export type PageMediaMessageForType<T extends PageMediaMessageType> = Extract<
   PageMediaMessage,
   { type: T }
@@ -80,6 +94,7 @@ export type PageMediaPayloadByType = {
   'media.context-ready': Record<string, never>
   'media.get-state': Record<string, never>
   'media.state': { state: z.infer<typeof mediaPageStateSchema> }
+  'media.state-changed': { summary: z.infer<typeof mediaPageStateSummarySchema> }
   'media.execute': { command: z.infer<typeof mediaCommandSchema> }
   'media.command-result': z.infer<typeof mediaCommandResultResponseSchema>
   'media.error': {
@@ -94,6 +109,7 @@ type PageMediaSourceByType = {
   'media.context-ready': 'page-main'
   'media.get-state': 'content'
   'media.state': 'page-main'
+  'media.state-changed': 'page-main'
   'media.execute': 'content'
   'media.command-result': 'page-main'
   'media.error': 'page-main'
@@ -136,6 +152,22 @@ export function createPageMediaResponse<T extends PageMediaResponseType>(
   requestId: string
 ): PageMediaMessageForType<T> {
   return createPageMediaMessage(type, 'page-main', sessionId, nonce, payload, requestId)
+}
+
+export function createPageMediaNotification(
+  sessionId: string,
+  nonce: string,
+  summary: z.infer<typeof mediaPageStateSummarySchema>,
+  requestId = createRequestId()
+): PageMediaMessageForType<'media.state-changed'> {
+  return createPageMediaMessage(
+    'media.state-changed',
+    'page-main',
+    sessionId,
+    nonce,
+    { summary },
+    requestId
+  )
 }
 
 export function parsePageMediaMessage(value: unknown): PageMediaMessage | null {

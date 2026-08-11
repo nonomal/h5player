@@ -2,6 +2,8 @@ import { browser } from 'wxt/browser'
 import { SettingsService } from '../src/application/settings/settings-service'
 import { DiagnosticsService } from '../src/application/diagnostics/diagnostics-service'
 import { SiteAccessService } from '../src/application/site/site-access-service'
+import { CrossTabMediaEventService } from '../src/application/media'
+import { ProgressService } from '../src/application/progress'
 import {
   WxtContentScriptRegistrationPort,
   WxtPermissionsPort,
@@ -15,6 +17,7 @@ import { SettingsRepository } from '../src/infrastructure/storage/settings-repos
 import { systemClock } from '../src/infrastructure/time/system-time'
 import { BackgroundRuntime } from '../src/runtime/background/background-runtime'
 import type { RuntimeSenderMetadata } from '../src/runtime/background/sender-policy'
+import { CURRENT_EXTENSION_PHASE } from '../src/shared/protocol'
 
 function senderMetadata(
   sender: Parameters<Parameters<typeof browser.runtime.onMessage.addListener>[0]>[1]
@@ -31,6 +34,7 @@ export default defineBackground(() => {
   const logger = new StructuredLogger('background', systemClock)
   const repository = new SettingsRepository(new WxtStoragePort(), systemClock, logger)
   const settings = new SettingsService(repository)
+  const progress = new ProgressService(repository)
   const tabs = new WxtTabsPort()
   const permissions = new WxtPermissionsPort()
   const siteAccess = new SiteAccessService(
@@ -39,6 +43,7 @@ export default defineBackground(() => {
     permissions,
     new WxtContentScriptRegistrationPort()
   )
+  const crossTab = new CrossTabMediaEventService(tabs, systemClock)
   const buildValue = (import.meta.env as unknown as { ['VITE_BUILD_SHA']?: unknown })[
     'VITE_BUILD_SHA'
   ]
@@ -60,7 +65,9 @@ export default defineBackground(() => {
     logger,
     tabs,
     siteAccess,
-    diagnostics
+    diagnostics,
+    crossTab,
+    progress
   })
 
   void runtime.initialize()
@@ -68,7 +75,7 @@ export default defineBackground(() => {
   browser.runtime.onInstalled.addListener(() => {
     void browser.storage.local.set({
       'h5player.extension.version': browser.runtime.getManifest().version,
-      'h5player.extension.phase': 3,
+      'h5player.extension.phase': CURRENT_EXTENSION_PHASE,
       'h5player.extension.protocol': 1,
       'h5player.extension.settings-schema': 2
     })

@@ -16,7 +16,16 @@ export type AuthorizedSender = {
 }
 
 const allowedRequestTypes = {
-  content: new Set(['protocol.cancel', 'system.ping', 'settings.get']),
+  content: new Set([
+    'protocol.cancel',
+    'system.ping',
+    'settings.get',
+    'media.cross-tab.publish',
+    'progress.read',
+    'progress.save',
+    'progress.delete',
+    'progress.prune'
+  ]),
   popup: new Set([
     'protocol.cancel',
     'system.ping',

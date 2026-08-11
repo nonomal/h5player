@@ -1,6 +1,13 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { GenericAdapter } from '../../src/adapters/generic'
-import { isMediaSnapshot } from '../../src/domain/media'
+import {
+  DEFAULT_VISUAL_STATE,
+  isMediaSnapshot,
+  panVisual,
+  setVisualFilter,
+  setVisualZoom,
+  toggleVisualFlip
+} from '../../src/domain/media'
 
 const adapter = new GenericAdapter()
 
@@ -62,11 +69,75 @@ describe('GenericAdapter', () => {
       playbackRate: true,
       volume: true,
       mute: true,
+      visual: true,
+      fullscreenWeb: true,
       capture: false,
       downloadExperimental: false
     })
+    expect(snapshot.visual).toEqual(DEFAULT_VISUAL_STATE)
+    expect(snapshot.presentation).toEqual({
+      fullscreen: 'none',
+      pictureInPicture: false
+    })
     expect(isMediaSnapshot(snapshot)).toBe(true)
     expect(() => JSON.stringify(snapshot)).not.toThrow()
+    controller.teardown()
+  })
+
+  it('applies isolated visual styles and restores transform/filter atomically', async () => {
+    const first = document.createElement('video')
+    const second = document.createElement('video')
+    first.style.cssText = 'position: relative; transform: translateX(5px); filter: contrast(0.8);'
+    document.body.append(first, second)
+    const baseline = first.style.cssText
+    const firstController = adapter.createController(first, context('media-visual-first'))
+    const secondController = adapter.createController(second, context('media-visual-second'))
+    if (firstController.setVisualState === undefined) {
+      throw new Error('generic visual controller port missing')
+    }
+
+    const modified = setVisualFilter(
+      toggleVisualFlip(panVisual(setVisualZoom(DEFAULT_VISUAL_STATE, 1.5), 20, -10), 'horizontal'),
+      'brightness',
+      1.2
+    )
+    await firstController.setVisualState(modified)
+
+    expect(first.style.getPropertyValue('transform')).toContain('translateX(5px)')
+    expect(first.style.getPropertyValue('transform')).toContain('scale(1.5) translate(20px, -10px)')
+    expect(first.style.getPropertyValue('filter')).toContain('contrast(0.8)')
+    expect(first.style.getPropertyValue('filter')).toContain('brightness(1.2)')
+    expect(firstController.getSnapshot().visual).toEqual(modified)
+    expect(second.style.cssText).toBe('')
+    expect(secondController.getSnapshot().visual).toEqual(DEFAULT_VISUAL_STATE)
+
+    await firstController.setVisualState(DEFAULT_VISUAL_STATE)
+    expect(first.style.cssText).toBe(baseline)
+    expect(firstController.getSnapshot().visual).toEqual(DEFAULT_VISUAL_STATE)
+
+    firstController.teardown()
+    secondController.teardown()
+  })
+
+  it('toggles web fullscreen without losing pre-existing inline styles', async () => {
+    const video = document.createElement('video')
+    video.style.cssText = 'position: relative; z-index: 3;'
+    document.body.append(video)
+    const baseline = video.style.cssText
+    const controller = adapter.createController(video, context('media-web-fullscreen'))
+    if (controller.toggleFullscreen === undefined) {
+      throw new Error('generic fullscreen controller port missing')
+    }
+
+    expect(controller.capabilities.fullscreenWeb).toBe(true)
+    await controller.toggleFullscreen('web')
+    expect(controller.getSnapshot().presentation?.fullscreen).toBe('web')
+    expect(video.style.getPropertyValue('position')).toBe('fixed')
+    expect(video.style.getPropertyValue('z-index')).toBe('2147483647')
+
+    await controller.toggleFullscreen('web')
+    expect(controller.getSnapshot().presentation?.fullscreen).toBe('none')
+    expect(video.style.cssText).toBe(baseline)
     controller.teardown()
   })
 

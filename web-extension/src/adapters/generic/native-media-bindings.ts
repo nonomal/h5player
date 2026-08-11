@@ -1,11 +1,11 @@
 /* eslint-disable @typescript-eslint/unbound-method -- Native DOM intrinsics are intentionally captured and invoked with explicit receivers. */
 
-type NativeGetter<T> = (target: HTMLMediaElement) => T
-type NativeSetter<T> = (target: HTMLMediaElement, value: T) => void
+type NativeGetter<TTarget, TValue> = (target: TTarget) => TValue
+type NativeSetter<TTarget, TValue> = (target: TTarget, value: TValue) => void
 
-interface NativeAccessor<T> {
-  readonly get: NativeGetter<T> | null
-  readonly set: NativeSetter<T> | null
+interface NativeAccessor<TTarget, TValue> {
+  readonly get: NativeGetter<TTarget, TValue> | null
+  readonly set: NativeSetter<TTarget, TValue> | null
 }
 
 function asError(value: unknown, fallbackMessage: string): Error {
@@ -25,10 +25,13 @@ function findDescriptor(
   return null
 }
 
-function captureAccessor<T>(prototype: object | null, property: PropertyKey): NativeAccessor<T> {
+function captureAccessor<TTarget, TValue>(
+  prototype: object | null,
+  property: PropertyKey
+): NativeAccessor<TTarget, TValue> {
   const descriptor = findDescriptor(prototype, property)
-  const getter = descriptor?.get as ((this: HTMLMediaElement) => T) | undefined
-  const setter = descriptor?.set as ((this: HTMLMediaElement, value: T) => void) | undefined
+  const getter = descriptor?.get as ((this: TTarget) => TValue) | undefined
+  const setter = descriptor?.set as ((this: TTarget, value: TValue) => void) | undefined
   return {
     get: getter === undefined ? null : (target) => getter.call(target),
     set: setter === undefined ? null : (target, value) => setter.call(target, value)
@@ -40,6 +43,9 @@ const videoPrototype = typeof HTMLVideoElement === 'undefined' ? null : HTMLVide
 const elementPrototype = typeof Element === 'undefined' ? null : Element.prototype
 const nodePrototype = typeof Node === 'undefined' ? null : Node.prototype
 const htmlElementPrototype = typeof HTMLElement === 'undefined' ? null : HTMLElement.prototype
+const documentPrototype = typeof Document === 'undefined' ? null : Document.prototype
+const stylePrototype =
+  typeof CSSStyleDeclaration === 'undefined' ? null : CSSStyleDeclaration.prototype
 
 const playMethod = mediaPrototype?.play ?? null
 const pauseMethod = mediaPrototype?.pause ?? null
@@ -51,35 +57,113 @@ const getBoundingClientRectMethod = elementPrototype?.getBoundingClientRect ?? n
 const getAttributeMethod = elementPrototype?.getAttribute ?? null
 const requestFullscreenMethod = elementPrototype?.requestFullscreen ?? null
 const requestPictureInPictureMethod = videoPrototype?.requestPictureInPicture ?? null
+const exitFullscreenMethod = documentPrototype?.exitFullscreen ?? null
+const exitPictureInPictureMethod = documentPrototype?.exitPictureInPicture ?? null
 const getRootNodeMethod = nodePrototype?.getRootNode ?? null
+const containsMethod = nodePrototype?.contains ?? null
 const getComputedStyleMethod =
   typeof Window === 'undefined' ? null : Window.prototype.getComputedStyle
 const parentElementGetter = findDescriptor(nodePrototype, 'parentElement')?.get as
   ((this: Node) => HTMLElement | null) | undefined
+const setStylePropertyMethod = stylePrototype?.setProperty ?? null
+const getStylePropertyValueMethod = stylePrototype?.getPropertyValue ?? null
 
-const currentTimeAccessor = captureAccessor<number>(mediaPrototype, 'currentTime')
-const durationAccessor = captureAccessor<number>(mediaPrototype, 'duration')
-const volumeAccessor = captureAccessor<number>(mediaPrototype, 'volume')
-const playbackRateAccessor = captureAccessor<number>(mediaPrototype, 'playbackRate')
-const mutedAccessor = captureAccessor<boolean>(mediaPrototype, 'muted')
-const pausedAccessor = captureAccessor<boolean>(mediaPrototype, 'paused')
-const errorAccessor = captureAccessor<MediaError | null>(mediaPrototype, 'error')
-const videoWidthAccessor = captureAccessor<number>(videoPrototype, 'videoWidth')
-const videoHeightAccessor = captureAccessor<number>(videoPrototype, 'videoHeight')
-const displayWidthAccessor = captureAccessor<number>(videoPrototype, 'width')
-const displayHeightAccessor = captureAccessor<number>(videoPrototype, 'height')
-const clientWidthAccessor = captureAccessor<number>(elementPrototype, 'clientWidth')
-const clientHeightAccessor = captureAccessor<number>(elementPrototype, 'clientHeight')
-const hiddenAccessor = captureAccessor<boolean>(htmlElementPrototype, 'hidden')
-const isConnectedAccessor = captureAccessor<boolean>(nodePrototype, 'isConnected')
-const localNameAccessor = captureAccessor<string>(elementPrototype, 'localName')
+const currentTimeAccessor = captureAccessor<HTMLMediaElement, number>(mediaPrototype, 'currentTime')
+const durationAccessor = captureAccessor<HTMLMediaElement, number>(mediaPrototype, 'duration')
+const volumeAccessor = captureAccessor<HTMLMediaElement, number>(mediaPrototype, 'volume')
+const playbackRateAccessor = captureAccessor<HTMLMediaElement, number>(
+  mediaPrototype,
+  'playbackRate'
+)
+const mutedAccessor = captureAccessor<HTMLMediaElement, boolean>(mediaPrototype, 'muted')
+const pausedAccessor = captureAccessor<HTMLMediaElement, boolean>(mediaPrototype, 'paused')
+const errorAccessor = captureAccessor<HTMLMediaElement, MediaError | null>(mediaPrototype, 'error')
+const videoWidthAccessor = captureAccessor<HTMLMediaElement, number>(videoPrototype, 'videoWidth')
+const videoHeightAccessor = captureAccessor<HTMLMediaElement, number>(videoPrototype, 'videoHeight')
+const displayWidthAccessor = captureAccessor<HTMLMediaElement, number>(videoPrototype, 'width')
+const displayHeightAccessor = captureAccessor<HTMLMediaElement, number>(videoPrototype, 'height')
+const clientWidthAccessor = captureAccessor<HTMLMediaElement, number>(
+  elementPrototype,
+  'clientWidth'
+)
+const clientHeightAccessor = captureAccessor<HTMLMediaElement, number>(
+  elementPrototype,
+  'clientHeight'
+)
+const hiddenAccessor = captureAccessor<HTMLMediaElement, boolean>(htmlElementPrototype, 'hidden')
+const styleAccessor = captureAccessor<HTMLMediaElement, CSSStyleDeclaration>(
+  htmlElementPrototype,
+  'style'
+)
+const isConnectedAccessor = captureAccessor<HTMLMediaElement, boolean>(nodePrototype, 'isConnected')
+const localNameAccessor = captureAccessor<HTMLMediaElement, string>(elementPrototype, 'localName')
+const fullscreenElementAccessor = captureAccessor<Document, Element | null>(
+  documentPrototype,
+  'fullscreenElement'
+)
+const fullscreenEnabledAccessor = captureAccessor<Document, boolean>(
+  documentPrototype,
+  'fullscreenEnabled'
+)
+const pictureInPictureElementAccessor = captureAccessor<Document, Element | null>(
+  documentPrototype,
+  'pictureInPictureElement'
+)
+const pictureInPictureEnabledAccessor = captureAccessor<Document, boolean>(
+  documentPrototype,
+  'pictureInPictureEnabled'
+)
+const disablePictureInPictureAccessor = captureAccessor<HTMLVideoElement, boolean>(
+  videoPrototype,
+  'disablePictureInPicture'
+)
+const cssTextAccessor = captureAccessor<CSSStyleDeclaration, string>(stylePrototype, 'cssText')
 
-function readOr<T>(accessor: NativeAccessor<T>, target: HTMLMediaElement, fallback: T): T {
+function readOr<T>(
+  accessor: NativeAccessor<HTMLMediaElement, T>,
+  target: HTMLMediaElement,
+  fallback: T
+): T {
   if (accessor.get === null) return fallback
   try {
     return accessor.get(target)
   } catch {
     return fallback
+  }
+}
+
+function readDocumentOr<T>(
+  accessor: NativeAccessor<Document, T>,
+  target: Document,
+  fallback: T
+): T {
+  if (accessor.get === null) return fallback
+  try {
+    return accessor.get(target)
+  } catch {
+    return fallback
+  }
+}
+
+function readVideoOr<T>(
+  accessor: NativeAccessor<HTMLVideoElement, T>,
+  target: HTMLVideoElement,
+  fallback: T
+): T {
+  if (accessor.get === null) return fallback
+  try {
+    return accessor.get(target)
+  } catch {
+    return fallback
+  }
+}
+
+function nativeStyle(element: HTMLMediaElement): CSSStyleDeclaration | null {
+  if (styleAccessor.get === null) return null
+  try {
+    return styleAccessor.get(element)
+  } catch {
+    return null
   }
 }
 
@@ -107,8 +191,16 @@ export const nativeMediaBindings = Object.freeze({
   hasPlaybackRate: playbackRateAccessor.set !== null,
   hasVolume: volumeAccessor.set !== null,
   hasMute: mutedAccessor.set !== null,
-  hasFullscreen: requestFullscreenMethod !== null,
-  hasPictureInPicture: requestPictureInPictureMethod !== null,
+  hasVisualStyles:
+    styleAccessor.get !== null && cssTextAccessor.set !== null && setStylePropertyMethod !== null,
+  hasFullscreenNative: requestFullscreenMethod !== null && exitFullscreenMethod !== null,
+  hasFullscreenWeb:
+    styleAccessor.get !== null && cssTextAccessor.set !== null && setStylePropertyMethod !== null,
+  hasFullscreen:
+    (requestFullscreenMethod !== null && exitFullscreenMethod !== null) ||
+    (styleAccessor.get !== null && cssTextAccessor.set !== null && setStylePropertyMethod !== null),
+  hasPictureInPicture:
+    requestPictureInPictureMethod !== null && exitPictureInPictureMethod !== null,
 
   isMediaElement(target: unknown): target is HTMLMediaElement {
     if (typeof target !== 'object' || target === null || localNameAccessor.get === null)
@@ -126,6 +218,24 @@ export const nativeMediaBindings = Object.freeze({
 
   isVideo(element: HTMLMediaElement): element is HTMLVideoElement {
     return readOr(localNameAccessor, element, '') === 'video'
+  },
+
+  isPictureInPictureEnabled(element: HTMLMediaElement): boolean {
+    if (
+      readOr(localNameAccessor, element, '') !== 'video' ||
+      requestPictureInPictureMethod === null ||
+      exitPictureInPictureMethod === null
+    ) {
+      return false
+    }
+    const document = element.ownerDocument
+    const documentEnabled = readDocumentOr(pictureInPictureEnabledAccessor, document, true)
+    const disabled = readVideoOr(
+      disablePictureInPictureAccessor,
+      element as HTMLVideoElement,
+      false
+    )
+    return documentEnabled && !disabled
   },
 
   play(element: HTMLMediaElement): Promise<void> {
@@ -178,6 +288,107 @@ export const nativeMediaBindings = Object.freeze({
   writeMuted(element: HTMLMediaElement, value: boolean): void {
     if (mutedAccessor.set === null) throw new Error('Native media mute is unavailable')
     mutedAccessor.set(element, value)
+  },
+
+  requestFullscreen(element: HTMLMediaElement): Promise<void> {
+    if (requestFullscreenMethod === null) {
+      return Promise.reject(new Error('Native fullscreen request is unavailable'))
+    }
+    try {
+      return Promise.resolve(requestFullscreenMethod.call(element)).then(() => undefined)
+    } catch (error) {
+      return Promise.reject(asError(error, 'Native fullscreen request failed'))
+    }
+  },
+
+  exitFullscreen(element: HTMLMediaElement): Promise<void> {
+    if (exitFullscreenMethod === null) {
+      return Promise.reject(new Error('Native fullscreen exit is unavailable'))
+    }
+    try {
+      return Promise.resolve(exitFullscreenMethod.call(element.ownerDocument)).then(() => undefined)
+    } catch (error) {
+      return Promise.reject(asError(error, 'Native fullscreen exit failed'))
+    }
+  },
+
+  readFullscreenElement(element: HTMLMediaElement): Element | null {
+    return readDocumentOr(fullscreenElementAccessor, element.ownerDocument, null)
+  },
+
+  isFullscreenEnabled(element: HTMLMediaElement): boolean {
+    return readDocumentOr(fullscreenEnabledAccessor, element.ownerDocument, true)
+  },
+
+  requestPictureInPicture(element: HTMLMediaElement): Promise<void> {
+    if (requestPictureInPictureMethod === null) {
+      return Promise.reject(new Error('Picture-in-picture request is unavailable'))
+    }
+    try {
+      return Promise.resolve(requestPictureInPictureMethod.call(element as HTMLVideoElement)).then(
+        () => undefined
+      )
+    } catch (error) {
+      return Promise.reject(asError(error, 'Picture-in-picture request failed'))
+    }
+  },
+
+  exitPictureInPicture(element: HTMLMediaElement): Promise<void> {
+    if (exitPictureInPictureMethod === null) {
+      return Promise.reject(new Error('Picture-in-picture exit is unavailable'))
+    }
+    try {
+      return Promise.resolve(exitPictureInPictureMethod.call(element.ownerDocument)).then(
+        () => undefined
+      )
+    } catch (error) {
+      return Promise.reject(asError(error, 'Picture-in-picture exit failed'))
+    }
+  },
+
+  readPictureInPictureElement(element: HTMLMediaElement): Element | null {
+    return readDocumentOr(pictureInPictureElementAccessor, element.ownerDocument, null)
+  },
+
+  readStyleCssText(element: HTMLMediaElement): string {
+    const style = nativeStyle(element)
+    if (style === null || cssTextAccessor.get === null) return ''
+    try {
+      return cssTextAccessor.get(style)
+    } catch {
+      return ''
+    }
+  },
+
+  writeStyleCssText(element: HTMLMediaElement, value: string): void {
+    const style = nativeStyle(element)
+    if (style === null || cssTextAccessor.set === null) {
+      throw new Error('Native media style is unavailable')
+    }
+    cssTextAccessor.set(style, value)
+  },
+
+  setStyleProperty(
+    element: HTMLMediaElement,
+    property: string,
+    value: string,
+    priority = ''
+  ): void {
+    const style = nativeStyle(element)
+    if (style === null || setStylePropertyMethod === null) {
+      throw new Error('Native media style property API is unavailable')
+    }
+    setStylePropertyMethod.call(style, property, value, priority)
+  },
+
+  readStyleProperty(element: HTMLMediaElement, property: string): string {
+    const style = nativeStyle(element)
+    if (style === null || getStylePropertyValueMethod === null) return ''
+    try {
+      return getStylePropertyValueMethod.call(style, property)
+    } catch {
+      return ''
+    }
   },
 
   getBoundingClientRect(element: HTMLMediaElement): DOMRect | null {
@@ -252,5 +463,34 @@ export const nativeMediaBindings = Object.freeze({
   ): void {
     if (removeEventListenerMethod === null) return
     removeEventListenerMethod.call(element, type, listener, capture)
+  },
+
+  addDocumentEventListener(
+    document: Document,
+    type: string,
+    listener: EventListener,
+    capture = false
+  ): void {
+    if (addEventListenerMethod === null) return
+    addEventListenerMethod.call(document, type, listener, capture)
+  },
+
+  removeDocumentEventListener(
+    document: Document,
+    type: string,
+    listener: EventListener,
+    capture = false
+  ): void {
+    if (removeEventListenerMethod === null) return
+    removeEventListenerMethod.call(document, type, listener, capture)
+  },
+
+  contains(container: Element, target: Element): boolean {
+    if (containsMethod === null) return false
+    try {
+      return containsMethod.call(container, target)
+    } catch {
+      return false
+    }
   }
 })

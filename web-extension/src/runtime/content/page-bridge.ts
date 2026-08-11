@@ -1,5 +1,9 @@
 import type { SchedulerPort, Teardown } from '../../application/ports/browser'
-import type { MediaCommandResultResponse, MediaPageState } from '../../application/media'
+import type {
+  MediaCommandResultResponse,
+  MediaPageState,
+  MediaPageStateSummary
+} from '../../application/media'
 import type { MediaCommand } from '../../domain/command'
 import type { ReplayGuard } from '../../infrastructure/messaging/replay-guard'
 import {
@@ -54,6 +58,7 @@ export class PageBridge {
   private timeoutHandle: ReturnType<typeof globalThis.setTimeout> | null = null
   private startPromise: Promise<boolean> | null = null
   private readonly pending = new Map<string, PendingRequest>()
+  private readonly stateListeners = new Set<(summary: MediaPageStateSummary) => void>()
 
   constructor(private readonly options: PageBridgeOptions) {}
 
@@ -125,6 +130,12 @@ export class PageBridge {
     return response.payload
   }
 
+  subscribeMediaStateChanged(listener: (summary: MediaPageStateSummary) => void): Teardown {
+    if (this.stopped) return () => undefined
+    this.stateListeners.add(listener)
+    return () => this.stateListeners.delete(listener)
+  }
+
   ping(): void {
     if (this.ready && !this.stopped) this.post('bridge.ping')
   }
@@ -141,6 +152,7 @@ export class PageBridge {
       request.reject(new PageBridgeError('BRIDGE_UNAVAILABLE', 'Page bridge stopped'))
       this.pending.delete(requestId)
     }
+    this.stateListeners.clear()
     this.finish(false)
   }
 
@@ -171,6 +183,16 @@ export class PageBridge {
       'page-main'
     )
     if (!mediaMessage || !this.options.replayGuard.accept(scope, mediaMessage.requestId)) return
+    if (mediaMessage.type === 'media.state-changed') {
+      for (const listener of [...this.stateListeners]) {
+        try {
+          listener(mediaMessage.payload.summary)
+        } catch {
+          // One content observer must not break bridge request routing.
+        }
+      }
+      return
+    }
     const pending = this.pending.get(mediaMessage.requestId)
     if (!pending) return
 

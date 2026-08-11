@@ -2,6 +2,7 @@ import * as z from 'zod/mini'
 import { createRequestId } from './ids'
 
 export const PROTOCOL_VERSION = 1 as const
+export const CURRENT_EXTENSION_PHASE = 4 as const
 
 const requestIdSchema = z.string().check(z.minLength(16), z.maxLength(128))
 const sessionIdSchema = z.string().check(z.minLength(16), z.maxLength(128))
@@ -23,7 +24,12 @@ export const runtimeRequestTypeSchema = z.enum([
   'site.reconcile',
   'diagnostics.get',
   'media.get-state',
-  'media.execute'
+  'media.execute',
+  'media.cross-tab.publish',
+  'progress.read',
+  'progress.save',
+  'progress.delete',
+  'progress.prune'
 ])
 
 export const runtimeClientSourceSchema = z.enum(['content', 'popup', 'options'])

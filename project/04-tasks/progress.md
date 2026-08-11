@@ -8,11 +8,11 @@
 
 ## 当前阶段
 
-**Phase 3 Exit：设置、快捷键、站点权限与原生扩展 UI 已完成 Preview 范围验证**
+**Phase 4 Exit：高级通用能力、Overlay、截图、进度与跨 Tab 已完成 Preview 范围验证**
 
-整体状态：🟢 `EXT-060`～`EXT-069` 已 Verified；[Phase 3 Exit Review](../09-reviews/phase-3-exit-review-2026-08-11.md)
-结论为 `Approved / Conditional GO`。可以进入 Phase 4 工程化迭代，但尚不具备 Stable 发布资格，也不宣告
-Tier 1 真实站点、Firefox ESR/最低版本或商店上架准备已完成。
+整体状态：🟢 `EXT-080`～`EXT-087` 已 Verified；`EXT-087` 的结果记录于 [Phase 4 Exit Review](../09-reviews/phase-4-exit-review-2026-08-11.md)。
+结论为 `Approved / Conditional GO`：Preview 范围可进入 Phase 5 工程开发，但尚不具备 Stable 发布资格，也不宣告
+Tier 1 真实站点、Firefox ESR/最低版本、headed 权限 UX 或商店上架准备已完成。
 
 ## 已完成基线
 
@@ -63,28 +63,36 @@ Tier 1 真实站点、Firefox ESR/最低版本或商店上架准备已完成。
 - zh-CN/en-US catalog 结构完整；诊断仅输出本地 bounded summary，URL 降为 hostname，排除 title、媒体 URL、
   page text、cookie 和 token。
 
-## 验证证据（2026-08-11 当前工作树）
+## Phase 4 已完成交付
+
+- visual state 按 MediaSession 隔离，支持 zoom/pan/rotate/flip/filter、单调用原子 reset、native/web fullscreen、PiP；原始 inline style 在 reset/teardown 恢复。
+- top frame 挂载 closed ShadowRoot Overlay，包含 hostile CSS reset、event isolation、动态 mount/teardown 和 typed intent→command 映射；iframe 仍运行媒体 runtime，但 Preview 不做跨 frame 媒体聚合。
+- Canvas 截图不修改 crossorigin、不新增 downloads/clipboard 权限；bounded artifact 通过临时 Blob URL 下载，CORS/DRM/未就绪/尺寸/编码失败均映射为有限错误。
+- progress 使用匿名 hash identity、TTL、容量、隐私门禁和 5 秒节流；完成判断优先删除记录。跨 Tab 只发送 playback/progress advisory event，不轮询、不自动暂停。
+- bundle budget 和 manifest guardrail 已进入 CI；生产 Chrome/Firefox 无 required host、静态 content scripts 和 WAR。
+
+## 验证证据（Phase 4，2026-08-11 当前工作树）
 
 | 门禁                      | 结果                                                                                                            |
 | ------------------------- | --------------------------------------------------------------------------------------------------------------- |
 | Format / lint / typecheck | Passed                                                                                                          |
-| Unit                      | 28 files / 93 tests passed                                                                                      |
-| Component                 | 3 files / 9 tests passed                                                                                        |
-| Integration               | 7 files / 40 tests passed                                                                                       |
+| Unit                      | 36 files / 143 tests passed                                                                                     |
+| Component                 | 4 files / 19 tests passed                                                                                       |
+| Integration               | 9 files / 63 tests passed                                                                                       |
 | Compatibility             | 2 files / 21 tests passed                                                                                       |
-| Coverage                  | Statements 85.84%；Branches 75.18%；Functions 88.24%；Lines 89.50%                                              |
-| Security                  | 静态扫描 120 files + 2 manifests；security tests 3 passed                                                       |
-| Dependency boundaries     | 105 modules / 330 dependencies；0 violations                                                                    |
-| Chrome E2E                | 3 passed；未授权/拒绝/受限、当前站点媒体与 worker restart、all-sites 生命周期与撤权；1 configured churn skipped |
+| Coverage                  | 52 files / 249 tests；Statements 85.68%；Branches 76.57%；Functions 87.33%；Lines 89.28%                       |
+| Security                  | 静态扫描 142 files + 2 manifests；security tests 3 passed                                                       |
+| Dependency boundaries     | 128 modules / 415 dependencies；0 violations                                                                    |
+| Chrome E2E                | 3 passed（固定 workers=1）；1 configured churn skipped                                                         |
 | Firefox E2E               | Firefox 153.0；optional origin + activeTab harness、动态注册、6 类媒体命令和撤权通过                            |
-| Firefox lint              | 0 errors；1 条 Vue runtime 生成代码 `UNSAFE_VAR_ASSIGNMENT` warning                                             |
-| Churn smoke               | 5017 ms；82 cycles；1 worker restart；listeners 4→4；heap 3613664→4315488 bytes                                 |
+| Firefox lint              | 0 errors；2 条 Vue/runtime 生成代码 `UNSAFE_VAR_ASSIGNMENT` warning，业务源码无对应 sink                         |
+| Churn smoke               | 5051 ms；94 cycles；1 worker restart；listeners 4→4；heap 4752684→6424152 bytes                                 |
 | Legacy regression         | SHA-256 `91b5312d7cf150cd852d005b1e5d5f3d8ed2ed7cd8a481dfa1d561d48f7b3f27`；561788 bytes                        |
 | Production manifests      | required `storage/activeTab/scripting`；optional `<all_urls>`；`content_scripts: []`；无 required hosts/WAR     |
-| Artifact footprint        | Chrome 484 KiB；Firefox 484 KiB（unpacked production directories）                                              |
+| Bundle budget             | Chrome/Firefox background 90150/90151 B、content 191669 B、page-main 77976 B raw；全部通过                      |
 
-Phase 2 的 30 分钟 churn 结果仍作为已批准历史证据保留在对应 Exit Review；本次 Phase 3 变更重新执行了 5 秒
-churn smoke，没有伪称重新完成 30 分钟运行。
+Phase 2 的 30 分钟 churn 结果仍作为已批准历史证据保留；Phase 4 只重新执行 5 秒 smoke，没有伪称重跑 30 分钟。
+Playwright 扩展生命周期套件固定单 worker；并行 persistent Chromium profiles 会争抢启动资源并产生假性 timeout。
 
 ## 权限自动化边界
 
@@ -103,17 +111,19 @@ churn smoke，没有伪称重新完成 30 分钟运行。
    发布矩阵，Stable 前不可豁免。
 2. Headless harness 证明权限状态机与产品代码，但不能取代原生确认框文案、焦点和商店审核体验的 headed/manual 验证。
 3. `web-ext lint` warning 来自 Vue 生成 runtime；业务源码 innerHTML assignment 为 0，继续按供应链/构建风险跟踪。
-4. Tier 1 adapter、视觉增强、截图、进度、跨 Tab 媒体协同属于 Phase 4/5；当前 Preview 只承诺 Tier 0 通用媒体能力。
-5. WXT 仍为 `0.x`；升级必须独立变更并重跑双浏览器 build/lint/security/E2E。
+4. iframe-only media 不在 top-frame Overlay 聚合；capture base64 最大消息体约 5.6 MiB；跨 Tab 不提供自动暂停/仲裁。
+5. 当前 Chrome/Firefox E2E 未覆盖真实解码帧/CORS blocked 截图、native→web fullscreen fallback、PiP unavailable、
+   progress restore/complete、multi-tab advisory event 和 iframe-only media Overlay；这些不能由 unit/contract 结果外推。
+6. WXT 仍为 `0.x`；升级必须独立变更并重跑双浏览器 build/lint/security/E2E。
 
-## 下一步（Phase 4）
+## 下一步（Phase 5）
 
-1. 先冻结 EXT-080～EXT-087 的视觉/overlay/capture/progress 范围和性能预算，避免把 Phase 4 变成 Legacy 全量搬运。
-2. 保持 Phase 3 权限、Schema V2、facade 和组件边界；新增能力不得绕过 typed command、settings repository 或 dynamic registration。
-3. 在任何 Beta/Stable 决策前补 Firefox ESR/最低版本、Chrome previous stable、Edge、headed 权限 smoke 和真实商店文案审查。
+1. 建立 adapter registry、failure isolation 和 Tier 1 fixture/smoke，不把通用 Preview 证据扩写成真实站点支持。
+2. iframe 聚合、capture 二进制通道、跨 Tab 仲裁和更有限的 z-index token 必须独立 ADR/spike。
+3. 在任何 Beta/Stable 决策前补 Firefox ESR/最低版本、Chrome previous stable、Edge、headed 权限 smoke 和商店文案审查。
 4. 继续执行 Legacy hash/size 回归；共享核心与油猴主线重构仍只允许在 Phase 7 单独立项评估。
 
 ## 当前阻塞
 
-无代码硬阻塞。当前是“可进入下一阶段工程开发、不可发布 Stable”的状态；若项目 Owner 不接受 headless 权限 harness
-边界，则 EXT-069 需退回 In Review，并先投入 headed 浏览器权限自动化或人工审查流程。
+无代码硬阻塞。当前是“Preview 范围可进入下一阶段工程开发、不可发布 Stable”的状态；残余限制已写入 Phase 4 Exit
+Review、ADR-0009～0012 与风险台账。

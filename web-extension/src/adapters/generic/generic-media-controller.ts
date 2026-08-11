@@ -1,9 +1,22 @@
-import type { MediaCapabilities, MediaId, MediaSnapshot } from '../../domain/media'
+import type {
+  FullscreenMode,
+  MediaCapabilities,
+  MediaId,
+  MediaPresentationState,
+  MediaSnapshot,
+  VisualState
+} from '../../domain/media'
 import {
   clampMediaTime,
   clampPlaybackRate,
   clampUnit,
-  createMediaCapabilities
+  cloneVisualState,
+  createMediaCapabilities,
+  DEFAULT_VISUAL_STATE,
+  isDefaultVisualState,
+  parseVisualState,
+  serializeVisualFilter,
+  serializeVisualTransform
 } from '../../domain/media'
 import type {
   AdapterTeardown,
@@ -13,7 +26,9 @@ import type {
   MediaControllerListener,
   ObservableMediaController
 } from '../../domain/adapter'
+import type { CaptureOptions } from '../../domain/capture'
 import { nativeMediaBindings } from './native-media-bindings'
+import { nativeCaptureBindings } from './native-capture-bindings'
 
 const STATE_EVENTS = [
   'durationchange',
@@ -28,10 +43,26 @@ const STATE_EVENTS = [
   'seeking',
   'timeupdate',
   'volumechange',
+  'enterpictureinpicture',
+  'leavepictureinpicture',
   'blur'
 ] as const
 
 const INTERACTION_EVENTS = ['click', 'focus', 'mousedown', 'pointerdown', 'touchstart'] as const
+const DOCUMENT_STATE_EVENTS = ['fullscreenchange'] as const
+
+const WEB_FULLSCREEN_STYLES = Object.freeze({
+  position: 'fixed',
+  inset: '0',
+  width: '100vw',
+  height: '100vh',
+  'max-width': 'none',
+  'max-height': 'none',
+  margin: '0',
+  'object-fit': 'contain',
+  background: '#000',
+  'z-index': '2147483647'
+})
 
 function scheduleMicrotask(callback: () => void): void {
   void Promise.resolve().then(callback)
@@ -67,6 +98,11 @@ function runOperation(operation: () => void, fallbackMessage: string): Promise<v
   } catch (error) {
     return Promise.reject(asError(error, fallbackMessage))
   }
+}
+
+function combineStyleValue(baseline: string, enhancement: string): string {
+  const normalized = baseline.trim()
+  return normalized === '' || normalized === 'none' ? enhancement : `${normalized} ${enhancement}`
 }
 
 function visibleDimensions(element: HTMLMediaElement): {
@@ -130,7 +166,12 @@ export class GenericMediaController implements ObservableMediaController {
   private readonly frameId: number
   private readonly now: () => number
   private readonly schedule: (callback: () => void) => void
+  private readonly originalStyleCssText: string
+  private readonly originalTransform: string
+  private readonly originalFilter: string
   private readonly listeners = new Set<MediaControllerListener>()
+  private visualState: VisualState
+  private webFullscreenActive = false
   private observing = false
   private disposed = false
   private notificationQueued = false
@@ -147,6 +188,17 @@ export class GenericMediaController implements ObservableMediaController {
     this.frameId = Number.isInteger(context.frameId) && context.frameId >= 0 ? context.frameId : 0
     this.now = context.now
     this.schedule = context.schedule ?? scheduleMicrotask
+    this.originalStyleCssText = nativeMediaBindings.readStyleCssText(element)
+    this.originalTransform = nativeMediaBindings.readStyleProperty(element, 'transform')
+    this.originalFilter = nativeMediaBindings.readStyleProperty(element, 'filter')
+    this.visualState = cloneVisualState(DEFAULT_VISUAL_STATE)
+    const isVideo = nativeMediaBindings.isVideo(element)
+    const visual = isVideo && nativeMediaBindings.hasVisualStyles
+    const fullscreenNative =
+      isVideo &&
+      nativeMediaBindings.hasFullscreenNative &&
+      nativeMediaBindings.isFullscreenEnabled(element)
+    const fullscreenWeb = isVideo && nativeMediaBindings.hasFullscreenWeb
     this.capabilities = Object.freeze(
       createMediaCapabilities({
         playback: nativeMediaBindings.hasPlayback,
@@ -154,10 +206,12 @@ export class GenericMediaController implements ObservableMediaController {
         playbackRate: nativeMediaBindings.hasPlaybackRate,
         volume: nativeMediaBindings.hasVolume,
         mute: nativeMediaBindings.hasMute,
-        fullscreen: nativeMediaBindings.hasFullscreen,
-        pictureInPicture:
-          nativeMediaBindings.isVideo(element) && nativeMediaBindings.hasPictureInPicture,
-        capture: false,
+        visual,
+        fullscreen: fullscreenNative || fullscreenWeb,
+        fullscreenNative,
+        fullscreenWeb,
+        pictureInPicture: isVideo && nativeMediaBindings.isPictureInPictureEnabled(element),
+        capture: isVideo && nativeCaptureBindings.available,
         downloadExperimental: false
       })
     )
@@ -188,6 +242,7 @@ export class GenericMediaController implements ObservableMediaController {
       muted: nativeMediaBindings.readMuted(this.element),
       visible: dimensions.visible
     })
+    const presentation = this.getPresentationState()
 
     return Object.freeze({
       id: this.mediaId,
@@ -196,6 +251,8 @@ export class GenericMediaController implements ObservableMediaController {
       state,
       metrics,
       capabilities: this.capabilities,
+      visual: this.visualState,
+      presentation,
       adapterId: 'generic',
       updatedAt: normalizeTimestamp(this.now())
     })
@@ -252,6 +309,67 @@ export class GenericMediaController implements ObservableMediaController {
     }, 'Native media mute update failed')
   }
 
+  setVisualState(state: VisualState): Promise<void> {
+    return runOperation(() => {
+      this.assertUsable('visual', 'set visual state')
+      const parsed = parseVisualState(state)
+      if (!parsed.ok) throw new TypeError('Invalid visual state')
+      // Render first and commit the immutable state only after every DOM
+      // operation succeeds. This gives reset and normal updates atomic state
+      // semantics even when a hostile style implementation throws.
+      this.renderStyles(parsed.value, this.webFullscreenActive)
+      this.visualState = parsed.value
+      this.queueNotification('state')
+    }, 'Native media visual state update failed')
+  }
+
+  async toggleFullscreen(mode: FullscreenMode): Promise<void> {
+    this.assertUsable('fullscreen', `${mode} fullscreen`)
+    if (mode === 'web') {
+      if (this.webFullscreenActive) {
+        this.renderStyles(this.visualState, false)
+        this.webFullscreenActive = false
+      } else {
+        const nativeElement = nativeMediaBindings.readFullscreenElement(this.element)
+        if (nativeElement !== null && this.isOwnedFullscreen(nativeElement)) {
+          await nativeMediaBindings.exitFullscreen(this.element)
+        }
+        this.renderStyles(this.visualState, true)
+        this.webFullscreenActive = true
+      }
+      this.queueNotification('state')
+      return
+    }
+
+    const nativeElement = nativeMediaBindings.readFullscreenElement(this.element)
+    if (nativeElement !== null && this.isOwnedFullscreen(nativeElement)) {
+      await nativeMediaBindings.exitFullscreen(this.element)
+    } else {
+      await nativeMediaBindings.requestFullscreen(this.element)
+    }
+    if (this.webFullscreenActive) {
+      this.renderStyles(this.visualState, false)
+      this.webFullscreenActive = false
+    }
+    this.queueNotification('state')
+  }
+
+  async togglePictureInPicture(): Promise<void> {
+    this.assertUsable('pictureInPicture', 'toggle picture-in-picture')
+    const current = nativeMediaBindings.readPictureInPictureElement(this.element)
+    if (current === this.element) {
+      await nativeMediaBindings.exitPictureInPicture(this.element)
+    } else {
+      await nativeMediaBindings.requestPictureInPicture(this.element)
+    }
+    this.queueNotification('state')
+  }
+
+  captureFrame(options: CaptureOptions) {
+    this.assertUsable('capture', 'capture a frame')
+    return nativeCaptureBindings.captureVideoFrame(this.element, options)
+  }
+
   subscribe(listener: MediaControllerListener): AdapterTeardown {
     this.assertNotDisposed()
     this.listeners.add(listener)
@@ -269,6 +387,18 @@ export class GenericMediaController implements ObservableMediaController {
     this.notificationQueued = false
     this.listeners.clear()
     this.stopObserving()
+    try {
+      this.renderStyles(DEFAULT_VISUAL_STATE, false)
+    } catch {
+      // Teardown must remain best-effort when a page replaces native style APIs.
+    }
+    const fullscreenElement = nativeMediaBindings.readFullscreenElement(this.element)
+    if (fullscreenElement !== null && this.isOwnedFullscreen(fullscreenElement)) {
+      void nativeMediaBindings.exitFullscreen(this.element).catch(() => undefined)
+    }
+    if (nativeMediaBindings.readPictureInPictureElement(this.element) === this.element) {
+      void nativeMediaBindings.exitPictureInPicture(this.element).catch(() => undefined)
+    }
   }
 
   private readonly handleStateEvent: EventListener = () => {
@@ -279,6 +409,43 @@ export class GenericMediaController implements ObservableMediaController {
     this.queueNotification('interaction')
   }
 
+  private getPresentationState(): MediaPresentationState {
+    const nativeElement = nativeMediaBindings.readFullscreenElement(this.element)
+    const nativeFullscreen = nativeElement !== null && this.isOwnedFullscreen(nativeElement)
+    return Object.freeze({
+      fullscreen: this.webFullscreenActive ? 'web' : nativeFullscreen ? 'native' : 'none',
+      pictureInPicture:
+        nativeMediaBindings.readPictureInPictureElement(this.element) === this.element
+    })
+  }
+
+  private isOwnedFullscreen(element: Element): boolean {
+    return element === this.element || nativeMediaBindings.contains(element, this.element)
+  }
+
+  private renderStyles(state: VisualState, webFullscreen: boolean): void {
+    nativeMediaBindings.writeStyleCssText(this.element, this.originalStyleCssText)
+    if (!isDefaultVisualState(state)) {
+      nativeMediaBindings.setStyleProperty(
+        this.element,
+        'transform',
+        combineStyleValue(this.originalTransform, serializeVisualTransform(state)),
+        'important'
+      )
+      nativeMediaBindings.setStyleProperty(
+        this.element,
+        'filter',
+        combineStyleValue(this.originalFilter, serializeVisualFilter(state)),
+        'important'
+      )
+    }
+    if (webFullscreen) {
+      for (const [property, value] of Object.entries(WEB_FULLSCREEN_STYLES)) {
+        nativeMediaBindings.setStyleProperty(this.element, property, value, 'important')
+      }
+    }
+  }
+
   private startObserving(): void {
     if (this.observing || this.disposed) return
     this.observing = true
@@ -287,6 +454,14 @@ export class GenericMediaController implements ObservableMediaController {
     }
     for (const event of INTERACTION_EVENTS) {
       nativeMediaBindings.addEventListener(this.element, event, this.handleInteractionEvent, true)
+    }
+    for (const event of DOCUMENT_STATE_EVENTS) {
+      nativeMediaBindings.addDocumentEventListener(
+        this.element.ownerDocument,
+        event,
+        this.handleStateEvent,
+        true
+      )
     }
   }
 
@@ -301,6 +476,14 @@ export class GenericMediaController implements ObservableMediaController {
         this.element,
         event,
         this.handleInteractionEvent,
+        true
+      )
+    }
+    for (const event of DOCUMENT_STATE_EVENTS) {
+      nativeMediaBindings.removeDocumentEventListener(
+        this.element.ownerDocument,
+        event,
+        this.handleStateEvent,
         true
       )
     }

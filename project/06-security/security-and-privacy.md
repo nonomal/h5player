@@ -1,9 +1,9 @@
 # 安全、隐私与供应链基线
 
 > 文档 ID：SEC-001  
-> 状态：Approved as Security Baseline  
+> 状态：Approved / Phase 4 Security Baseline  
 > 负责人：Security Reviewer  
-> 最后更新：2026-08-10  
+> 最后更新：2026-08-11  
 > 关联：ADR-0002、ADR-0005、QA-002
 
 ## 1. 信任边界
@@ -62,6 +62,10 @@ Phase 1 补充：MAIN world 与页面脚本共享 realm，nonce 不能替代 cap
 - 对 `document`, `window`, `Object`, `HTMLMediaElement` 等可能被站点改写的对象保存受控引用，并有 hostile fixture 验证。
 - Hook 必须有 teardown；页面导航和 frame unload 后不能保留引用。
 
+Phase 4 Overlay 使用 closed ShadowRoot 和 hostile CSS reset，但不把 closed root 视为安全边界。WXT event isolation 主要
+阻止冒泡阶段事件离开内部树，页面 capture-phase listener 仍可能先观察用户事件；因此 Overlay 不承载密码、token 或
+其他秘密输入。仅 top frame 挂 UI，避免 iframe 重复控件。
+
 ## 6. 存储与隐私
 
 - 默认只保存设置、站点规则、必要的进度元数据和版本信息。
@@ -70,6 +74,15 @@ Phase 1 补充：MAIN world 与页面脚本共享 realm，nonce 不能替代 cap
 - 日志默认本地 ring buffer，自动移除 query、fragment、标题、媒体源、页面文本、账号标识。
 - 任何外部网络请求必须是固定 HTTPS allowlist、最小字段、超时、响应校验和用户可关闭；首发默认关闭。
 - 隐私政策必须列出数据类型、用途、存储位置、保留期、清除方式和第三方依赖。
+
+Phase 4 progress 默认关闭；开启后只保存规范化 site、匿名 mediaKey、position/duration 和 TTL，不保存临时 media ID、
+原始 page/source URL、query、fragment、标题或账号信息。匿名 hash 仅用于去敏和稳定 key，不宣称密码学不可关联。
+
+截图不修改 `crossorigin`，不代理媒体，不绕过 DRM/CORS。Artifact 最大 4 MiB，isolated content 二次校验 base64 和
+byteLength 后下载；错误上下文不包含媒体源。当前通用消息响应最大可能约 5.6 MiB，作为 `RISK-019` 在 Beta 前收敛。
+
+跨 Tab 事件只含匿名 mediaKey、真实 sender 派生的 source tab/frame、bounded timestamp 和 event ID；不持久化、不外联、
+不自动控制其他页面。发送失败不改变本地命令结果。
 
 ## 7. 供应链与构建
 
@@ -91,6 +104,9 @@ Phase 1 补充：MAIN world 与页面脚本共享 realm，nonce 不能替代 cap
 | 依赖供应链投毒         | 全量用户影响    | lockfile、审计、SBOM、review                       | release gate     |
 | 诊断包泄露 URL/内容    | 隐私泄露        | 默认脱敏、预览、用户确认                           | redaction test   |
 | 站点 Hook 被污染       | 功能/安全异常   | 原始引用、能力隔离、teardown                       | hostile fixture  |
+| 大截图耗尽消息/内存     | 卡顿或命令失败   | 像素/维度/4 MiB 上限、encode timeout、二次校验      | capture unit + budget/risk |
+| 进度泄露观看 URL        | 隐私泄露         | 匿名 identity、默认关闭、TTL/容量、raw-source import 拒绝 | progress tests |
+| 页面干扰 Overlay 事件   | 操作冲突         | closed ShadowRoot、event isolation、无秘密输入、可停用 | component/runtime lifecycle + ADR-0009 |
 
 ## 9. 安全发布门槛
 

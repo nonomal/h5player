@@ -27,6 +27,11 @@
 | RISK-015 | 构建产物不可复现/供应链风险                | Critical | Low    | High     | Release Manager   | 精确版本、独立 lockfile、固定 Node/pnpm、Legacy hash；Phase 6 补 SBOM/license/provenance 和跨机复现                                                     | 相同提交产物 hash 无法解释                                  | 停止发布，审计依赖和构建环境                     | Mitigating          |
 | RISK-016 | 性能开销使所有页面变慢                     | High     | Medium | High     | Performance Owner | 无媒体快路径、observer 批处理、bundle/长任务预算                                                                                                        | p95/内存超 NFR，用户反馈卡顿                                | 关闭高成本模块、按需加载                         | Open                |
 | RISK-017 | Headless 权限自动化掩盖原生确认框问题      | High     | Medium | High     | Quality/Security  | 生产 manifest 独立扫描；Chrome 临时 profile/拒绝副本与 Firefox 内部权限 harness 只验证状态机；DECISION-006 要求 Beta/商店前 headed 手工 smoke           | harness 通过但原生弹窗文案、焦点、接受/拒绝行为异常         | 阻断 Beta/商店提交，回退权限 UX 或只保留当前站点 | Mitigating          |
+| RISK-018 | top-frame Overlay 无法聚合 iframe-only media | High | Medium | High | UI/Runtime Owner | top frame 单实例、iframe runtime 保留；ADR-0009 明示 Preview 限制；Phase 5 评估 frame registry/selection | 页面只有 iframe 媒体时 Overlay 显示 empty、用户误判无媒体 | 隐藏 Overlay/引导 Popup，或实现受控 frame 聚合 | Open |
+| RISK-019 | base64 截图 Artifact 导致大消息和峰值内存 | High | Medium | High | Performance/Security | 8192/16.7MP/4 MiB 上限、encode timeout、二次校验；不经 background；记录 raw/gzip budget | 大画面截图卡顿、runtime message 被浏览器拒绝、页面崩溃 | 降低上限、禁用 capture、改专用二进制/分块通道 | Mitigating |
+| RISK-020 | 匿名进度 identity 冲突或形成可关联观看历史 | High | Medium | High | Data/Security | 默认关闭、TTL/容量、origin+path hash、raw URL 不落盘、清除开关联动；兼容 `titleHint` 强制剥离并有导入/落盘/导出回归；ADR-0011 | 同路径多节目覆盖、导出/诊断出现原 URL 或标题、关闭后仍留记录 | 清除 progress、禁用恢复、由 adapter 提供审查后的稳定 ID | Mitigating |
+| RISK-021 | Overlay event/z-index 与宿主页面冲突 | Medium | High | High | UI Owner | closed root、host reset、event isolation、站点停用；Preview z-index 明示临时值 | capture-phase listener 抢事件、遮挡站点关键 UI、页面投诉 | 降低/配置 z-index、改变 placement、停用 Overlay | Open |
+| RISK-022 | 扩展 E2E 并行 profile 资源争抢产生假失败 | Medium | High | High | Quality Owner | Playwright `workers:1`；按 runner/job 并行；保存 trace 区分启动与断言失败 | 用例在 profile seed/close/worker start 阶段超时，串行通过 | 降为单 worker，拆 CI runner，不盲目增大 timeout | Mitigated / Monitor |
 
 ## 风险处理规则
 
@@ -45,3 +50,5 @@
 | DECISION-004 | Tier 1 站点最终名单       | Resolved at Phase 2 Exit  | Tier 0 通用 HTMLMediaElement；Tier 1 冻结为 YouTube、Bilibili、Tencent Video、iQIYI、Youku，Phase 5 按 adapter fixture + smoke 交付 |
 | DECISION-005 | 配置同步字段白名单        | Resolved at Phase 3 Start | ADR-0008：仅小型非敏感全局标量；bindings/sites/progress/diagnostics/experimental 排除；Preview 不启用跨设备 sync                    |
 | DECISION-006 | Headless 权限测试证据政策 | Resolved at Phase 3 Exit  | 隔离 harness 可作为权限状态机自动化证据，但不能替代原生确认框 UX；内部浏览器 API 禁止进入生产，Beta/商店前必须 headed/manual 复核   |
+| DECISION-007 | Overlay frame 聚合策略 | Phase 5 Start | Preview 保持 top-frame-only；在引入 frame registry 前不宣称 iframe-only Overlay 支持 |
+| DECISION-008 | Capture transport 上限/协议 | Before Beta | 先以 4 MiB bounded base64 取证；Beta 前依据性能数据决定降限或专用二进制通道 |

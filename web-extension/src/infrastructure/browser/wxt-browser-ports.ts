@@ -66,6 +66,14 @@ export class WxtTabsPort implements TabsPort {
     return tab.url ? { id: tab.id, url: tab.url } : { id: tab.id }
   }
 
+  async list(): Promise<readonly { id: number; url?: string }[]> {
+    const tabs = await browser.tabs.query({})
+    return tabs.flatMap((tab) => {
+      if (tab.id === undefined) return []
+      return [tab.url ? { id: tab.id, url: tab.url } : { id: tab.id }]
+    })
+  }
+
   send(tabId: number, message: unknown, frameId?: number): Promise<unknown> {
     return frameId === undefined
       ? browser.tabs.sendMessage(tabId, message)

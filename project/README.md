@@ -1,6 +1,6 @@
 # H5Player Web Extension 重构工程管理中心
 
-> 状态：Active / Phase 3 Preview Baseline  
+> 状态：Active / Phase 4 Preview Baseline  
 > 建立日期：2026-08-10  
 > 最后更新：2026-08-11  
 > 维护范围：Web Extension 重构的需求、架构、任务、质量、发布与审查资料  
@@ -62,6 +62,7 @@
 | 审查   | [现状基线审查](./09-reviews/baseline-assessment-2026-08-10.md)        | 代码事实、缺口、风险与重构起点                                    |
 | 审查   | [Phase 2 Exit Review](./09-reviews/phase-2-exit-review-2026-08-10.md) | 通用媒体核心、双浏览器 E2E、差分和长稳态结论                      |
 | 审查   | [Phase 3 Exit Review](./09-reviews/phase-3-exit-review-2026-08-11.md) | 设置、快捷键、权限 onboarding、扩展 UI、双浏览器门禁与剩余风险    |
+| 审查   | [Phase 4 Exit Review](./09-reviews/phase-4-exit-review-2026-08-11.md) | 高级媒体、Overlay、截图、进度、预算门禁与剩余端侧缺口              |
 | 审查   | [审查清单](./09-reviews/review-checklists.md)                         | 需求、架构、安全、测试和发布审查                                  |
 | 模板   | [模板目录](./templates/README.md)                                     | 新需求、任务、ADR、风险和发布记录模板                             |
 
@@ -74,7 +75,7 @@
 3. 《目标架构》《模块目录与契约》《迁移与 Legacy 边界》。
 4. 《阶段路线图》《主任务台账》《自动化测试策略》。
 5. 开始任务前阅读相应 ADR、安全基线和质量门禁。
-6. Phase 3 交付或接续 Phase 4 前阅读 [Phase 3 Exit Review](./09-reviews/phase-3-exit-review-2026-08-11.md)，特别是权限自动化限制和 Stable 前置条件。
+6. 接续 Phase 5 前阅读 [Phase 4 Exit Review](./09-reviews/phase-4-exit-review-2026-08-11.md)，特别是高级能力端侧缺口、权限自动化限制和 Stable 前置条件。
 
 ## 5. 单一事实源
 
@@ -84,6 +85,7 @@
 - 是否允许合并或发布：`05-quality/`、`06-security/`、`07-release/`。
 - 历史结论和审查证据：`09-reviews/`。
 
-当前阶段结论以 [Phase 3 Exit Review](./09-reviews/phase-3-exit-review-2026-08-11.md) 为准：Preview 范围可进入下一阶段工程化迭代，但尚未获得 Stable 发布资格，也不代表已完成 Tier 1 站点适配。
+当前阶段结论以 [Phase 4 Exit Review](./09-reviews/phase-4-exit-review-2026-08-11.md) 为准：Preview 范围可进入 Phase 5
+工程开发，但尚未获得 Beta/Stable 发布资格，也不代表已完成 Tier 1 站点适配、最低浏览器版本或商店发布准备。
 
 当文档冲突时，优先级为：已接受 ADR > 已批准需求 > 路线图 > 任务描述 > 临时进度记录。冲突必须通过更新上位文档解决，不允许长期保留口头例外。

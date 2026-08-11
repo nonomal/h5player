@@ -1,7 +1,7 @@
 # Web Extension 重构路线图
 
 > 文档 ID：ROADMAP-001  
-> 状态：Approved / Phase 3 Exit Baseline  
+> 状态：Approved / Phase 4 Preview Exit  
 > 负责人：Project Owner  
 > 最后更新：2026-08-11  
 > 估算方式：以退出条件为主，不以日期驱动；建议两周一个可演示增量。
@@ -27,7 +27,7 @@ Phase 0 基线与脚手架
 | Phase 1    | Completed             | typed protocol、storage、security boundary 已批准                                                                    |
 | Phase 2    | Completed             | Tier 0 媒体核心与双浏览器真实扩展证据已批准                                                                          |
 | Phase 3    | Completed for Preview | [Exit Review](../09-reviews/phase-3-exit-review-2026-08-11.md) 为 Conditional GO；可进入 Phase 4，不具备 Stable 资格 |
-| Phase 4    | Next                  | 高级通用能力、页面组件、性能预算                                                                                     |
+| Phase 4    | Completed for Preview | [Exit Review](../09-reviews/phase-4-exit-review-2026-08-11.md) 为 Conditional GO；可进入 Phase 5，不具备 Stable 资格 |
 | Phase 5～7 | Planned               | 站点适配、发布稳定化、实验与 Legacy 后续决策                                                                         |
 
 ## Phase 0：基线冻结与工程脚手架
@@ -120,20 +120,36 @@ dependency boundaries 和 Legacy hash 回归均通过。精确证据以 Phase 3 
 
 ## Phase 4：高级通用能力与页面组件
 
-目标：完成 Legacy 的主要高频增强体验。
+目标：在不改动 Legacy 主线的前提下，完成 Web Extension 的高级通用能力、页面 Overlay、截图、进度与跨 Tab 工程基线。
 
 范围：
 
 - transform、filter、reset、web/native fullscreen、PiP。
-- 页面 overlay 组件化、按需加载和站点禁用。
-- 截图、进度保存/恢复、跨 Tab 受控状态。
+- 页面 overlay 组件化、closed Shadow DOM 隔离、top-frame 挂载和站点禁用。
+- 截图、进度保存/恢复、跨 Tab advisory event。
+- raw/gzip bundle budget、生产 manifest guardrail、质量/安全/架构审查。
 
 退出条件：
 
-- 视觉状态按媒体隔离，重置原子可靠。
-- CORS/DRM/能力不足给出可解释降级。
-- overlay 不污染页面 CSS/全局命名，组件与视觉回归测试通过。
-- 页面加载性能和 bundle 预算满足 NFR。
+- [x] 视觉状态按媒体隔离，原子 reset、fullscreen/PiP capability 和错误降级通过单测、组件与 typed contract；
+      native→web fallback、PiP unavailable 等专项浏览器 E2E 保留为 Phase 5/Beta 收敛项。
+- [x] CORS/DRM、未就绪、尺寸、编码和下载失败给出 bounded typed error；不新增 downloads/clipboard 权限。
+- [x] Overlay 使用 closed Shadow DOM、hostile CSS reset、event isolation、mount/teardown；仅 top frame 展示。
+- [x] 进度具备匿名 identity、TTL、容量、隐私开关、5 秒节流和完成删除；跨 Tab 仅为 advisory event。
+- [x] Chrome/Firefox 生产 bundle raw budget、manifest guardrail 和 CI 检查通过。
+- [x] 全量静态/单测/组件/集成/兼容/安全/依赖边界、串行 Chromium E2E、Firefox E2E、churn smoke 和 Legacy hash 通过。
+
+验证摘要（2026-08-11）：52 个测试文件 / 249 个测试；coverage statements 85.68%、branches 76.57%、functions
+87.33%、lines 89.28%；Chrome E2E 3/3、5 秒 churn 94 cycles/1 次 worker restart/listeners 4→4；Firefox 153.0
+E2E 与 web-ext lint 通过；Chrome/Firefox background/content/page-main raw 分别约 90.15/191.67/77.98 KiB，预算通过。
+
+现有双浏览器 E2E 继续证明权限、动态注册、核心媒体命令与固定页面生命周期；它没有覆盖真实解码帧截图、CORS blocked
+截图、native→web fullscreen fallback、PiP unavailable、progress restore/complete、multi-tab advisory event 或
+iframe-only media Overlay，不能把单元/契约证据扩写为这些端侧场景已经完成。
+
+Preview 明确限制：Overlay 不聚合 iframe-only media；capture artifact 经 base64 传输，4 MiB 二进制上限带来约 5.6 MiB
+消息体风险；跨 Tab 不自动暂停/仲裁；未完成 Tier 1 真实站点、Firefox ESR/最低版本、Chrome previous stable、Edge、
+headed 权限确认框、商店发布或 Stable 资格。
 
 ## Phase 5：站点适配与兼容性收敛
 
@@ -194,3 +210,4 @@ dependency boundaries 和 Legacy hash 回归均通过。精确证据以 Phase 3 
 - 每个阶段结束都必须在 `09-reviews/` 新增评审记录，并更新 backlog、progress、矩阵和风险。
 - 若连续两个里程碑质量门禁未过，暂停新增功能，优先偿还架构和测试债。
 - Phase 3 的 Conditional GO 只授权继续 Phase 4 工程开发；任何 Beta/Stable 或 Tier 1 对外承诺仍必须满足 Phase 5/6 门禁。
+- Phase 4 的 Conditional GO 只授权继续 Phase 5 工程开发；不授权 Beta、Stable、Tier 1 支持、最低浏览器版本或商店发布声明。

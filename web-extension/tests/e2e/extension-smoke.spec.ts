@@ -426,6 +426,12 @@ test('configured media churn remains bounded across worker restarts', async ({ b
       }
     }
 
+    if (workerRestarts === 0) {
+      await restartExtensionWorker(harness)
+      workerRestarts += 1
+      expect((await getMediaStateFromPopup(popup, page)).media).toHaveLength(0)
+    }
+
     const finalHeap = await pageHeapSize(cdp)
     const allowedHeap = Math.max(baselineHeap * 3, baselineHeap + 32 * 1024 * 1024)
     expect(cycles).toBeGreaterThan(0)

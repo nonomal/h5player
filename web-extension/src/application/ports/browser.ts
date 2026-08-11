@@ -25,6 +25,7 @@ export type TabSummary = {
 
 export interface TabsPort {
   getActive(): Promise<TabSummary | null>
+  list(): Promise<readonly TabSummary[]>
   send(tabId: number, message: unknown, frameId?: number): Promise<unknown>
 }
 

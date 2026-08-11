@@ -1,3 +1,5 @@
+import type { FullscreenMode, VisualState } from '../visual'
+import type { CaptureArtifact, CaptureOptions } from '../capture'
 import type { MediaCapabilities, MediaId, MediaSnapshot } from './model'
 
 /**
@@ -14,6 +16,12 @@ export interface MediaController {
   setPlaybackRate(value: number): Promise<void>
   setVolume(value: number): Promise<void>
   setMuted(value: boolean): Promise<void>
+  /** Optional for compatibility with non-visual/site-specific controllers. */
+  setVisualState?(state: VisualState): Promise<void>
+  /** Optional presentation ports are guarded by explicit snapshot capabilities. */
+  toggleFullscreen?(mode: FullscreenMode): Promise<void>
+  togglePictureInPicture?(): Promise<void>
+  captureFrame?(options: CaptureOptions): Promise<CaptureArtifact>
 }
 
 export interface MediaControllerResolver {

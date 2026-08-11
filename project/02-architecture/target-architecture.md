@@ -1,7 +1,7 @@
 # Web Extension 目标架构
 
 > 文档 ID：ARCH-001  
-> 状态：Approved as Target Baseline  
+> 状态：Approved / Phase 4 Executed Baseline  
 > 负责人：Architect  
 > 最后更新：2026-08-10  
 > 关联：REQ-001、REQ-002、ADR-0001、ADR-0002、ADR-0003
@@ -254,6 +254,10 @@ interface MessageEnvelope<T extends string, P> {
 | 快捷键注册表          | background/application          | UI、page-main       | 是               |
 | 诊断 ring buffer      | 各 runtime 本地                 | 用户导出            | 可选、限量       |
 | 安装/迁移版本         | background metadata             | release/diagnostics | 是               |
+| 播放进度              | background SettingsRepository   | content runtime     | 可选、TTL/容量   |
+| visual/presentation   | page-main MediaController       | content/overlay     | 否               |
+| 截图 Artifact         | 当前 command response           | isolated content    | 否               |
+| 跨 Tab advisory event | background event service        | 其他 Tab content    | 否               |
 
 禁止同一配置同时由 `localStorage`、页面变量和扩展 storage 无规则竞争写入。迁移期旧桥接数据只能通过显式导入或一次性转换进入新仓储。
 
@@ -301,3 +305,15 @@ Domain/Application 只依赖这些接口。所有 Port 方法都返回 Promise �
 - `firefox-dev`、`firefox-beta`、`firefox-prod`
 
 每个 profile 固定浏览器 API polyfill、权限、CSP、资源和 source map 策略。构建应输出 manifest、完整扩展目录、zip、校验和、依赖许可证报告及 SBOM。具体工具可在 Phase 0 spike 中验证，但不得牺牲上述产物契约。
+
+## 12. Phase 4 已执行架构
+
+- page-main generic controller 持有 DOM、visual/presentation 状态与 Canvas capture；跨上下文只传 typed snapshot/result。
+- isolated content 在 top frame 创建 closed ShadowRoot Overlay；iframe 只运行 runtime。跨 frame 媒体聚合尚未实现。
+- background 继续作为 progress 持久化权威，并作为 cross-tab advisory event 的校验/转发路由；advisory event 本身不是
+  权威状态，service worker 内存也不是状态事实源。
+- 截图下载使用 content DOM 的 Blob/anchor，不申请 `downloads`；媒体下载仍为 Phase 7 实验能力。
+- bundle budget 在 build 后同时检查 background/content/page-main raw size，以及 required host、static content script、WAR 回退。
+
+相关决策：ADR-0009～ADR-0012。Preview 架构允许进入 Phase 5，但 capture 消息体、iframe 聚合、跨 Tab 仲裁和
+Overlay z-index 仍需在 Beta 前独立收敛。

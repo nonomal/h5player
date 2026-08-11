@@ -1,7 +1,7 @@
 # UI 组件化架构与设计规范
 
 > 文档 ID：ARCH-004  
-> 状态：Approved as Planning Baseline  
+> 状态：Approved / Phase 4 Overlay Implemented Baseline  
 > 负责人：UI Owner / Architect  
 > 最后更新：2026-08-10  
 > 适用：Popup、Options、页面 Overlay 及共享组件
@@ -64,7 +64,7 @@ type Loadable<T> =
 
 - 使用单一宿主 custom element + Shadow Root；宿主类名/属性统一 `h5p-ext-*` 前缀。
 - 样式使用 design tokens 和 adoptedStyleSheets/打包静态 CSS；不从 CDN 加载。
-- z-index 使用有限 token，不默认使用接近整数上限；支持站点覆盖和冲突诊断。
+- z-index 目标使用有限 token；Phase 4 Preview 暂用 `2147483000` 保证 hostile fixture 可见，Beta 前必须以真实站点矩阵收敛并提供冲突诊断。
 - 事件在 Shadow 边界内处理；需要冒泡到 runtime 的事件使用 typed CustomEvent，不泄露内部 DOM。
 - 销毁时移除宿主、listener、observer、timer、portal 和 object URL。
 - 对 closed Shadow DOM、fullscreen element、Picture-in-Picture 和 iframe 分别定义挂载策略与降级。
@@ -120,3 +120,16 @@ type Loadable<T> =
 - popup/options/overlay 至少一个真实消费方验证；
 - bundle 增量和依赖影响符合预算；
 - teardown、错误和权限拒绝状态有测试。
+
+## 12. Phase 4 Overlay 实现记录
+
+- `MediaOverlay.vue` 只消费版本化 `OverlayViewModel`，发出 `OverlayEvent`；`ContentOverlayController` 负责 typed
+  command、busy、notice、fallback 和 capture download 协调。
+- WXT UI 使用 `mode:'closed'`、`position:'inline'`、`document.documentElement` anchor，并在 content-script 固定
+  `cssInjectionMode:'ui'`；CSS 通过 `?inline` 交给 UI helper 注入 ShadowRoot，因此生产 manifest 无 WAR。
+- host reset 覆盖 all/position/size/pointer-events/direction/unicode-bidi/z-index；组件内部再执行 box-sizing、主题和
+  reduced-motion 规则。
+- 仅 top frame 挂载；iframe-only media 显示为 top-frame empty 是 Preview 已知限制，不计作跨 frame 完整支持。
+- event isolation 主要阻止 ShadowRoot 内事件向页面冒泡；页面 capture-phase listener 仍可能先观察事件，closed root
+  也不是安全沙箱。
+- download 按钮在 Preview 明确 disabled；截图按钮只在 capability 存在时启用。

@@ -21,6 +21,19 @@ export const mediaPageStateSchema = z
     })
   )
 
+/**
+ * Bounded event payload used by the page bridge to tell isolated content that
+ * the media graph changed. Consumers can then explicitly request the complete
+ * state; the notification never carries the potentially large media array.
+ */
+export const mediaPageStateSummarySchema = z.strictObject({
+  frameId: frameIdSchema,
+  revision: revisionSchema,
+  activeMediaId: z.nullable(mediaIdSchema),
+  mediaCount: z.int().check(z.nonnegative(), z.lte(128)),
+  observedAt: timestampSchema
+})
+
 export const mediaGetStatePayloadSchema = z.strictObject({})
 
 export const mediaExecutePayloadSchema = z.strictObject({
@@ -33,5 +46,6 @@ export const mediaCommandResultResponseSchema = z.strictObject({
 })
 
 export type MediaPageState = z.infer<typeof mediaPageStateSchema>
+export type MediaPageStateSummary = z.infer<typeof mediaPageStateSummarySchema>
 export type MediaExecutePayload = z.infer<typeof mediaExecutePayloadSchema>
 export type MediaCommandResultResponse = z.infer<typeof mediaCommandResultResponseSchema>

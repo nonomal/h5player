@@ -242,6 +242,7 @@ export const settingsImportFileSchema = z.union([
 export type GlobalSettings = z.infer<typeof globalSettingsSchema>
 export type GlobalSettingsV1 = z.infer<typeof globalSettingsV1Schema>
 export type SiteOverride = z.infer<typeof siteOverrideSchema>
+export type ProgressRecord = z.infer<typeof progressRecordSchema>
 export type SettingsData = z.infer<typeof settingsDataSchema>
 export type SettingsDataV1 = z.infer<typeof settingsDataV1Schema>
 export type SettingsPatch = z.infer<typeof settingsPatchSchema>

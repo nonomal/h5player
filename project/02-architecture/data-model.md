@@ -1,7 +1,7 @@
 # 数据模型与迁移契约
 
 > 文档 ID：ARCH-005  
-> 状态：Approved / V2 Implemented  
+> 状态：Approved / V2 + Phase 4 Progress Implemented  
 > 负责人：Data/Architecture Owner  
 > 最后更新：2026-08-11  
 > 关联：ADR-0003、FR-CONFIG-001..006、NFR-REL-004
@@ -114,13 +114,22 @@ interface ProgressRecordV2 {
   mediaKey: string;
   positionSeconds: number;
   durationSeconds: number | null;
-  titleHint?: string;
   updatedAt: number;
   expiresAt: number;
 }
 ```
 
-`mediaKey` 优先使用页面提供的稳定内容 ID；没有稳定 ID 时使用去敏的 URL/path hash，不保存完整源地址。`titleHint` 默认不写入，若启用必须在诊断/隐私文案中说明。
+`mediaKey` 优先使用经 adapter 审查的稳定内容 ID；其次使用去 query/fragment 的 source path hash；最后使用页面
+origin+pathname hash。当前 Tier 0 runtime 使用最后一种，不发送运行时 `media-0-1` ID，也不保存完整源地址。
+兼容读取 Schema 仍暂时接受旧数据中的 `titleHint`，以便 V1/V2 迁移和旧备份不因未知字段整体失败；策略层在读取、写入、
+导入和导出路径会立即剥离该字段，当前实现不会新写入或持久化观看标题。
+
+Phase 4 策略：
+
+- `restoreProgress=false` 或 `retainProgressDays=0` 时不读写，并在 repository mutation 中清除受影响记录。
+- 保存节流 5 秒；`positionSeconds <= 3` 不保存；接近结束 `duration-5s` 时优先删除记录。
+- TTL 按全局保留天数计算，读取/写入/显式 prune 均执行规范化；达到容量时淘汰最旧记录并保护当前 key。
+- progress 不进入跨设备 sync、不发送到外部网络、不进入默认诊断导出。
 
 ## 5. 读写与并发
 
@@ -203,3 +212,17 @@ Web Extension 原生导出格式为 `h5player.web-extension.settings` / `formatV
 - `storage.local` 是当前唯一权威；ADR-0008 的 sync 白名单已冻结但 Preview 不启用 `storage.sync`。
 - 端侧证据包含实际终止 Chromium service worker 后重新打开 Popup，并恢复 revision 2 与媒体设置；Chrome/Firefox
   E2E 也验证权限撤销后的注册注销和页面重载隔离。
+
+## 11. Phase 4 会话数据契约
+
+`MediaSnapshot` 新增两个可选、可序列化字段：
+
+- `visual`：zoom、pan、rotation、flip、brightness/contrast/saturation/hue/blur；所有值有 Schema 上限。
+- `presentation`：`fullscreen: none|native|web` 与 `pictureInPicture`。
+
+截图 Artifact 不是持久化数据：只在当前 page-main → content 命令响应中短暂存在，最大 4 MiB 二进制、8192 维度、
+16,777,216 pixels；isolated content 校验后创建 Blob 并撤销 object URL。跨 Tab advisory event 也不持久化，只含
+匿名 mediaKey、source tab/frame、bounded timestamp 和 event ID。
+
+进度兼容读取中的遗留 `titleHint` 由 `enforceProgressPolicy` 强制清除；repository 落盘与设置导出均使用清理后的
+progress map。对应回归测试验证导入、规范化落盘和导出文件均不包含观看标题。

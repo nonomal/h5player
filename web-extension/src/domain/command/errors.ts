@@ -16,7 +16,11 @@ const MESSAGE_KEYS: Record<CommandErrorCode, CommandErrorMessageKey> = {
   INVALID_MEDIA_SNAPSHOT: 'command.error.invalidMediaSnapshot',
   CAPABILITY_UNAVAILABLE: 'command.error.capabilityUnavailable',
   INVALID_COMMAND_RESULT: 'command.error.invalidResult',
-  COMMAND_EXECUTION_FAILED: 'command.error.executionFailed'
+  COMMAND_EXECUTION_FAILED: 'command.error.executionFailed',
+  CAPTURE_NOT_READY: 'capture.error.notReady',
+  CAPTURE_BLOCKED: 'capture.error.blocked',
+  CAPTURE_TOO_LARGE: 'capture.error.tooLarge',
+  CAPTURE_FAILED: 'capture.error.failed'
 }
 
 const SAFE_ERROR_NAMES = new Set([

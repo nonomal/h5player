@@ -1,7 +1,7 @@
 # 自动化测试策略
 
 > 文档 ID：QA-001  
-> 状态：Approved / Phase 3 Executed Baseline  
+> 状态：Approved / Phase 4 Executed Baseline  
 > 负责人：Quality Owner  
 > 最后更新：2026-08-11
 
@@ -35,6 +35,8 @@
 - Schema 解析、版本迁移、未知字段和损坏数据。
 - 消息 Envelope 编解码、nonce、超时和重放拒绝。
 - URL/origin 规范化与诊断脱敏。
+- visual transform/filter/atomic reset、fullscreen/PiP capability 和 capture error mapping。
+- progress identity/TTL/capacity/privacy/completion policy 与 cross-tab advisory event。
 
 当前仓库强制门禁以 `vitest.config.ts` 为事实源：statements ≥80%、lines ≥80%、functions ≥80%、branches ≥75%。
 核心 domain/application 的 lines ≥85%、branches ≥80%，以及配置/消息/迁移关键分支 ≥95% 仍是 Stable 收敛目标；在改为
@@ -81,6 +83,7 @@
 - Firefox 权限 E2E 在测试 profile 中使用 `ExtensionPermissions.add(..., extensionEmitter)` 建立 optional origin，并用
   `tabManager.addActiveTabPermission()` 模拟 action 用户手势；这些 Firefox 内部 API 禁止进入生产源码、manifest 或产物。
 - 浏览器版本、扩展 ID、命令集合和聚合指标必须输出为机器可读事件，供阶段审查和 CI artifact 引用。
+- Playwright 扩展 lifecycle suite 固定 `workers: 1`；需要吞吐时按 browser/scenario 拆独立 runner，禁止同进程并发多个 persistent profile。
 - 原生权限确认框在 headless 自动化中不可稳定操作；harness 证明权限状态机，不证明弹窗文案、焦点或商店体验。
   Beta/商店提交前必须执行 headed 手工 permission smoke。
 
@@ -97,9 +100,10 @@
 - 空白页 CPU/长任务/内存基线。
 - 30 分钟媒体 churn、SPA 导航和 worker 重启压力。
 - bundle gzip 大小、首次执行和按需 chunk 预算。
+- Phase 4 PR budget 以 raw bytes 强制：background 150 KiB、content 250 KiB、page-main 200 KiB；gzip 作为诊断指标。
 - 每次发布候选至少跑一次性能 smoke；每周夜间跑完整压力。
-- 阶段审查必须区分本次运行与继承证据：Phase 3 重新执行 5 秒 churn smoke，Phase 2 的 30 分钟结果只作为历史证据引用，
-  不得写成 Phase 3 已重跑。
+- 阶段审查必须区分本次运行与继承证据：Phase 3/4 分别重新执行 5 秒 churn smoke，Phase 2 的 30 分钟结果只作为
+  历史证据引用，不得写成后续阶段已重跑。
 
 ### 2.8 安全测试
 
@@ -160,13 +164,36 @@
 | Churn smoke               | 5017 ms / 82 cycles / 1 worker restart / listeners `4→4`                                 | Phase 3 短稳回归                                                                 |
 | Legacy regression         | SHA-256 `91b5312d7cf150cd852d005b1e5d5f3d8ed2ed7cd8a481dfa1d561d48f7b3f27`；561788 bytes | Legacy 冻结边界                                                                  |
 
-## 8. 标准验证命令
+## 8. Phase 4 已执行门禁（2026-08-11）
+
+| 层级 | 当前结果 | Phase 4 重点 |
+| ---- | -------- | ------------ |
+| Unit | 36 files / 143 tests | visual/capture/progress/cross-tab/overlay controller/budget |
+| Component | 4 files / 19 tests | Overlay ready/loading/error/disabled/keyboard + 既有 UI |
+| Integration | 9 files / 63 tests | progress repository、content runtime、background contracts、runtime/storage/site access |
+| Compatibility | 2 files / 21 tests | Legacy core differential/oracle |
+| Coverage | 52 files / 249 tests；85.68 statements / 76.57 branches / 87.33 functions / 89.28 lines | 全局门槛通过，不降低 threshold |
+| Security | 142 files + 2 manifests；3 tests | 无 remote/eval/CSP bypass；无 required host/static content/WAR |
+| Boundaries | 128 modules / 415 dependencies / 0 violations | native capture 位于 generic adapter 边界 |
+| Chromium | 3 passed，`workers:1`；configured churn 默认 skipped | 权限/lifecycle/worker restart/multi/SPA/Shadow/hostile/CSP/iframe |
+| Firefox | 153.0 E2E passed；web-ext lint 0 errors/2 generated warnings | optional origin、动态注册、媒体命令、撤权 |
+| Churn | 5051 ms / 94 cycles / 1 restart / listeners 4→4 | Phase 4 快速稳定性回归；不足 50 cycles 时也强制一次 worker restart |
+| Budget | background 90150/90151 B、content 191669 B、page-main 77976 B raw，双端 passed | background/content/page-main + manifest guardrail |
+| Legacy | frozen SHA-256/size passed | Legacy 源码和根构建链未改 |
+
+Phase 4 尚缺少的端侧专项：可真实解码帧的截图成功/CORS fixture、native→web fullscreen fallback、PiP unavailable、
+progress restore/complete 的浏览器 E2E、multi-tab advisory event 和 iframe-only Overlay 期望。它们是 Phase 5/Beta 收敛项，
+不能被现有 unit/contract 证据扩写为完整端侧覆盖。
+
+## 9. 标准验证命令
 
 在 `web-extension/` 执行：
 
 ```bash
 corepack pnpm@11.21.0 check
 corepack pnpm@11.21.0 test:coverage
+corepack pnpm@11.21.0 build:all
+corepack pnpm@11.21.0 test:budget
 corepack pnpm@11.21.0 test:e2e
 corepack pnpm@11.21.0 test:e2e:firefox
 corepack pnpm@11.21.0 test:churn:smoke

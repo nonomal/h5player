@@ -1,5 +1,6 @@
 import * as z from 'zod/mini'
 import { failure, success, type Result } from '../../shared/result'
+import { mediaPresentationStateSchema, visualStateSchema } from '../visual'
 import { MAX_PLAYBACK_RATE, MAX_VOLUME, MIN_PLAYBACK_RATE, MIN_VOLUME } from './invariants'
 
 function isSafeIdentifier(value: string): boolean {
@@ -34,7 +35,10 @@ export const mediaCapabilitiesSchema = z.strictObject({
   playbackRate: z.boolean(),
   volume: z.boolean(),
   mute: z.boolean(),
+  visual: z.optional(z.boolean()),
   fullscreen: z.boolean(),
+  fullscreenNative: z.optional(z.boolean()),
+  fullscreenWeb: z.optional(z.boolean()),
   pictureInPicture: z.boolean(),
   capture: z.boolean(),
   downloadExperimental: z.boolean()
@@ -62,6 +66,8 @@ export const mediaSessionSchema = z.strictObject({
   state: mediaStateSchema,
   metrics: mediaMetricsSchema,
   capabilities: mediaCapabilitiesSchema,
+  visual: z.optional(visualStateSchema),
+  presentation: z.optional(mediaPresentationStateSchema),
   adapterId: boundedIdentifierSchema,
   updatedAt: nonNegativeNumberSchema
 })
@@ -82,7 +88,10 @@ export const MEDIA_CAPABILITY_KEYS = [
   'playbackRate',
   'volume',
   'mute',
+  'visual',
   'fullscreen',
+  'fullscreenNative',
+  'fullscreenWeb',
   'pictureInPicture',
   'capture',
   'downloadExperimental'

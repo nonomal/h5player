@@ -1,7 +1,7 @@
 # 功能需求追踪矩阵
 
 > 文档 ID：REQ-004  
-> 状态：Approved / Phase 3 Exit Update  
+> 状态：Approved / Phase 4 Exit Update  
 > 负责人：Product Owner / Quality Owner  
 > 最后更新：2026-08-11  
 > 维护规则：任务进入 Ready 前确认映射；Verified 后把“证据”替换为具体测试/CI/评审链接。
@@ -37,13 +37,13 @@
 
 | 需求          | 模块                       | 任务    | 自动化证据                                     | Phase | 当前证据状态 |
 | ------------- | -------------------------- | ------- | ---------------------------------------------- | ----- | ------------ |
-| FR-VISUAL-001 | visual domain/commands     | EXT-080 | transform/filter unit + visual E2E             | 4     | Planned      |
-| FR-VISUAL-002 | visual reset transaction   | EXT-080 | 多属性原子 reset unit/E2E                      | 4     | Planned      |
-| FR-VISUAL-003 | fullscreen/PiP adapters    | EXT-081 | browser capability + site fixture E2E          | 4     | Planned      |
-| FR-VISUAL-004 | overlay component shell    | EXT-082 | host-style pollution + teardown + visual tests | 4     | Planned      |
-| FR-MEDIA-001  | capture service            | EXT-083 | canvas/CORS/DRM fixtures + download result E2E | 4     | Planned      |
-| FR-MEDIA-002  | progress repository        | EXT-084 | clock/expiry/capacity/privacy integration      | 4     | Planned      |
-| FR-MEDIA-003  | cross-tab event service    | EXT-085 | multi-page sync + worker restart integration   | 4     | Planned      |
+| FR-VISUAL-001 | visual domain/commands     | EXT-080 | `visual-domain.spec.ts`、`visual-media-commands.spec.ts`；专项浏览器 E2E 尚未执行 | 4 | Verified for Preview |
+| FR-VISUAL-002 | visual reset transaction   | EXT-080 | 单次 controller reset、inline style restore、teardown unit               | 4 | Verified |
+| FR-VISUAL-003 | fullscreen/PiP adapters    | EXT-081 | generic adapter/command unit；native→web fallback 与 PiP unavailable 浏览器 E2E 待补 | 4 | Verified for Preview |
+| FR-VISUAL-004 | overlay component shell    | EXT-082 | `overlay.spec.ts`、controller unit、hostile/CSP/iframe runtime lifecycle；iframe-only 聚合待补 | 4 | Verified for Preview |
+| FR-MEDIA-001  | capture service            | EXT-083 | capture command/download/native binding unit、bounded Schema/security/manifest checks；真实帧/CORS E2E 待补 | 4 | Verified for Preview |
+| FR-MEDIA-002  | progress repository        | EXT-084 | progress domain/repository/content-runtime TTL/capacity/privacy/restore/节流集成；浏览器 E2E 待补 | 4 | Verified for Preview |
+| FR-MEDIA-003  | cross-tab event service    | EXT-085 | cross-tab service unit、background/content typed contract                | 4 | Verified advisory only |
 | FR-MEDIA-004  | experimental media package | EXT-140 | threat/performance spike + optional E2E        | 7     | Deferred     |
 
 ## 4. 站点适配器
@@ -73,8 +73,8 @@
 | ----------- | ----------------------------- | ---------------------------------- | -------------------------------------------------------------------------------------------------- | ----- | -------------------------- |
 | FR-UI-001   | popup                         | EXT-061, EXT-064                   | `popup.spec.ts` + Chrome/Firefox extension E2E：状态、媒体命令、权限、停用、撤权、worker restart   | 3     | Verified                   |
 | FR-UI-002   | options                       | EXT-062, EXT-063, EXT-065, EXT-066 | 六路由页面；`options.spec.ts` 导航/live reload/import；Options all-sites revoke E2E                | 3     | Verified                   |
-| FR-UI-003   | overlay                       | EXT-082                            | component + visual + page integration                                                              | 4     | Planned                    |
-| FR-UI-004   | application facade/view model | EXT-061, EXT-062, EXT-082          | Popup/Options application unit、fake RuntimeApi、dependency-cruiser 105 modules / 0 violations     | 3/4   | Verified for Popup/Options |
+| FR-UI-003   | overlay                       | EXT-082                            | component、controller、closed ShadowRoot 配置与 runtime lifecycle；iframe-only 聚合为已知限制      | 4     | Verified for Preview       |
+| FR-UI-004   | application facade/view model | EXT-061, EXT-062, EXT-082          | Popup/Options/Overlay application unit；dependency-cruiser 128 modules / 415 dependencies / 0 violations | 3/4 | Verified |
 | FR-UI-005   | i18n                          | EXT-067, EXT-068                   | zh-CN/en-US catalog structural completeness、参数格式化、Popup/Options/Recorder axe tests          | 3     | Verified                   |
 | FR-DIAG-001 | structured logger             | EXT-030                            | `structured-logger.spec.ts` ring-buffer/capacity/redaction                                         | 1     | Verified                   |
 | FR-DIAG-002 | diagnostics service/UI        | EXT-066                            | `diagnostics.spec.ts` bounded summary/脱敏；Options diagnostics page；download Blob lifecycle test | 3     | Verified                   |

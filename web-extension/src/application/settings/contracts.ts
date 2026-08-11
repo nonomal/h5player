@@ -4,6 +4,7 @@ import {
   settingsPatchSchema,
   settingsBackupSchema
 } from '../../domain/settings'
+import { CURRENT_EXTENSION_PHASE } from '../../shared/protocol'
 
 const revisionSchema = z.int().check(z.nonnegative())
 
@@ -52,7 +53,7 @@ export const cancellationResponseSchema = z.strictObject({
 
 export const systemPingResponseSchema = z.strictObject({
   extensionVersion: z.string().check(z.minLength(1), z.maxLength(32)),
-  phase: z.literal(3),
+  phase: z.literal(CURRENT_EXTENSION_PHASE),
   protocol: z.literal(1),
   settingsSchemaVersion: z.literal(2),
   tabId: z.optional(z.int().check(z.nonnegative())),

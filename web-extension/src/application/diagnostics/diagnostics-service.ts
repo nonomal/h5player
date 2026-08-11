@@ -7,6 +7,7 @@ import {
   type DiagnosticResponse,
   type DiagnosticSummary
 } from './contracts'
+import { CURRENT_EXTENSION_PHASE } from '../../shared/protocol'
 
 const MAX_DIAGNOSTIC_BYTES = 1_048_576
 
@@ -37,7 +38,7 @@ export class DiagnosticsService {
       generatedAt: this.options.clock.now(),
       extensionVersion: this.options.extensionVersion,
       build: this.options.buildId,
-      phase: 3,
+      phase: CURRENT_EXTENSION_PHASE,
       protocolVersion: 1,
       settingsSchemaVersion: 2,
       browser: {
@@ -67,7 +68,10 @@ export class DiagnosticsService {
         'settings-repository',
         'content-script-registration',
         'generic-media-adapter',
-        'hotkey-interpreter'
+        'hotkey-interpreter',
+        'content-overlay',
+        'progress-repository',
+        'cross-tab-media-events'
       ],
       adapters: site?.mediaCount ? ['generic'] : [],
       recentEvents: this.options.logger.snapshot(),

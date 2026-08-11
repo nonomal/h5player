@@ -1,12 +1,15 @@
 import * as z from 'zod/mini'
 import {
   type MediaController,
+  fullscreenRequestModeSchema,
   mediaIdSchema,
   mediaSnapshotSchema,
+  visualFilterNameSchema,
   type MediaCapabilities,
   type MediaId,
   type MediaSnapshot
 } from '../media'
+import { captureArtifactSchema, captureMimeTypeSchema } from '../capture'
 import type { Result } from '../../shared/result'
 
 const finiteNumberSchema = z.number()
@@ -52,6 +55,52 @@ export const toggleMuteCommandSchema = z.strictObject({
   type: z.literal('media.toggle-mute'),
   mediaId: mediaIdSchema
 })
+export const setZoomCommandSchema = z.strictObject({
+  type: z.literal('media.set-zoom'),
+  mediaId: mediaIdSchema,
+  value: finiteNumberSchema
+})
+export const panCommandSchema = z.strictObject({
+  type: z.literal('media.pan'),
+  mediaId: mediaIdSchema,
+  deltaX: finiteNumberSchema,
+  deltaY: finiteNumberSchema
+})
+export const rotateCommandSchema = z.strictObject({
+  type: z.literal('media.rotate'),
+  mediaId: mediaIdSchema,
+  deltaDegrees: finiteNumberSchema
+})
+export const toggleFlipCommandSchema = z.strictObject({
+  type: z.literal('media.toggle-flip'),
+  mediaId: mediaIdSchema,
+  axis: z.enum(['horizontal', 'vertical'])
+})
+export const setFilterCommandSchema = z.strictObject({
+  type: z.literal('media.set-filter'),
+  mediaId: mediaIdSchema,
+  filter: visualFilterNameSchema,
+  value: finiteNumberSchema
+})
+export const resetVisualCommandSchema = z.strictObject({
+  type: z.literal('media.reset-visual'),
+  mediaId: mediaIdSchema
+})
+export const toggleFullscreenCommandSchema = z.strictObject({
+  type: z.literal('media.toggle-fullscreen'),
+  mediaId: mediaIdSchema,
+  mode: fullscreenRequestModeSchema
+})
+export const togglePictureInPictureCommandSchema = z.strictObject({
+  type: z.literal('media.toggle-picture-in-picture'),
+  mediaId: mediaIdSchema
+})
+export const captureCommandSchema = z.strictObject({
+  type: z.literal('media.capture'),
+  mediaId: mediaIdSchema,
+  mimeType: z.optional(captureMimeTypeSchema),
+  quality: z.optional(z.number().check(z.gte(0), z.lte(1)))
+})
 
 export const mediaCommandSchema = z.union([
   playCommandSchema,
@@ -62,7 +111,16 @@ export const mediaCommandSchema = z.union([
   setVolumeCommandSchema,
   adjustVolumeCommandSchema,
   setMutedCommandSchema,
-  toggleMuteCommandSchema
+  toggleMuteCommandSchema,
+  setZoomCommandSchema,
+  panCommandSchema,
+  rotateCommandSchema,
+  toggleFlipCommandSchema,
+  setFilterCommandSchema,
+  resetVisualCommandSchema,
+  toggleFullscreenCommandSchema,
+  togglePictureInPictureCommandSchema,
+  captureCommandSchema
 ])
 
 export const MEDIA_COMMAND_TYPES = [
@@ -74,7 +132,16 @@ export const MEDIA_COMMAND_TYPES = [
   'media.set-volume',
   'media.adjust-volume',
   'media.set-muted',
-  'media.toggle-mute'
+  'media.toggle-mute',
+  'media.set-zoom',
+  'media.pan',
+  'media.rotate',
+  'media.toggle-flip',
+  'media.set-filter',
+  'media.reset-visual',
+  'media.toggle-fullscreen',
+  'media.toggle-picture-in-picture',
+  'media.capture'
 ] as const
 
 export const mediaCommandTypeSchema = z.enum(MEDIA_COMMAND_TYPES)
@@ -88,6 +155,15 @@ export type SetVolumeCommand = z.infer<typeof setVolumeCommandSchema>
 export type AdjustVolumeCommand = z.infer<typeof adjustVolumeCommandSchema>
 export type SetMutedCommand = z.infer<typeof setMutedCommandSchema>
 export type ToggleMuteCommand = z.infer<typeof toggleMuteCommandSchema>
+export type SetZoomCommand = z.infer<typeof setZoomCommandSchema>
+export type PanCommand = z.infer<typeof panCommandSchema>
+export type RotateCommand = z.infer<typeof rotateCommandSchema>
+export type ToggleFlipCommand = z.infer<typeof toggleFlipCommandSchema>
+export type SetFilterCommand = z.infer<typeof setFilterCommandSchema>
+export type ResetVisualCommand = z.infer<typeof resetVisualCommandSchema>
+export type ToggleFullscreenCommand = z.infer<typeof toggleFullscreenCommandSchema>
+export type TogglePictureInPictureCommand = z.infer<typeof togglePictureInPictureCommandSchema>
+export type CaptureCommand = z.infer<typeof captureCommandSchema>
 export type MediaCommand = z.infer<typeof mediaCommandSchema>
 export type MediaCommandType = MediaCommand['type']
 
@@ -107,6 +183,10 @@ export type CommandErrorCode =
   | 'CAPABILITY_UNAVAILABLE'
   | 'INVALID_COMMAND_RESULT'
   | 'COMMAND_EXECUTION_FAILED'
+  | 'CAPTURE_NOT_READY'
+  | 'CAPTURE_BLOCKED'
+  | 'CAPTURE_TOO_LARGE'
+  | 'CAPTURE_FAILED'
 
 export type CommandErrorMessageKey =
   | 'command.error.invalidInput'
@@ -119,6 +199,10 @@ export type CommandErrorMessageKey =
   | 'command.error.capabilityUnavailable'
   | 'command.error.invalidResult'
   | 'command.error.executionFailed'
+  | 'capture.error.notReady'
+  | 'capture.error.blocked'
+  | 'capture.error.tooLarge'
+  | 'capture.error.failed'
 
 export interface CommandError {
   readonly code: CommandErrorCode
@@ -131,6 +215,7 @@ export interface CommandSuccess {
   readonly mediaId: MediaId
   readonly changed: boolean
   readonly snapshot: MediaSnapshot
+  readonly artifact?: z.infer<typeof captureArtifactSchema> | undefined
 }
 
 export type CommandResult = Result<CommandSuccess, CommandError>
@@ -151,7 +236,8 @@ export const commandSuccessSchema = z.strictObject({
   commandType: mediaCommandTypeSchema,
   mediaId: mediaIdSchema,
   changed: z.boolean(),
-  snapshot: mediaSnapshotSchema
+  snapshot: mediaSnapshotSchema,
+  artifact: z.optional(captureArtifactSchema)
 })
 
 const diagnosticValueSchema = z.union([z.string(), z.number(), z.boolean(), z.null()])
@@ -170,7 +256,11 @@ export const commandErrorSchema = z.strictObject({
     'INVALID_MEDIA_SNAPSHOT',
     'CAPABILITY_UNAVAILABLE',
     'INVALID_COMMAND_RESULT',
-    'COMMAND_EXECUTION_FAILED'
+    'COMMAND_EXECUTION_FAILED',
+    'CAPTURE_NOT_READY',
+    'CAPTURE_BLOCKED',
+    'CAPTURE_TOO_LARGE',
+    'CAPTURE_FAILED'
   ]),
   messageKey: z.enum([
     'command.error.invalidInput',
@@ -182,7 +272,11 @@ export const commandErrorSchema = z.strictObject({
     'command.error.invalidMediaSnapshot',
     'command.error.capabilityUnavailable',
     'command.error.invalidResult',
-    'command.error.executionFailed'
+    'command.error.executionFailed',
+    'capture.error.notReady',
+    'capture.error.blocked',
+    'capture.error.tooLarge',
+    'capture.error.failed'
   ]),
   context: z.optional(diagnosticContextSchema)
 })
@@ -195,7 +289,8 @@ export const commandResultSchema = z.union([
 export function commandSuccess(
   command: MediaCommand,
   snapshot: MediaSnapshot,
-  changed: boolean
+  changed: boolean,
+  artifact?: z.infer<typeof captureArtifactSchema>
 ): CommandSuccessResult {
   return {
     ok: true,
@@ -203,7 +298,8 @@ export function commandSuccess(
       commandType: command.type,
       mediaId: command.mediaId,
       changed,
-      snapshot
+      snapshot,
+      ...(artifact === undefined ? {} : { artifact })
     }
   }
 }

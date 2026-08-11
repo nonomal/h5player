@@ -1,5 +1,7 @@
 import { ReplayGuard } from '../../infrastructure/messaging/replay-guard'
+import type { MediaPageStateSummary } from '../../application/media'
 import {
+  createPageMediaNotification,
   createPageMediaResponse,
   parsePageMediaMessage,
   type PageMediaMessage,
@@ -46,6 +48,7 @@ export function startPageMainRuntime(window: Window, document: Document): () => 
   const replayGuard = new ReplayGuard(systemClock)
   let session: { sessionId: string; nonce: string; origin: string } | null = null
   let mediaRuntime: MediaPageRuntime | null = null
+  let mediaStateSubscription: (() => void) | null = null
   let mediaFrameId = 0
   let stopped = false
 
@@ -54,6 +57,8 @@ export function startPageMainRuntime(window: Window, document: Document): () => 
     stopped = true
     window.removeEventListener('message', onMessage)
     mediaRuntime?.teardown()
+    mediaStateSubscription?.()
+    mediaStateSubscription = null
     mediaRuntime = null
     session = null
     const descriptor = Object.getOwnPropertyDescriptor(window, RUNTIME_KEY)
@@ -126,6 +131,20 @@ export function startPageMainRuntime(window: Window, document: Document): () => 
     )
   }
 
+  const postMediaStateChanged = (
+    summary: MediaPageStateSummary,
+    activeSession: { sessionId: string; nonce: string; origin: string }
+  ): void => {
+    try {
+      window.postMessage(
+        createPageMediaNotification(activeSession.sessionId, activeSession.nonce, summary),
+        activeSession.origin
+      )
+    } catch {
+      // Invalid page data is contained at the page boundary.
+    }
+  }
+
   const handleMediaMessage = (message: PageMediaMessage): void => {
     if (!session) return
     const scope = `content:${session.sessionId}`
@@ -133,12 +152,25 @@ export function startPageMainRuntime(window: Window, document: Document): () => 
 
     if (message.type === 'media.context') {
       if (mediaRuntime !== null && mediaFrameId !== message.payload.frameId) {
+        mediaStateSubscription?.()
+        mediaStateSubscription = null
         mediaRuntime.teardown()
         mediaRuntime = null
       }
       try {
         mediaRuntime ??= new MediaPageRuntime(window, document, message.payload.frameId)
         mediaFrameId = message.payload.frameId
+        if (mediaStateSubscription === null) {
+          const runtime = mediaRuntime
+          const subscribe = Reflect.get(runtime, 'subscribeStateChanged') as unknown
+          if (typeof subscribe === 'function') {
+            mediaStateSubscription = Reflect.apply(subscribe, runtime, [
+              (summary: MediaPageStateSummary) => {
+                if (session) postMediaStateChanged(summary, session)
+              }
+            ]) as () => void
+          }
+        }
         postMedia('media.context-ready', message.requestId, {}, session)
       } catch {
         postMediaError(message, 'INTERNAL_ERROR', 'media.error.runtime-init')

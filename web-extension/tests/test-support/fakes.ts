@@ -129,12 +129,17 @@ export class FakeTransport implements RuntimeTransportPort {
 
 export class FakeTabsPort implements TabsPort {
   activeTab: { id: number; url?: string } | null = { id: 1, url: 'https://example.com/' }
+  tabs: Array<{ id: number; url?: string }> = [{ id: 1, url: 'https://example.com/' }]
   readonly sent: Array<{ tabId: number; message: unknown; frameId?: number }> = []
   handler: (message: unknown, tabId: number, frameId?: number) => Promise<unknown> = () =>
     Promise.resolve(null)
 
   getActive(): Promise<{ id: number; url?: string } | null> {
     return Promise.resolve(this.activeTab)
+  }
+
+  list(): Promise<readonly { id: number; url?: string }[]> {
+    return Promise.resolve([...this.tabs])
   }
 
   send(tabId: number, message: unknown, frameId?: number): Promise<unknown> {

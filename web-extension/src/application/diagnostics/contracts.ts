@@ -1,4 +1,5 @@
 import * as z from 'zod/mini'
+import { CURRENT_EXTENSION_PHASE } from '../../shared/protocol'
 
 const diagnosticEventSchema = z.strictObject({
   timestamp: z.number().check(z.nonnegative()),
@@ -14,7 +15,7 @@ export const diagnosticSummarySchema = z.strictObject({
   generatedAt: z.number().check(z.nonnegative()),
   extensionVersion: z.string().check(z.minLength(1), z.maxLength(32)),
   build: z.string().check(z.minLength(1), z.maxLength(128)),
-  phase: z.literal(3),
+  phase: z.literal(CURRENT_EXTENSION_PHASE),
   protocolVersion: z.literal(1),
   settingsSchemaVersion: z.literal(2),
   browser: z.strictObject({

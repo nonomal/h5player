@@ -1,9 +1,9 @@
 # 自动化质量门禁
 
 > 文档 ID：QA-002  
-> 状态：Approved  
+> 状态：Approved / Phase 4 Executed  
 > 负责人：Quality Owner  
-> 最后更新：2026-08-10
+> 最后更新：2026-08-11
 
 ## 1. PR 门禁（每次变更）
 
@@ -18,6 +18,8 @@
 - 禁止代码/远程资源/权限扫描
 - manifest schema/lint
 - Legacy 构建回归（不修改其源码）
+- `test:coverage` 全局 thresholds：statements/lines/functions ≥80%，branches ≥75%
+- `build:all` 后执行 `test:budget`，同时检查三类入口 raw budget 和 production manifest guardrail
 
 以下变更额外要求：
 
@@ -29,6 +31,8 @@
 | DOM Hook/adapter    | hostile page + lifecycle + target browser E2E   |
 | UI                  | component + a11y + i18n tests                   |
 | build/release       | reproducibility + artifact inspection           |
+| capture/progress    | bounded artifact、隐私/TTL/容量、CORS/DRM/完成删除测试 |
+| cross-tab           | sender context、source tab 过滤、发送失败隔离、无轮询证明 |
 
 ## 2. Nightly 门禁
 
@@ -71,3 +75,21 @@
 ## 5. 例外规则
 
 例外必须写入 `RISK-*` 或发布审批记录，包含：范围、理由、用户影响、临时缓解、owner、到期版本和回退条件。P0 安全门禁、远程执行禁止项和数据损坏保护不可豁免。
+
+## 6. Phase 4 强制预算与执行约束
+
+| 项目 | 门槛/策略 | 当前结果 |
+| ---- | --------- | -------- |
+| background raw | ≤150 KiB | Chrome 90,150 B；Firefox 90,151 B |
+| content raw | ≤250 KiB | 两端 191,669 B |
+| page-main raw | ≤200 KiB | 两端 77,976 B |
+| production manifest | required host=0、static content script=0、WAR=0 | Passed |
+| Chromium extension E2E | `workers: 1`，每场景独立 persistent profile | 3 passed / 1 configured churn skipped |
+| churn smoke | 5 秒 PR smoke；30 分钟 nightly/RC | 94 cycles、1 restart、listeners 4→4 |
+
+Chromium 扩展 lifecycle 用例不得在同一机器上并行启动多个 persistent profile。Phase 4 实测并行运行会让 profile seed/
+close/worker startup 争抢资源，在产品断言开始前耗尽 30 秒 timeout；串行运行全部通过。需要并行时应拆成独立 CI job/
+runner，而不是提高单用例 timeout 掩盖资源竞争。
+
+Phase 4 Conditional GO 不替代 Nightly/RC 门禁：尚未重跑 30 分钟 churn、Tier 1 真实站点、完整浏览器版本矩阵、
+headed 权限 UX、zip 安装升级/回滚和 SBOM/provenance。

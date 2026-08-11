@@ -29,6 +29,7 @@ export {
   settingsExportFileV1Schema,
   settingsImportFileSchema,
   settingsPatchSchema,
+  progressRecordSchema,
   siteOverrideSchema,
   type GlobalSettings,
   type GlobalSettingsV1,
@@ -41,5 +42,6 @@ export {
   type SettingsExportFile,
   type SettingsExportFileV1,
   type SettingsPatch,
+  type ProgressRecord,
   type SiteOverride
 } from './schema'

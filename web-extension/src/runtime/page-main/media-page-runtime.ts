@@ -3,8 +3,10 @@ import { createMediaCommandRegistry } from '../../application/commands'
 import {
   mediaCommandResultResponseSchema,
   mediaPageStateSchema,
+  mediaPageStateSummarySchema,
   type MediaCommandResultResponse,
-  type MediaPageState
+  type MediaPageState,
+  type MediaPageStateSummary
 } from '../../application/media'
 import type { MediaCommand } from '../../domain/command'
 import { createDomMediaDiscoveryService, type MediaDiscoveryUpdate } from '../../infrastructure/dom'
@@ -16,6 +18,7 @@ export class MediaPageRuntime {
   private latestUpdate: MediaDiscoveryUpdate
   private readonly teardownDiscoverySubscription: () => void
   private readonly teardownShadowHook: () => void
+  private readonly stateListeners = new Set<(summary: MediaPageStateSummary) => void>()
   private disposed = false
 
   constructor(
@@ -40,6 +43,7 @@ export class MediaPageRuntime {
     }
     this.teardownDiscoverySubscription = this.discovery.subscribe((update) => {
       this.latestUpdate = update
+      this.notifyStateChanged()
     })
     this.commands = createMediaCommandRegistry(this.discovery)
     this.teardownShadowHook = installOpenShadowRootHook(currentWindow, () => {
@@ -62,6 +66,24 @@ export class MediaPageRuntime {
     return mediaPageStateSchema.parse(state)
   }
 
+  getStateSummary(): MediaPageStateSummary {
+    this.assertActive()
+    return mediaPageStateSummarySchema.parse({
+      frameId: this.frameId,
+      revision: this.latestUpdate.revision,
+      activeMediaId: this.latestUpdate.active?.id ?? null,
+      mediaCount: this.latestUpdate.current.length,
+      observedAt: Math.max(0, this.now())
+    })
+  }
+
+  subscribeStateChanged(listener: (summary: MediaPageStateSummary) => void): () => void {
+    this.assertActive()
+    this.stateListeners.add(listener)
+    this.notifyListener(listener)
+    return () => this.stateListeners.delete(listener)
+  }
+
   async execute(command: MediaCommand): Promise<MediaCommandResultResponse> {
     this.assertActive()
     const result = await this.commands.execute(command)
@@ -82,10 +104,24 @@ export class MediaPageRuntime {
     this.teardownShadowHook()
     this.teardownDiscoverySubscription()
     this.discovery.teardown()
+    this.stateListeners.clear()
   }
 
   private readonly handlePageContextChange: EventListener = () => {
     this.refresh()
+  }
+
+  private notifyStateChanged(): void {
+    if (this.disposed || this.stateListeners.size === 0) return
+    for (const listener of [...this.stateListeners]) this.notifyListener(listener)
+  }
+
+  private notifyListener(listener: (summary: MediaPageStateSummary) => void): void {
+    try {
+      listener(this.getStateSummary())
+    } catch {
+      // State observers are isolated from the media discovery lifecycle.
+    }
   }
 
   private assertActive(): void {

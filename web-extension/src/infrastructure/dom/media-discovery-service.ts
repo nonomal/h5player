@@ -10,7 +10,7 @@ import {
   type ObservableMediaController
 } from '../../domain/adapter'
 import type { MediaCapabilities, MediaId, MediaSnapshot } from '../../domain/media'
-import { createMediaId, type MediaControllerResolver } from '../../domain/media'
+import { createMediaId, visualStateEquals, type MediaControllerResolver } from '../../domain/media'
 import { scanMediaTree, type MediaDiscoveryRoot } from './media-tree-scan'
 
 export interface MediaDiscoveryUpdate {
@@ -115,7 +115,10 @@ function sameCapabilities(left: MediaCapabilities, right: MediaCapabilities): bo
     left.playbackRate === right.playbackRate &&
     left.volume === right.volume &&
     left.mute === right.mute &&
+    (left.visual ?? false) === (right.visual ?? false) &&
     left.fullscreen === right.fullscreen &&
+    (left.fullscreenNative ?? false) === (right.fullscreenNative ?? false) &&
+    (left.fullscreenWeb ?? false) === (right.fullscreenWeb ?? false) &&
     left.pictureInPicture === right.pictureInPicture &&
     left.capture === right.capture &&
     left.downloadExperimental === right.downloadExperimental
@@ -123,6 +126,13 @@ function sameCapabilities(left: MediaCapabilities, right: MediaCapabilities): bo
 }
 
 function sameSnapshot(left: MediaSnapshot, right: MediaSnapshot): boolean {
+  const visualEqual =
+    left.visual === undefined || right.visual === undefined
+      ? left.visual === right.visual
+      : visualStateEquals(left.visual, right.visual)
+  const presentationEqual =
+    left.presentation?.fullscreen === right.presentation?.fullscreen &&
+    left.presentation?.pictureInPicture === right.presentation?.pictureInPicture
   return (
     left.id === right.id &&
     left.frameId === right.frameId &&
@@ -137,7 +147,9 @@ function sameSnapshot(left: MediaSnapshot, right: MediaSnapshot): boolean {
     left.metrics.playbackRate === right.metrics.playbackRate &&
     left.metrics.muted === right.metrics.muted &&
     left.metrics.visible === right.metrics.visible &&
-    sameCapabilities(left.capabilities, right.capabilities)
+    sameCapabilities(left.capabilities, right.capabilities) &&
+    visualEqual &&
+    presentationEqual
   )
 }
 
