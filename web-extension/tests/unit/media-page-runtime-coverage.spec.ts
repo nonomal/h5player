@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { genericAdapter } from '../../src/adapters/generic'
-import type { MediaDiscoveryUpdate } from '../../src/infrastructure/dom'
+import { MediaAdapterRegistry } from '../../src/adapters/registry'
+import type { DomMediaDiscoveryOptions, MediaDiscoveryUpdate } from '../../src/infrastructure/dom'
 import { MediaPageRuntime } from '../../src/runtime/page-main/media-page-runtime'
 
 const fakes = vi.hoisted(() => {
@@ -18,7 +18,9 @@ const fakes = vi.hoisted(() => {
       return unsubscribe
     })
   }
-  const createDiscovery = vi.fn(() => discovery)
+  const createDiscovery = vi.fn<(options: DomMediaDiscoveryOptions) => typeof discovery>(
+    () => discovery
+  )
   const commandExecute = vi.fn<(command: unknown) => Promise<unknown>>()
   const createRegistry = vi.fn(() => ({ execute: commandExecute }))
   const installHook = vi.fn((_window: Window, callback: (root: ShadowRoot) => void) => {
@@ -132,17 +134,18 @@ describe('MediaPageRuntime lifecycle coverage', () => {
     const now = () => -25
     const runtime = createRuntime(now)
 
-    expect(fakes.createDiscovery).toHaveBeenCalledWith({
-      root: document,
-      adapter: genericAdapter,
-      frameId: 7,
-      now
-    })
+    expect(fakes.createDiscovery).toHaveBeenCalledOnce()
+    const discoveryOptions = fakes.createDiscovery.mock.calls[0]?.[0]
+    expect(discoveryOptions?.root).toBe(document)
+    expect(discoveryOptions?.adapter).toBeInstanceOf(MediaAdapterRegistry)
+    expect(discoveryOptions?.frameId).toBe(7)
+    expect(discoveryOptions?.now).toBe(now)
     expect(runtime.getState()).toEqual({
       frameId: 7,
       revision: 3,
       activeMediaId: 'media-0-1',
       media: [mediaSnapshot()],
+      adapters: [],
       observedAt: 0
     })
 

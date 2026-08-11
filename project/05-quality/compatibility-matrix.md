@@ -1,7 +1,7 @@
 # 浏览器与页面兼容性矩阵
 
 > 文档 ID：QA-003  
-> 状态：Approved for Phase 4 Preview  
+> 状态：Approved for Phase 5 Preview  
 > 负责人：Quality Owner  
 > 最后更新：2026-08-11  
 > 说明：具体版本号在 Phase 0 按发布时最新稳定版本冻结。
@@ -55,17 +55,17 @@ headless harness 的证据边界、内部 API 隔离和 headed 手工门禁见 [
 
 ## 2. 页面形态矩阵
 
-| 页面形态               | Basic | Core | UI   | Security | 长稳 |
-| ---------------------- | ----- | ---- | ---- | -------- | ---- |
-| 单 video               | ✅    | ✅   | ✅   | ✅       | ✅   |
-| 多 video/音频          | ✅    | ✅   | ✅   | ✅       | ✅   |
-| 动态 SPA               | ✅    | ✅   | ✅   | ✅       | ✅   |
-| open Shadow DOM        | ✅    | ✅   | ✅   | ✅       | ✅   |
+| 页面形态               | Basic | Core | UI           | Security | 长稳 |
+| ---------------------- | ----- | ---- | ------------ | -------- | ---- |
+| 单 video               | ✅    | ✅   | ✅           | ✅       | ✅   |
+| 多 video/音频          | ✅    | ✅   | ✅           | ✅       | ✅   |
+| 动态 SPA               | ✅    | ✅   | ✅           | ✅       | ✅   |
+| open Shadow DOM        | ✅    | ✅   | ✅           | ✅       | ✅   |
 | same-origin iframe     | ✅    | ✅   | Overlay 降级 | ✅       | ✅   |
 | cross-origin iframe    | ✅    | ✅   | Overlay 降级 | ✅       | ✅   |
-| 严格 CSP/Trusted Types | ✅    | ✅   | ✅   | ✅       | ✅   |
-| 页面 Hook/恶意消息     | —     | —    | —    | ✅       | ✅   |
-| 无媒体页面             | ✅    | —    | 状态 | ✅       | ✅   |
+| 严格 CSP/Trusted Types | ✅    | ✅   | ✅           | ✅       | ✅   |
+| 页面 Hook/恶意消息     | —     | —    | —            | ✅       | ✅   |
+| 无媒体页面             | ✅    | —    | 状态         | ✅       | ✅   |
 
 ## 3. 站点支持等级
 
@@ -74,11 +74,26 @@ headless harness 的证据边界、内部 API 隔离和 headed 手工门禁见 [
 - Tier 2：有适配器和手工回归；问题按尽力支持处理。
 - Tier 3：仅社区反馈或历史记录；不作为稳定版承诺。
 
-## 4. 兼容性证据
+## 4. Phase 5 站点 Adapter 矩阵
+
+固定脱敏 fixture 的详细 owner、Tier、支持等级、验证日期和限制见 [站点 Adapter 支持矩阵](./site-adapter-matrix.md)。
+当前 Tier 1 为 YouTube、Bilibili、Tencent Video、iQIYI、Youku；Tier 2 为 Netflix、Ixigua、AcFun、Sohu Video、TED。
+`pnpm test:compat:report` 校验 catalog、support level、owner、lastVerified、fixture、SHA-256 baseline 和 183 天复核时效。所有真实站点 smoke 当前标记为“未执行”，不得把
+fixture 结果写成生产站点完整支持。
+
+| 能力                                | 自动化证据                      | 当前结果           | 真实站点边界                 |
+| ----------------------------------- | ------------------------------- | ------------------ | ---------------------------- |
+| hostname/path match + priority      | `adapter-registry.spec.ts`      | Passed             | 未覆盖站点实时路由漂移       |
+| selector play/pause/fullscreen      | `site-adapter-fixtures.spec.ts` | 10 fixtures passed | 点击事件不等价于真实业务状态 |
+| version/feature disable             | registry unit + rollback policy | Passed             | 需发布候选复测               |
+| lifecycle/action/selector isolation | failure injection unit          | Passed             | 未覆盖生产站点恶意/DRM 行为  |
+| diagnostics hit/health              | diagnostics integration         | Passed             | 仅输出 bounded metadata      |
+
+## 5. 兼容性证据
 
 每个矩阵单元至少记录：提交 SHA、扩展版本、浏览器版本、OS、页面 fixture/URL 类别、结果、失败日志 artifact、已知限制和复测日期。真实站点报告不得保存账号、完整媒体 URL 或用户内容。
 
-Phase 4 当前证据补充：
+Phase 4/5 当前证据补充：
 
 - Chrome/Firefox production manifest 均为 required `storage`、`activeTab`、`scripting`，optional `<all_urls>`，
   `content_scripts: []`，无 required host permission 与 WAR。
@@ -86,11 +101,13 @@ Phase 4 当前证据补充：
 - 独立 5 秒 smoke 为 5051 ms、94 cycles、1 次 worker restart、listeners `4→4`；Phase 2 的 30 分钟结果仍是继承证据。
 - Chrome/Firefox raw bundles：background 90150/90151 B、content 191669 B、page-main 77976 B；manifest guardrail 通过。
 - Overlay 仅 top frame；same/cross-origin iframe runtime 通过，但 iframe-only media 的 Overlay 聚合未实现。
+- Phase 5 增加 10 个固定站点 fixture、adapter registry、Generic fallback、SPA rematch、disable policy 和 health diagnostics；
+  真实 Tier 1/Tier 2 smoke、Firefox ESR/最低版本、Chrome previous stable 和 Edge 仍待 Phase 6/Beta。
 - fullscreen/PiP/capture/progress/cross-tab 的 domain、adapter、repository 与 runtime contract 已验证；真实解码帧截图、
   CORS blocked 截图、native→web fullscreen fallback、PiP unavailable、progress restore/complete、multi-tab advisory event
   和 iframe-only media Overlay 的专项浏览器矩阵仍待补。
 
-## 5. 支持策略
+## 6. 支持策略
 
 若浏览器或站点变更导致能力下降：
 
@@ -99,8 +116,8 @@ Phase 4 当前证据补充：
 3. 能力不可用时在 UI 显示降级原因，不静默修改用户设置。
 4. 对高频站点可发布 adapter hotfix；涉及权限/协议/数据则走完整 RC 门禁。
 
-## 6. 当前支持声明
+## 7. 当前支持声明
 
-Phase 4 退出结论为“Preview 范围可进入 Phase 5 工程开发”。当前只承诺 Tier 0 通用
-`HTMLMediaElement` 与固定 fixture 证据；不承诺 Tier 1（YouTube、Bilibili、Tencent Video、iQIYI、Youku）真实站点、
+Phase 5 退出结论为“固定 fixture Preview 范围可进入 Phase 6 工程开发”。当前承诺 Tier 0 通用
+`HTMLMediaElement` 与列出的固定 adapter fixture 证据；不承诺 Tier 1（YouTube、Bilibili、Tencent Video、iQIYI、Youku）真实站点、
 Firefox ESR/最低版本、Chrome previous stable、Edge 或 Stable 商店发布。任何对外文案必须与此边界一致。

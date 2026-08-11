@@ -24,6 +24,7 @@ corepack pnpm@11.21.0 install --frozen-lockfile
 corepack pnpm@11.21.0 check
 corepack pnpm@11.21.0 test:coverage
 corepack pnpm@11.21.0 test:security
+corepack pnpm@11.21.0 test:compat:report
 corepack pnpm@11.21.0 build:all
 corepack pnpm@11.21.0 test:e2e
 corepack pnpm@11.21.0 test:e2e:firefox
@@ -37,9 +38,14 @@ worker，验证媒体生命周期、设置恢复和长稳态；Firefox E2E 使�
 153 临时安装真实 MV3 包，覆盖核心媒体命令。Phase 2 证据与已知项见
 `../project/09-reviews/phase-2-exit-review-2026-08-10.md`。
 
-当前 required permission 只有 `storage`，`<all_urls>` 仅为 optional host permission 且不会静默
-请求。isolated content 与声明式 MAIN world content script 暂时只匹配 localhost fixture；page-main
-不使用 WAR 或运行时脚本注入。真实站点授权/注册完成前本工程仍是 Preview。
+当前 required permissions 为 `storage`、`activeTab`、`scripting`，`<all_urls>` 仅为 optional host permission 且不会
+静默请求。生产 manifest 没有静态 content script、required host 或 WAR；用户授权后由 background 动态注册固定的
+isolated/MAIN 脚本。
+
+Phase 5 增加静态 site adapter registry、Generic fallback、版本/功能 kill switch、运行时健康诊断，以及 5 个 Tier 1、
+5 个 Tier 2 脱敏 fixture。`test:compat:report` 校验 catalog metadata、lastVerified、fixture SHA-256 baseline 和 183 天
+复核时效。该证据不访问真实生产站点，不能表述为真实站点完整支持；详见
+`../project/05-quality/site-adapter-matrix.md`。
 
 ## 目录边界
 
@@ -48,9 +54,10 @@ worker，验证媒体生命周期、设置恢复和长稳态；Firefox E2E 使�
 - `src/application/`：用例和 runtime/settings/browser Port 契约。
 - `src/infrastructure/`：WebExtension adapter、消息客户端、存储迁移、日志和时间实现。
 - `src/runtime/`：background、content、page-main 的组装与信任边界。
+- `src/adapters/`：Generic controller、站点 registry、静态 catalog 和本地 rollback policy。
 - `src/shared/`：协议基础、ID、Result 等无副作用工具。
 - `src/ui/`：Vue 展示组件。
 - `tests/`：unit、component、integration、security、compatibility、E2E 和固定页面。
-- `scripts/`：安全扫描、Firefox 真扩展 E2E 与 Legacy 构建回归。
+- `scripts/`：安全扫描、兼容报告、Firefox 真扩展 E2E 与 Legacy 构建回归。
 - 旧 `background.js`、`content.js`、`inject.*`、`manifest.json`、`popup.*`：Legacy prototype，
   只供旧 `build:inject` 使用；新代码不得导入。

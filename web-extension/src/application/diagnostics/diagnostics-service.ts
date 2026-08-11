@@ -34,6 +34,7 @@ export class DiagnosticsService {
     if (!settings.ok) throw new Error(settings.error.code)
 
     const site = await this.options.siteAccess.getContext().catch(() => null)
+    const selectedAdapters = site?.adapters?.filter((adapter) => adapter.selected) ?? []
     const summary: DiagnosticSummary = diagnosticSummarySchema.parse({
       generatedAt: this.options.clock.now(),
       extensionVersion: this.options.extensionVersion,
@@ -73,7 +74,13 @@ export class DiagnosticsService {
         'progress-repository',
         'cross-tab-media-events'
       ],
-      adapters: site?.mediaCount ? ['generic'] : [],
+      adapters:
+        selectedAdapters.length > 0
+          ? selectedAdapters.map((adapter) => adapter.id)
+          : site?.mediaCount
+            ? ['generic']
+            : [],
+      adapterHealth: site?.adapters ?? [],
       recentEvents: this.options.logger.snapshot(),
       notes: [
         'URLs are reduced to hostname only.',

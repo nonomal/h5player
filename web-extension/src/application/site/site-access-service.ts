@@ -191,6 +191,7 @@ export class SiteAccessService {
         temporaryDisabled: true,
         mediaCount: runtimeState.mediaCount,
         activeMedia: runtimeState.activeMedia,
+        adapters: runtimeState.adapters,
         runtime: 'disabled',
         reason: 'temporarily-disabled'
       }
@@ -202,6 +203,7 @@ export class SiteAccessService {
       temporaryDisabled: false,
       mediaCount: runtimeState.mediaCount,
       activeMedia: runtimeState.activeMedia,
+      adapters: runtimeState.adapters,
       runtime: runtimeState.ready ? 'ready' : 'unavailable',
       reason: runtimeState.ready
         ? runtimeState.mediaCount === 0

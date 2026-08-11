@@ -1,7 +1,7 @@
 # 自动化测试策略
 
 > 文档 ID：QA-001  
-> 状态：Approved / Phase 4 Executed Baseline  
+> 状态：Approved / Phase 5 Executed Baseline  
 > 负责人：Quality Owner  
 > 最后更新：2026-08-11
 
@@ -166,26 +166,41 @@
 
 ## 8. Phase 4 已执行门禁（2026-08-11）
 
-| 层级 | 当前结果 | Phase 4 重点 |
-| ---- | -------- | ------------ |
-| Unit | 36 files / 143 tests | visual/capture/progress/cross-tab/overlay controller/budget |
-| Component | 4 files / 19 tests | Overlay ready/loading/error/disabled/keyboard + 既有 UI |
-| Integration | 9 files / 63 tests | progress repository、content runtime、background contracts、runtime/storage/site access |
-| Compatibility | 2 files / 21 tests | Legacy core differential/oracle |
-| Coverage | 52 files / 249 tests；85.68 statements / 76.57 branches / 87.33 functions / 89.28 lines | 全局门槛通过，不降低 threshold |
-| Security | 142 files + 2 manifests；3 tests | 无 remote/eval/CSP bypass；无 required host/static content/WAR |
-| Boundaries | 128 modules / 415 dependencies / 0 violations | native capture 位于 generic adapter 边界 |
-| Chromium | 3 passed，`workers:1`；configured churn 默认 skipped | 权限/lifecycle/worker restart/multi/SPA/Shadow/hostile/CSP/iframe |
-| Firefox | 153.0 E2E passed；web-ext lint 0 errors/2 generated warnings | optional origin、动态注册、媒体命令、撤权 |
-| Churn | 5051 ms / 94 cycles / 1 restart / listeners 4→4 | Phase 4 快速稳定性回归；不足 50 cycles 时也强制一次 worker restart |
-| Budget | background 90150/90151 B、content 191669 B、page-main 77976 B raw，双端 passed | background/content/page-main + manifest guardrail |
-| Legacy | frozen SHA-256/size passed | Legacy 源码和根构建链未改 |
+| 层级          | 当前结果                                                                                | Phase 4 重点                                                                            |
+| ------------- | --------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------- |
+| Unit          | 36 files / 143 tests                                                                    | visual/capture/progress/cross-tab/overlay controller/budget                             |
+| Component     | 4 files / 19 tests                                                                      | Overlay ready/loading/error/disabled/keyboard + 既有 UI                                 |
+| Integration   | 9 files / 63 tests                                                                      | progress repository、content runtime、background contracts、runtime/storage/site access |
+| Compatibility | 2 files / 21 tests                                                                      | Legacy core differential/oracle                                                         |
+| Coverage      | 52 files / 249 tests；85.68 statements / 76.57 branches / 87.33 functions / 89.28 lines | 全局门槛通过，不降低 threshold                                                          |
+| Security      | 142 files + 2 manifests；3 tests                                                        | 无 remote/eval/CSP bypass；无 required host/static content/WAR                          |
+| Boundaries    | 128 modules / 415 dependencies / 0 violations                                           | native capture 位于 generic adapter 边界                                                |
+| Chromium      | 3 passed，`workers:1`；configured churn 默认 skipped                                    | 权限/lifecycle/worker restart/multi/SPA/Shadow/hostile/CSP/iframe                       |
+| Firefox       | 153.0 E2E passed；web-ext lint 0 errors/2 generated warnings                            | optional origin、动态注册、媒体命令、撤权                                               |
+| Churn         | 5051 ms / 94 cycles / 1 restart / listeners 4→4                                         | Phase 4 快速稳定性回归；不足 50 cycles 时也强制一次 worker restart                      |
+| Budget        | background 90150/90151 B、content 191669 B、page-main 77976 B raw，双端 passed          | background/content/page-main + manifest guardrail                                       |
+| Legacy        | frozen SHA-256/size passed                                                              | Legacy 源码和根构建链未改                                                               |
 
 Phase 4 尚缺少的端侧专项：可真实解码帧的截图成功/CORS fixture、native→web fullscreen fallback、PiP unavailable、
 progress restore/complete 的浏览器 E2E、multi-tab advisory event 和 iframe-only Overlay 期望。它们是 Phase 5/Beta 收敛项，
 不能被现有 unit/contract 证据扩写为完整端侧覆盖。
 
-## 9. 标准验证命令
+## 9. Phase 5 已执行门禁（2026-08-11）
+
+| 层级            | 当前结果                                      | Phase 5 重点                                                                       |
+| --------------- | --------------------------------------------- | ---------------------------------------------------------------------------------- |
+| Unit            | 37 files / 151 tests                          | registry priority/match、subdomain opt-in、disable、SPA rematch、failure isolation |
+| Compatibility   | 3 files / 33 tests                            | 10 site fixtures、selector actions、catalog completeness、fixture SHA report       |
+| Integration     | 9 files / 63 tests                            | page/content/background adapter diagnostics contract                               |
+| Security        | 150 files + 2 manifests；3 tests              | no remote rules/eval、bounded selector/diagnostic policy、permissions unchanged    |
+| Boundaries      | 136 modules / 432 dependencies / 0 violations | registry/site adapter dependency direction                                         |
+| Live site smoke | 未执行                                        | 必须在 Phase 6/Beta 按浏览器/OS/扩展 SHA 单独冻结证据                              |
+
+Fixture 通过只证明脱敏 DOM 契约和 fallback，不得外推为真实登录态、DRM、AB 实验或生产站点完整支持。
+兼容报告同时校验 version、Tier、support level、owner、lastVerified、fixture SHA，并对超过 183 天未复核的 adapter
+阻断门禁。
+
+## 10. 标准验证命令
 
 在 `web-extension/` 执行：
 
@@ -201,4 +216,4 @@ corepack pnpm@11.21.0 test:legacy
 ```
 
 `test:churn` 是 30 分钟夜间/候选门禁，不应并入普通 PR 快速检查；Stable 候选仍需运行完整浏览器版本矩阵、headed
-权限 smoke、真实 Tier 1 smoke 和发布产物复现。
+权限 smoke、真实 Tier 1 smoke 和发布产物复现。Phase 5 额外要求 `pnpm test:compat:report`。

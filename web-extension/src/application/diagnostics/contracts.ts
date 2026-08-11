@@ -1,5 +1,6 @@
 import * as z from 'zod/mini'
 import { CURRENT_EXTENSION_PHASE } from '../../shared/protocol'
+import { adapterRuntimeDiagnosticSchema } from '../adapter'
 
 const diagnosticEventSchema = z.strictObject({
   timestamp: z.number().check(z.nonnegative()),
@@ -42,6 +43,7 @@ export const diagnosticSummarySchema = z.strictObject({
   }),
   modules: z.array(z.string().check(z.minLength(1), z.maxLength(128))),
   adapters: z.array(z.string().check(z.minLength(1), z.maxLength(128))),
+  adapterHealth: z.optional(z.array(adapterRuntimeDiagnosticSchema).check(z.maxLength(32))),
   recentEvents: z.array(diagnosticEventSchema).check(z.maxLength(200)),
   notes: z.array(z.string().check(z.minLength(1), z.maxLength(256))).check(z.maxLength(32))
 })

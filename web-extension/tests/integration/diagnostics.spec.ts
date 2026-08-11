@@ -36,7 +36,21 @@ describe('DiagnosticsService', () => {
           ready: true,
           temporaryDisabled: false,
           mediaCount: 2,
-          activeMedia: true
+          activeMedia: true,
+          adapters: [
+            {
+              id: 'bilibili',
+              version: '1.0.0',
+              tier: 1,
+              supportLevel: 'preview',
+              status: 'selected',
+              selected: true,
+              selectedMediaCount: 1,
+              failureCount: 0,
+              lastFailureStage: null,
+              disabledFeatures: []
+            }
+          ]
         })
       )
     }
@@ -74,10 +88,12 @@ describe('DiagnosticsService', () => {
     const response = await diagnostics.get()
 
     expect(response.summary).toMatchObject({
-      phase: 4,
+      phase: 5,
       settingsSchemaVersion: 2,
       site: { hostname: 'example.com', mediaCount: 2, activeMedia: true },
-      settings: { revision: 1, siteRuleCount: 1 }
+      settings: { revision: 1, siteRuleCount: 1 },
+      adapters: ['bilibili'],
+      adapterHealth: [expect.objectContaining({ id: 'bilibili', status: 'selected' })]
     })
     expect(response.summary.permissions.required).toEqual(['activeTab', 'scripting', 'storage'])
     expect(response.json.length).toBeLessThan(1_048_576)

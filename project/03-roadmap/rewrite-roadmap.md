@@ -1,7 +1,7 @@
 # Web Extension 重构路线图
 
 > 文档 ID：ROADMAP-001  
-> 状态：Approved / Phase 4 Preview Exit  
+> 状态：Approved / Phase 5 Preview Exit  
 > 负责人：Project Owner  
 > 最后更新：2026-08-11  
 > 估算方式：以退出条件为主，不以日期驱动；建议两周一个可演示增量。
@@ -28,7 +28,8 @@ Phase 0 基线与脚手架
 | Phase 2    | Completed             | Tier 0 媒体核心与双浏览器真实扩展证据已批准                                                                          |
 | Phase 3    | Completed for Preview | [Exit Review](../09-reviews/phase-3-exit-review-2026-08-11.md) 为 Conditional GO；可进入 Phase 4，不具备 Stable 资格 |
 | Phase 4    | Completed for Preview | [Exit Review](../09-reviews/phase-4-exit-review-2026-08-11.md) 为 Conditional GO；可进入 Phase 5，不具备 Stable 资格 |
-| Phase 5～7 | Planned               | 站点适配、发布稳定化、实验与 Legacy 后续决策                                                                         |
+| Phase 5    | Completed for Preview | [Exit Review](../09-reviews/phase-5-exit-review-2026-08-11.md) 为 Conditional GO；fixture 范围可进入 Phase 6         |
+| Phase 6～7 | Planned               | 发布稳定化、实验与 Legacy 后续决策                                                                                   |
 
 ## Phase 0：基线冻结与工程脚手架
 
@@ -164,10 +165,11 @@ headed 权限确认框、商店发布或 Stable 资格。
 
 退出条件：
 
-- Tier 1 全部自动化通过；Tier 2 有发布证据。
-- 单个 adapter 抛错不会影响 generic adapter。
-- 每个 adapter 有 owner、支持等级、fixture 和最近验证日期。
-- 兼容矩阵无未解释红项。
+- [x] Tier 1 五站固定脱敏 fixture 自动化通过；真实站点 smoke 明确未执行。
+- [x] Tier 2 五站有 owner、best-effort 等级、fixture 与验证日期；真实站点状态不外推。
+- [x] 单个 adapter 的 attach/detach/action/selector 抛错不会影响 GenericAdapter。
+- [x] 版本/功能 kill switch、运行时健康诊断、fixture SHA baseline 和兼容报告进入门禁。
+- [x] 兼容矩阵无未解释 fixture 红项；live smoke 缺口明确保留为 Phase 6/Beta 门禁。
 
 ## Phase 6：Beta、发布工程与稳定化
 
@@ -211,3 +213,4 @@ headed 权限确认框、商店发布或 Stable 资格。
 - 若连续两个里程碑质量门禁未过，暂停新增功能，优先偿还架构和测试债。
 - Phase 3 的 Conditional GO 只授权继续 Phase 4 工程开发；任何 Beta/Stable 或 Tier 1 对外承诺仍必须满足 Phase 5/6 门禁。
 - Phase 4 的 Conditional GO 只授权继续 Phase 5 工程开发；不授权 Beta、Stable、Tier 1 支持、最低浏览器版本或商店发布声明。
+- Phase 5 的 Conditional GO 只授权继续 Phase 6 发布工程；固定 fixture 不得扩写为 Tier 1 真实生产站点支持。

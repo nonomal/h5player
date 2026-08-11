@@ -2,7 +2,7 @@
 
 > 文档 ID：GOV-005  
 > 状态：Approved  
-> 最后更新：2026-08-10
+> 最后更新：2026-08-11
 
 | 术语                        | 定义                                                                                 |
 | --------------------------- | ------------------------------------------------------------------------------------ |
@@ -20,6 +20,9 @@
 | Command                     | 由快捷键、UI 或适配器发出的类型化用户意图；由 Command Registry 执行。                |
 | SiteAdapter                 | 针对某站点或页面形态的受控适配器，包含匹配、能力、Hook 和 teardown。                 |
 | Generic adapter             | 不依赖特定网站的 HTMLMediaElement 通用实现。                                         |
+| Adapter registry            | 对静态站点 adapter 做确定性匹配、优先级选择、Generic 回退、健康记录和生命周期管理。  |
+| Adapter kill switch         | 随扩展发布、按精确 version/feature 禁用站点增强的本地回退策略；不是远程配置。        |
+| Adapter health              | 当前匹配/选中/降级/禁用及失败计数的 bounded 诊断元数据，不代表生产支持等级。         |
 | Port                        | Domain/Application 定义的能力接口，由浏览器、DOM、存储或消息基础设施实现。           |
 | Envelope                    | 跨上下文消息的统一外壳，包含协议版本、type、requestId、来源和 payload。              |
 | Nonce                       | 每次页面桥会话生成的随机一次性值，用来拒绝伪造或重放消息。                           |
@@ -28,7 +31,7 @@
 | Session state               | 当前 Tab/frame/媒体的可重建短期状态，不作为扩展重启后的唯一数据源。                  |
 | Fixture                     | 仓库内可重复加载的测试页面、DOM 结构或数据样本。                                     |
 | Differential test           | 对 Legacy 与新扩展执行同一可观测操作并比较结果的测试，不比较内部实现。               |
-| Tier 0/1/2/3                | 兼容支持等级：通用、重点自动化、手工/部分自动化、尽力支持。                          |
+| Tier 0/1/2/3                | 兼容支持等级：通用、重点 fixture+发布 smoke、best-effort fixture/手工、仅反馈记录。  |
 | P0/P1/P2/P3                 | 缺陷/需求优先级：发布阻塞、核心目标、后续/实验、低优先体验。                         |
 | Quality gate                | 合并、夜间、候选发布或 Stable 发布必须通过的自动/人工检查。                          |
 | Optional permission         | 用户触发或明确选择后才申请的浏览器权限，避免安装时静默扩大能力。                     |

@@ -1,7 +1,7 @@
 # Web Extension 重构主任务台账
 
 > 文档 ID：TASK-003  
-> 状态：Active / Phase 4 Preview Exit  
+> 状态：Active / Phase 5 Preview Exit  
 > 负责人：Project Owner  
 > 最后更新：2026-08-11  
 > 规则：任务状态以 `progress.md` 为当前摘要，本页保留完整规划。
@@ -86,16 +86,16 @@
 
 ## EPIC-04：高级通用能力（Phase 4）
 
-| ID      | 任务                                 | 优先级 | 估算 | 依赖            | 验收摘要              | 状态     |
-| ------- | ------------------------------------ | ------ | ---- | --------------- | --------------------- | -------- |
-| EXT-080 | transform/filter domain 与命令       | P1     | L    | EXT-044,EXT-047 | 状态隔离/重置通过     | Verified |
+| ID      | 任务                                 | 优先级 | 估算 | 依赖            | 验收摘要                    | 状态     |
+| ------- | ------------------------------------ | ------ | ---- | --------------- | --------------------------- | -------- |
+| EXT-080 | transform/filter domain 与命令       | P1     | L    | EXT-044,EXT-047 | 状态隔离/重置通过           | Verified |
 | EXT-081 | Fullscreen/PiP capability adapters   | P1     | L    | EXT-043,EXT-044 | capability/错误降级契约通过 | Verified |
-| EXT-082 | Overlay shell 与 Shadow DOM 样式隔离 | P1     | L    | EXT-061,EXT-067 | 不污染页面            | Verified |
-| EXT-083 | Screenshot/capture service           | P1     | M    | EXT-023,EXT-044 | CORS/DRM 错误可解释   | Verified |
-| EXT-084 | Progress repository 与恢复策略       | P1     | M    | EXT-025,EXT-040 | 过期/容量/隐私测试    | Verified |
-| EXT-085 | Cross-tab event service              | P1     | M    | EXT-022,EXT-025 | 不依赖高频轮询        | Verified |
-| EXT-086 | Bundle/performance budgets           | P0     | M    | EXT-080..085    | CI 超预算失败         | Verified |
-| EXT-087 | Phase 4 视觉/性能审查                | P1     | M    | EXT-080..086    | 评审记录 Conditional GO | Verified |
+| EXT-082 | Overlay shell 与 Shadow DOM 样式隔离 | P1     | L    | EXT-061,EXT-067 | 不污染页面                  | Verified |
+| EXT-083 | Screenshot/capture service           | P1     | M    | EXT-023,EXT-044 | CORS/DRM 错误可解释         | Verified |
+| EXT-084 | Progress repository 与恢复策略       | P1     | M    | EXT-025,EXT-040 | 过期/容量/隐私测试          | Verified |
+| EXT-085 | Cross-tab event service              | P1     | M    | EXT-022,EXT-025 | 不依赖高频轮询              | Verified |
+| EXT-086 | Bundle/performance budgets           | P0     | M    | EXT-080..085    | CI 超预算失败               | Verified |
+| EXT-087 | Phase 4 视觉/性能审查                | P1     | M    | EXT-080..086    | 评审记录 Conditional GO     | Verified |
 
 ### Phase 4 交付证据（2026-08-11）
 
@@ -111,17 +111,25 @@
 
 ## EPIC-05：站点适配与兼容（Phase 5）
 
-| ID      | 任务                            | 优先级 | 估算 | 依赖            | 验收摘要               | 状态     |
-| ------- | ------------------------------- | ------ | ---- | --------------- | ---------------------- | -------- |
-| EXT-100 | Adapter registry/match/priority | P0     | M    | EXT-043         | 冲突优先级可预测       | Proposed |
-| EXT-101 | Tier 1 YouTube adapter          | P1     | M    | EXT-100,EXT-081 | fixture + smoke        | Proposed |
-| EXT-102 | Tier 1 Bilibili adapter         | P1     | L    | EXT-100,EXT-081 | fixture + smoke        | Proposed |
-| EXT-103 | Tier 1 Tencent adapter          | P1     | M    | EXT-100         | fixture + smoke        | Proposed |
-| EXT-104 | Tier 1 iQIYI/Youku adapters     | P1     | L    | EXT-100         | fixture + smoke        | Proposed |
-| EXT-105 | Tier 2 adapter batch            | P1     | XL   | EXT-100         | 每站点有 owner/fixture | Proposed |
-| EXT-106 | Adapter failure isolation       | P0     | M    | EXT-100..105    | 单适配器故障隔离       | Proposed |
-| EXT-107 | Compatibility matrix automation | P0     | L    | EXT-101..106    | 生成报告/趋势          | Proposed |
-| EXT-108 | Phase 5 compatibility review    | P1     | M    | EXT-100..107    | Tier 门槛通过          | Proposed |
+| ID      | 任务                            | 优先级 | 估算 | 依赖            | 验收摘要               | 状态                 |
+| ------- | ------------------------------- | ------ | ---- | --------------- | ---------------------- | -------------------- |
+| EXT-100 | Adapter registry/match/priority | P0     | M    | EXT-043         | 冲突优先级可预测       | Verified             |
+| EXT-101 | Tier 1 YouTube adapter          | P1     | M    | EXT-100,EXT-081 | fixture + smoke        | Verified for fixture |
+| EXT-102 | Tier 1 Bilibili adapter         | P1     | L    | EXT-100,EXT-081 | fixture + smoke        | Verified for fixture |
+| EXT-103 | Tier 1 Tencent adapter          | P1     | M    | EXT-100         | fixture + smoke        | Verified for fixture |
+| EXT-104 | Tier 1 iQIYI/Youku adapters     | P1     | L    | EXT-100         | fixture + smoke        | Verified for fixture |
+| EXT-105 | Tier 2 adapter batch            | P1     | XL   | EXT-100         | 每站点有 owner/fixture | Verified for fixture |
+| EXT-106 | Adapter failure isolation       | P0     | M    | EXT-100..105    | 单适配器故障隔离       | Verified             |
+| EXT-107 | Compatibility matrix automation | P0     | L    | EXT-101..106    | 生成报告/趋势          | Verified             |
+| EXT-108 | Phase 5 compatibility review    | P1     | M    | EXT-100..107    | Tier 门槛通过          | Verified             |
+
+### Phase 5 交付证据（2026-08-11）
+
+- `MediaAdapterRegistry` 复用现有 `MediaAdapter<HTMLMediaElement>` 契约，priority 降序 + id 稳定排序，Generic 永远兜底。
+- Tier 1 五站、Tier 2 五站均有脱敏 fixture；catalog 记录 owner/version/tier/support/lastVerified/features/matches。
+- attach/detach/action/selector failure injection、SPA rematch、version/feature disable 和 typed diagnostics 通过。
+- `test:compat:report` 校验 catalog、fixture、Tier、version、support level、owner、lastVerified、SHA-256 baseline 与 183 天复核时效；
+  真实站点 smoke 仍为未验证。
 
 ## EPIC-06：Beta 与 Stable 发布（Phase 6）
 

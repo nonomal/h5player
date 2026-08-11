@@ -35,26 +35,26 @@
 
 ## 3. 画面、媒体与跨 Tab
 
-| 需求          | 模块                       | 任务    | 自动化证据                                     | Phase | 当前证据状态 |
-| ------------- | -------------------------- | ------- | ---------------------------------------------- | ----- | ------------ |
-| FR-VISUAL-001 | visual domain/commands     | EXT-080 | `visual-domain.spec.ts`、`visual-media-commands.spec.ts`；专项浏览器 E2E 尚未执行 | 4 | Verified for Preview |
-| FR-VISUAL-002 | visual reset transaction   | EXT-080 | 单次 controller reset、inline style restore、teardown unit               | 4 | Verified |
-| FR-VISUAL-003 | fullscreen/PiP adapters    | EXT-081 | generic adapter/command unit；native→web fallback 与 PiP unavailable 浏览器 E2E 待补 | 4 | Verified for Preview |
-| FR-VISUAL-004 | overlay component shell    | EXT-082 | `overlay.spec.ts`、controller unit、hostile/CSP/iframe runtime lifecycle；iframe-only 聚合待补 | 4 | Verified for Preview |
-| FR-MEDIA-001  | capture service            | EXT-083 | capture command/download/native binding unit、bounded Schema/security/manifest checks；真实帧/CORS E2E 待补 | 4 | Verified for Preview |
-| FR-MEDIA-002  | progress repository        | EXT-084 | progress domain/repository/content-runtime TTL/capacity/privacy/restore/节流集成；浏览器 E2E 待补 | 4 | Verified for Preview |
-| FR-MEDIA-003  | cross-tab event service    | EXT-085 | cross-tab service unit、background/content typed contract                | 4 | Verified advisory only |
-| FR-MEDIA-004  | experimental media package | EXT-140 | threat/performance spike + optional E2E        | 7     | Deferred     |
+| 需求          | 模块                       | 任务    | 自动化证据                                                                                                  | Phase | 当前证据状态           |
+| ------------- | -------------------------- | ------- | ----------------------------------------------------------------------------------------------------------- | ----- | ---------------------- |
+| FR-VISUAL-001 | visual domain/commands     | EXT-080 | `visual-domain.spec.ts`、`visual-media-commands.spec.ts`；专项浏览器 E2E 尚未执行                           | 4     | Verified for Preview   |
+| FR-VISUAL-002 | visual reset transaction   | EXT-080 | 单次 controller reset、inline style restore、teardown unit                                                  | 4     | Verified               |
+| FR-VISUAL-003 | fullscreen/PiP adapters    | EXT-081 | generic adapter/command unit；native→web fallback 与 PiP unavailable 浏览器 E2E 待补                        | 4     | Verified for Preview   |
+| FR-VISUAL-004 | overlay component shell    | EXT-082 | `overlay.spec.ts`、controller unit、hostile/CSP/iframe runtime lifecycle；iframe-only 聚合待补              | 4     | Verified for Preview   |
+| FR-MEDIA-001  | capture service            | EXT-083 | capture command/download/native binding unit、bounded Schema/security/manifest checks；真实帧/CORS E2E 待补 | 4     | Verified for Preview   |
+| FR-MEDIA-002  | progress repository        | EXT-084 | progress domain/repository/content-runtime TTL/capacity/privacy/restore/节流集成；浏览器 E2E 待补           | 4     | Verified for Preview   |
+| FR-MEDIA-003  | cross-tab event service    | EXT-085 | cross-tab service unit、background/content typed contract                                                   | 4     | Verified advisory only |
+| FR-MEDIA-004  | experimental media package | EXT-140 | threat/performance spike + optional E2E                                                                     | 7     | Deferred               |
 
 ## 4. 站点适配器
 
-| 需求           | 模块                         | 任务                      | 自动化证据                                                                         | Phase | 当前证据状态 |
-| -------------- | ---------------------------- | ------------------------- | ---------------------------------------------------------------------------------- | ----- | ------------ |
-| FR-ADAPTER-001 | adapters/generic             | EXT-043                   | `generic-adapter.spec.ts`、basic/multi fixture；Chrome/Firefox 无站点配置 core E2E | 2     | Verified     |
-| FR-ADAPTER-002 | adapter registry/sites       | EXT-100..105              | 每 adapter contract/fixture/smoke                                                  | 5     | Planned      |
-| FR-ADAPTER-003 | adapter isolation            | EXT-100, EXT-106          | throw/timeout/teardown failure injection                                           | 5     | Planned      |
-| FR-ADAPTER-004 | adapter metadata/diagnostics | EXT-100, EXT-106, EXT-107 | version disable + report generation                                                | 5     | Planned      |
-| FR-ADAPTER-005 | declarative custom rules     | EXT-142                   | Schema fuzz + no-code-execution security test                                      | 7     | Deferred     |
+| 需求           | 模块                         | 任务                      | 自动化证据                                                                         | Phase | 当前证据状态         |
+| -------------- | ---------------------------- | ------------------------- | ---------------------------------------------------------------------------------- | ----- | -------------------- |
+| FR-ADAPTER-001 | adapters/generic             | EXT-043                   | `generic-adapter.spec.ts`、basic/multi fixture；Chrome/Firefox 无站点配置 core E2E | 2     | Verified             |
+| FR-ADAPTER-002 | adapter registry/sites       | EXT-100..105              | registry unit + 10 site fixtures；真实站点 smoke 未执行                            | 5     | Verified for fixture |
+| FR-ADAPTER-003 | adapter isolation            | EXT-100, EXT-106          | attach/action/selector/detach throw、SPA rematch、Generic fallback                 | 5     | Verified             |
+| FR-ADAPTER-004 | adapter metadata/diagnostics | EXT-100, EXT-106, EXT-107 | exact version/feature disable、adapter health、SHA baseline/report                 | 5     | Verified             |
+| FR-ADAPTER-005 | declarative custom rules     | EXT-142                   | Schema fuzz + no-code-execution security test                                      | 7     | Deferred             |
 
 ## 5. 配置与数据
 
@@ -69,16 +69,16 @@
 
 ## 6. UI 与诊断
 
-| 需求        | 模块                          | 任务                               | 自动化证据                                                                                         | Phase | 当前证据状态               |
-| ----------- | ----------------------------- | ---------------------------------- | -------------------------------------------------------------------------------------------------- | ----- | -------------------------- |
-| FR-UI-001   | popup                         | EXT-061, EXT-064                   | `popup.spec.ts` + Chrome/Firefox extension E2E：状态、媒体命令、权限、停用、撤权、worker restart   | 3     | Verified                   |
-| FR-UI-002   | options                       | EXT-062, EXT-063, EXT-065, EXT-066 | 六路由页面；`options.spec.ts` 导航/live reload/import；Options all-sites revoke E2E                | 3     | Verified                   |
-| FR-UI-003   | overlay                       | EXT-082                            | component、controller、closed ShadowRoot 配置与 runtime lifecycle；iframe-only 聚合为已知限制      | 4     | Verified for Preview       |
-| FR-UI-004   | application facade/view model | EXT-061, EXT-062, EXT-082          | Popup/Options/Overlay application unit；dependency-cruiser 128 modules / 415 dependencies / 0 violations | 3/4 | Verified |
-| FR-UI-005   | i18n                          | EXT-067, EXT-068                   | zh-CN/en-US catalog structural completeness、参数格式化、Popup/Options/Recorder axe tests          | 3     | Verified                   |
-| FR-DIAG-001 | structured logger             | EXT-030                            | `structured-logger.spec.ts` ring-buffer/capacity/redaction                                         | 1     | Verified                   |
-| FR-DIAG-002 | diagnostics service/UI        | EXT-066                            | `diagnostics.spec.ts` bounded summary/脱敏；Options diagnostics page；download Blob lifecycle test | 3     | Verified                   |
-| FR-DIAG-003 | status/error mapping          | EXT-048, EXT-061, EXT-066          | no-permission/rejected/restricted/no-media/site-disabled/temporary/init-failure contract + E2E     | 2/3   | Verified                   |
+| 需求        | 模块                          | 任务                               | 自动化证据                                                                                               | Phase | 当前证据状态         |
+| ----------- | ----------------------------- | ---------------------------------- | -------------------------------------------------------------------------------------------------------- | ----- | -------------------- |
+| FR-UI-001   | popup                         | EXT-061, EXT-064                   | `popup.spec.ts` + Chrome/Firefox extension E2E：状态、媒体命令、权限、停用、撤权、worker restart         | 3     | Verified             |
+| FR-UI-002   | options                       | EXT-062, EXT-063, EXT-065, EXT-066 | 六路由页面；`options.spec.ts` 导航/live reload/import；Options all-sites revoke E2E                      | 3     | Verified             |
+| FR-UI-003   | overlay                       | EXT-082                            | component、controller、closed ShadowRoot 配置与 runtime lifecycle；iframe-only 聚合为已知限制            | 4     | Verified for Preview |
+| FR-UI-004   | application facade/view model | EXT-061, EXT-062, EXT-082          | Popup/Options/Overlay application unit；dependency-cruiser 128 modules / 415 dependencies / 0 violations | 3/4   | Verified             |
+| FR-UI-005   | i18n                          | EXT-067, EXT-068                   | zh-CN/en-US catalog structural completeness、参数格式化、Popup/Options/Recorder axe tests                | 3     | Verified             |
+| FR-DIAG-001 | structured logger             | EXT-030                            | `structured-logger.spec.ts` ring-buffer/capacity/redaction                                               | 1     | Verified             |
+| FR-DIAG-002 | diagnostics service/UI        | EXT-066                            | `diagnostics.spec.ts` bounded summary/脱敏；Options diagnostics page；download Blob lifecycle test       | 3     | Verified             |
+| FR-DIAG-003 | status/error mapping          | EXT-048, EXT-061, EXT-066          | no-permission/rejected/restricted/no-media/site-disabled/temporary/init-failure contract + E2E           | 2/3   | Verified             |
 
 ## 7. 非功能需求到门禁映射
 

@@ -34,8 +34,9 @@
     "test:churn": "H5PLAYER_CHURN_DURATION_MS=1800000 playwright test tests/e2e/extension-smoke.spec.ts --grep 'configured media churn' --workers=1",
     "test:security": "tsx scripts/security-scan.ts && vitest run tests/security",
     "test:compat": "vitest run tests/compatibility",
+    "test:compat:report": "tsx scripts/compatibility-report.ts",
     "test:boundaries": "depcruise --config dependency-cruiser.config.cjs src entrypoints",
-    "check": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm test:unit && pnpm test:component && pnpm test:integration && pnpm test:compat && pnpm test:security && pnpm test:boundaries",
+    "check": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm test:unit && pnpm test:component && pnpm test:integration && pnpm test:compat && pnpm test:compat:report && pnpm test:security && pnpm test:boundaries",
     "package": "wxt zip -b chrome && wxt zip -b firefox"
   },
   "dependencies": {

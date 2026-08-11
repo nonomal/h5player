@@ -166,7 +166,7 @@ function runtimeHarness(
       case 'system.ping':
         return respond({
           extensionVersion: '0.1.0',
-          phase: 4,
+          phase: 5,
           protocol: 1,
           settingsSchemaVersion: 2,
           frameId: 0

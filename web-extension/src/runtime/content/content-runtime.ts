@@ -420,7 +420,8 @@ export async function startContentRuntime(
           ready,
           temporaryDisabled,
           mediaCount: state?.media.length ?? 0,
-          activeMedia: state?.activeMediaId !== null && state?.activeMediaId !== undefined
+          activeMedia: state?.activeMediaId !== null && state?.activeMediaId !== undefined,
+          adapters: state?.adapters ?? []
         })
         return createTabSuccess(request, response)
       }

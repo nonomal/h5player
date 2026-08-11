@@ -3,7 +3,7 @@
 > 文档 ID：OPS-001  
 > 状态：Approved as Planning Baseline  
 > 负责人：Quality Owner / Support Owner  
-> 最后更新：2026-08-10
+> 最后更新：2026-08-11
 
 ## 1. 可观测性原则
 
@@ -48,7 +48,7 @@ interface DiagnosticEvent {
 - 浏览器/OS 大版本和 manifest profile；
 - 当前权限（不含 token）；
 - 当前站点规范化标识、frame 数和媒体数量；
-- 命中的 adapter、能力和最近错误码；
+- 命中的 adapter、version/tier/status、能力、failureCount/disabledFeatures 和最近错误码；
 - 限量 ring buffer、配置结构摘要和迁移结果；
 - 用户主动勾选的附加信息。
 
@@ -82,6 +82,9 @@ interface DiagnosticEvent {
 3. 先补失败测试，再修改 adapter/core。
 4. 运行该站点 + generic + 同类站点回归。
 5. 更新兼容矩阵、adapter 最近验证日期和 Changelog。
+
+站点适配问题必须同时记录 fixture 证据和真实站点 smoke 状态。诊断中的 `degraded` 或 `disabled` 只表示当前 runtime
+命中/回退状态，不等于站点生产支持等级；需要回退时按 [站点适配问题与快速回退手册](./site-adapter-runbook.md) 执行。
 
 ## 8. Incident 复盘
 

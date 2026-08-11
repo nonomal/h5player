@@ -1,0 +1,107 @@
+{
+  "schemaVersion": 1,
+  "evidenceBoundary": "sanitized-fixture-only",
+  "liveSmoke": "not-verified",
+  "entries": [
+    {
+      "id": "youtube",
+      "version": "1.0.0",
+      "tier": 1,
+      "supportLevel": "preview",
+      "owner": "Web Extension Compatibility",
+      "fixture": "youtube.html",
+      "lastVerified": "2026-08-11",
+      "fixtureSha256": "14d39ba7bbfa6333905b82fc058c7cabe41e0299057de2c3f401435580711192"
+    },
+    {
+      "id": "bilibili",
+      "version": "1.0.0",
+      "tier": 1,
+      "supportLevel": "preview",
+      "owner": "Web Extension Compatibility",
+      "fixture": "bilibili.html",
+      "lastVerified": "2026-08-11",
+      "fixtureSha256": "b796cdcf4f0d9a831ebec86696919ff53103d287c19639241b3885aa29a4de9b"
+    },
+    {
+      "id": "tencent-video",
+      "version": "1.0.0",
+      "tier": 1,
+      "supportLevel": "preview",
+      "owner": "Web Extension Compatibility",
+      "fixture": "tencent-video.html",
+      "lastVerified": "2026-08-11",
+      "fixtureSha256": "58dc006fe52a7b995c7abf6bede2396c20221c7c3189dd8c37af5723015e03f7"
+    },
+    {
+      "id": "iqiyi",
+      "version": "1.0.0",
+      "tier": 1,
+      "supportLevel": "preview",
+      "owner": "Web Extension Compatibility",
+      "fixture": "iqiyi.html",
+      "lastVerified": "2026-08-11",
+      "fixtureSha256": "2164e1d1c0997555eb4905a1e1a6b0f33f4f91ddf6fb863887424b035b7619e0"
+    },
+    {
+      "id": "youku",
+      "version": "1.0.0",
+      "tier": 1,
+      "supportLevel": "preview",
+      "owner": "Web Extension Compatibility",
+      "fixture": "youku.html",
+      "lastVerified": "2026-08-11",
+      "fixtureSha256": "61d9c5f108d8c5f81149a21b58b58bf5f19b406a88ef521cda97f43b53d94c33"
+    },
+    {
+      "id": "netflix",
+      "version": "1.0.0",
+      "tier": 2,
+      "supportLevel": "best-effort",
+      "owner": "Web Extension Compatibility",
+      "fixture": "netflix.html",
+      "lastVerified": "2026-08-11",
+      "fixtureSha256": "497a438f712e63d203e2041a01fff238ca4c77e66538744db6e3e12ac2af84d6"
+    },
+    {
+      "id": "ixigua",
+      "version": "1.0.0",
+      "tier": 2,
+      "supportLevel": "best-effort",
+      "owner": "Web Extension Compatibility",
+      "fixture": "ixigua.html",
+      "lastVerified": "2026-08-11",
+      "fixtureSha256": "122810931ea575c7468e17cc3bd8b71537162e55e68e94242f682bc494f361f8"
+    },
+    {
+      "id": "acfun",
+      "version": "1.0.0",
+      "tier": 2,
+      "supportLevel": "best-effort",
+      "owner": "Web Extension Compatibility",
+      "fixture": "acfun.html",
+      "lastVerified": "2026-08-11",
+      "fixtureSha256": "76cd46816962b6a85d51f51d2dbeb6f9675243e7e0beb41a9f5a05fdf2d4e928"
+    },
+    {
+      "id": "sohu-video",
+      "version": "1.0.0",
+      "tier": 2,
+      "supportLevel": "best-effort",
+      "owner": "Web Extension Compatibility",
+      "fixture": "sohu-video.html",
+      "lastVerified": "2026-08-11",
+      "fixtureSha256": "3a1fca6d2eeefb6dd325889bb72ff4c36a091f40c335d5c50facf05127746c2f"
+    },
+    {
+      "id": "ted",
+      "version": "1.0.0",
+      "tier": 2,
+      "supportLevel": "best-effort",
+      "owner": "Web Extension Compatibility",
+      "fixture": "ted.html",
+      "lastVerified": "2026-08-11",
+      "fixtureSha256": "f511b9af525fbc7bcaf3356d44093e5305fcf3f4f1a7ab5dbb5d0d6631b2c0cb"
+    }
+  ]
+}

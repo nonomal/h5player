@@ -1,4 +1,5 @@
 import * as z from 'zod/mini'
+import { adapterRuntimeDiagnosticsSchema } from '../adapter'
 
 export const siteContextResponseSchema = z.strictObject({
   tab: z.nullable(
@@ -14,6 +15,7 @@ export const siteContextResponseSchema = z.strictObject({
   temporaryDisabled: z.boolean(),
   mediaCount: z.int().check(z.nonnegative()),
   activeMedia: z.boolean(),
+  adapters: z.optional(adapterRuntimeDiagnosticsSchema),
   runtime: z.enum(['ready', 'disabled', 'unavailable', 'unknown']),
   reason: z.enum([
     'none',
@@ -49,7 +51,8 @@ export const siteRuntimeStateResponseSchema = z.strictObject({
   ready: z.boolean(),
   temporaryDisabled: z.boolean(),
   mediaCount: z.int().check(z.nonnegative()),
-  activeMedia: z.boolean()
+  activeMedia: z.boolean(),
+  adapters: z.optional(adapterRuntimeDiagnosticsSchema)
 })
 
 export type SiteContextResponse = z.infer<typeof siteContextResponseSchema>

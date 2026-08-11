@@ -54,7 +54,7 @@ export class FakeRuntimeApi implements RuntimeApiPort {
   ping(): Promise<SystemPingResponse> {
     return Promise.resolve({
       extensionVersion: '0.1.0',
-      phase: 4,
+      phase: 5,
       protocol: 1,
       settingsSchemaVersion: 2
     })

@@ -17,6 +17,16 @@ const permissionInventory = computed(() => [
   ...(summary.value?.permissions.required ?? []),
   ...(summary.value?.permissions.origins ?? [])
 ])
+const adapterInventory = computed(() => {
+  const health = summary.value?.adapterHealth ?? []
+  if (health.length > 0) {
+    return health.map(
+      (adapter) =>
+        `${adapter.id}@${adapter.version} · ${adapter.status} · failures=${adapter.failureCount}`
+    )
+  }
+  return summary.value?.adapters ?? []
+})
 
 function formatDate(value: number): string {
   return new Intl.DateTimeFormat(locale.value, {
@@ -149,8 +159,8 @@ onMounted(() => void refresh())
             </div>
             <div>
               <h4>{{ t('options.adapters') }}</h4>
-              <code v-for="adapter in summary.adapters" :key="adapter">{{ adapter }}</code>
-              <span v-if="summary.adapters.length === 0">{{ t('common.none') }}</span>
+              <code v-for="adapter in adapterInventory" :key="adapter">{{ adapter }}</code>
+              <span v-if="adapterInventory.length === 0">{{ t('common.none') }}</span>
             </div>
           </div>
         </SettingsPanel>

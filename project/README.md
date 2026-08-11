@@ -1,6 +1,6 @@
 # H5Player Web Extension 重构工程管理中心
 
-> 状态：Active / Phase 4 Preview Baseline  
+> 状态：Active / Phase 5 Preview Baseline  
 > 建立日期：2026-08-10  
 > 最后更新：2026-08-11  
 > 维护范围：Web Extension 重构的需求、架构、任务、质量、发布与审查资料  
@@ -54,15 +54,18 @@
 | 质量   | [自动化测试策略](./05-quality/test-strategy.md)                       | 单元、组件、集成、端侧、兼容和差分测试                            |
 | 质量   | [质量门禁](./05-quality/quality-gates.md)                             | PR、夜间、候选发布和正式发布门槛                                  |
 | 质量   | [兼容性矩阵](./05-quality/compatibility-matrix.md)                    | 浏览器、页面形态、重点站点和能力覆盖                              |
+| 质量   | [站点 Adapter 支持矩阵](./05-quality/site-adapter-matrix.md)          | owner、Tier、fixture、验证日期、真实站点状态和已知限制            |
 | 安全   | [安全与隐私基线](./06-security/security-and-privacy.md)               | 权限、消息、存储、远程通信和商店审核要求                          |
 | 安全   | [权限清单](./06-security/permission-inventory.md)                     | 每项 manifest 权限、使用点、替代方案、测试和移除条件              |
 | 发布   | [版本与发布策略](./07-release/release-strategy.md)                    | 渠道、版本、构建、签名、灰度和回滚                                |
 | 发布   | [商店与合规清单](./07-release/store-and-compliance.md)                | 权限说明、隐私、审核材料与内容边界                                |
 | 运维   | [可观测性与支持](./08-operations/observability-and-support.md)        | 日志、诊断、缺陷分级和兼容性维护                                  |
+| 运维   | [站点适配问题与回退手册](./08-operations/site-adapter-runbook.md)     | 问题收敛、版本/功能 kill switch、热修复与恢复流程                 |
 | 审查   | [现状基线审查](./09-reviews/baseline-assessment-2026-08-10.md)        | 代码事实、缺口、风险与重构起点                                    |
 | 审查   | [Phase 2 Exit Review](./09-reviews/phase-2-exit-review-2026-08-10.md) | 通用媒体核心、双浏览器 E2E、差分和长稳态结论                      |
 | 审查   | [Phase 3 Exit Review](./09-reviews/phase-3-exit-review-2026-08-11.md) | 设置、快捷键、权限 onboarding、扩展 UI、双浏览器门禁与剩余风险    |
-| 审查   | [Phase 4 Exit Review](./09-reviews/phase-4-exit-review-2026-08-11.md) | 高级媒体、Overlay、截图、进度、预算门禁与剩余端侧缺口              |
+| 审查   | [Phase 4 Exit Review](./09-reviews/phase-4-exit-review-2026-08-11.md) | 高级媒体、Overlay、截图、进度、预算门禁与剩余端侧缺口             |
+| 审查   | [Phase 5 Exit Review](./09-reviews/phase-5-exit-review-2026-08-11.md) | 站点 registry、fixture、故障隔离、诊断和证据边界                  |
 | 审查   | [审查清单](./09-reviews/review-checklists.md)                         | 需求、架构、安全、测试和发布审查                                  |
 | 模板   | [模板目录](./templates/README.md)                                     | 新需求、任务、ADR、风险和发布记录模板                             |
 
@@ -75,7 +78,7 @@
 3. 《目标架构》《模块目录与契约》《迁移与 Legacy 边界》。
 4. 《阶段路线图》《主任务台账》《自动化测试策略》。
 5. 开始任务前阅读相应 ADR、安全基线和质量门禁。
-6. 接续 Phase 5 前阅读 [Phase 4 Exit Review](./09-reviews/phase-4-exit-review-2026-08-11.md)，特别是高级能力端侧缺口、权限自动化限制和 Stable 前置条件。
+6. 接续 Phase 6 前阅读 [Phase 5 Exit Review](./09-reviews/phase-5-exit-review-2026-08-11.md)，特别是 fixture 与真实站点证据边界、浏览器矩阵缺口和 Stable 前置条件。
 
 ## 5. 单一事实源
 
@@ -85,7 +88,8 @@
 - 是否允许合并或发布：`05-quality/`、`06-security/`、`07-release/`。
 - 历史结论和审查证据：`09-reviews/`。
 
-当前阶段结论以 [Phase 4 Exit Review](./09-reviews/phase-4-exit-review-2026-08-11.md) 为准：Preview 范围可进入 Phase 5
-工程开发，但尚未获得 Beta/Stable 发布资格，也不代表已完成 Tier 1 站点适配、最低浏览器版本或商店发布准备。
+当前阶段结论以 [Phase 5 Exit Review](./09-reviews/phase-5-exit-review-2026-08-11.md) 为准：固定脱敏 fixture
+范围可进入 Phase 6 工程开发，但尚未获得 Beta/Stable 发布资格，也不代表 Tier 1 真实生产站点、最低浏览器版本或
+商店发布准备已经完成。
 
 当文档冲突时，优先级为：已接受 ADR > 已批准需求 > 路线图 > 任务描述 > 临时进度记录。冲突必须通过更新上位文档解决，不允许长期保留口头例外。

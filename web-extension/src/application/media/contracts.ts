@@ -1,6 +1,7 @@
 import * as z from 'zod/mini'
 import { commandResultSchema, mediaCommandSchema } from '../../domain/command'
 import { mediaIdSchema, mediaSnapshotSchema } from '../../domain/media'
+import { adapterRuntimeDiagnosticsSchema } from '../adapter'
 
 const frameIdSchema = z.int().check(z.nonnegative())
 const revisionSchema = z.int().check(z.nonnegative())
@@ -12,6 +13,7 @@ export const mediaPageStateSchema = z
     revision: revisionSchema,
     activeMediaId: z.nullable(mediaIdSchema),
     media: z.array(mediaSnapshotSchema).check(z.maxLength(128)),
+    adapters: z.optional(adapterRuntimeDiagnosticsSchema),
     observedAt: timestampSchema
   })
   .check(
@@ -31,6 +33,7 @@ export const mediaPageStateSummarySchema = z.strictObject({
   revision: revisionSchema,
   activeMediaId: z.nullable(mediaIdSchema),
   mediaCount: z.int().check(z.nonnegative(), z.lte(128)),
+  adapters: z.optional(adapterRuntimeDiagnosticsSchema),
   observedAt: timestampSchema
 })
 

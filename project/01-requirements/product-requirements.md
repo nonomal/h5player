@@ -3,7 +3,7 @@
 > 文档 ID：REQ-001  
 > 状态：Approved as Planning Baseline  
 > 负责人：Product Owner  
-> 最后更新：2026-08-10  
+> 最后更新：2026-08-11  
 > 关联：GOV-001、ADR-0001
 
 ## 1. 问题陈述
@@ -92,6 +92,10 @@
 - **FR-ADAPTER-002 P1**：站点适配器具有匹配条件、优先级、能力声明、生命周期 Hook 和独立测试。
 - **FR-ADAPTER-003 P1**：选择器式适配优先，命令式 Hook 作为受限逃生口；单个适配器异常不得影响核心。
 - **FR-ADAPTER-004 P1**：适配器支持按版本/功能标记禁用，并在诊断报告中显示命中情况。
+- Phase 5 细化：首批 Tier 1 为 YouTube、Bilibili、Tencent Video、iQIYI、Youku；Tier 2 为 Netflix、Ixigua、AcFun、
+  Sohu Video、TED。其自动化证据以固定脱敏 fixture 为主，真实站点 smoke 必须单独记录，不能由 fixture 结果推断。
+- Phase 5 细化：adapter registry 只接受静态 hostname/path、priority、能力和受限 selector/Hook；所有站点异常必须保持
+  GenericAdapter 可用，且诊断只输出 bounded metadata。
 - **FR-ADAPTER-005 P2**：外部自定义配置改为显式导入的受限 Schema；首个稳定版不执行任意用户函数。
 
 ### 4.8 设置与数据

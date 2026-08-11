@@ -15,7 +15,7 @@ describe('OptionsApplication', () => {
   it('loads a coherent snapshot and applies field patches through the runtime port', async () => {
     const { api, application } = createApplication()
     const snapshot = await application.load()
-    expect(snapshot.ping.phase).toBe(4)
+    expect(snapshot.ping.phase).toBe(5)
     expect(snapshot.settings.settings.schemaVersion).toBe(2)
 
     const updated = await application.update({ global: { enabled: false } })

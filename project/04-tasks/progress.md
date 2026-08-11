@@ -8,11 +8,11 @@
 
 ## 当前阶段
 
-**Phase 4 Exit：高级通用能力、Overlay、截图、进度与跨 Tab 已完成 Preview 范围验证**
+**Phase 5 Exit：站点 Adapter 与兼容性固定 fixture 已完成 Preview 范围验证**
 
-整体状态：🟢 `EXT-080`～`EXT-087` 已 Verified；`EXT-087` 的结果记录于 [Phase 4 Exit Review](../09-reviews/phase-4-exit-review-2026-08-11.md)。
-结论为 `Approved / Conditional GO`：Preview 范围可进入 Phase 5 工程开发，但尚不具备 Stable 发布资格，也不宣告
-Tier 1 真实站点、Firefox ESR/最低版本、headed 权限 UX 或商店上架准备已完成。
+整体状态：🟢 `EXT-100`、`EXT-106`～`EXT-108` 已 Verified；`EXT-101`～`EXT-105` 为 fixture 范围 Verified。
+结论记录于 [Phase 5 Exit Review](../09-reviews/phase-5-exit-review-2026-08-11.md)：可进入 Phase 6 发布工程，但尚不具备
+Beta/Stable 资格，也不宣告 Tier 1 真实站点、Firefox ESR/最低版本、headed 权限 UX 或商店上架准备已完成。
 
 ## 已完成基线
 
@@ -71,27 +71,43 @@ Tier 1 真实站点、Firefox ESR/最低版本、headed 权限 UX 或商店上�
 - progress 使用匿名 hash identity、TTL、容量、隐私门禁和 5 秒节流；完成判断优先删除记录。跨 Tab 只发送 playback/progress advisory event，不轮询、不自动暂停。
 - bundle budget 和 manifest guardrail 已进入 CI；生产 Chrome/Firefox 无 required host、静态 content scripts 和 WAR。
 
-## 验证证据（Phase 4，2026-08-11 当前工作树）
+## Phase 5 已完成交付
 
-| 门禁                      | 结果                                                                                                            |
-| ------------------------- | --------------------------------------------------------------------------------------------------------------- |
-| Format / lint / typecheck | Passed                                                                                                          |
-| Unit                      | 36 files / 143 tests passed                                                                                     |
-| Component                 | 4 files / 19 tests passed                                                                                       |
-| Integration               | 9 files / 63 tests passed                                                                                       |
-| Compatibility             | 2 files / 21 tests passed                                                                                       |
-| Coverage                  | 52 files / 249 tests；Statements 85.68%；Branches 76.57%；Functions 87.33%；Lines 89.28%                       |
-| Security                  | 静态扫描 142 files + 2 manifests；security tests 3 passed                                                       |
-| Dependency boundaries     | 128 modules / 415 dependencies；0 violations                                                                    |
-| Chrome E2E                | 3 passed（固定 workers=1）；1 configured churn skipped                                                         |
-| Firefox E2E               | Firefox 153.0；optional origin + activeTab harness、动态注册、6 类媒体命令和撤权通过                            |
-| Firefox lint              | 0 errors；2 条 Vue/runtime 生成代码 `UNSAFE_VAR_ASSIGNMENT` warning，业务源码无对应 sink                         |
-| Churn smoke               | 5051 ms；94 cycles；1 worker restart；listeners 4→4；heap 4752684→6424152 bytes                                 |
-| Legacy regression         | SHA-256 `91b5312d7cf150cd852d005b1e5d5f3d8ed2ed7cd8a481dfa1d561d48f7b3f27`；561788 bytes                        |
-| Production manifests      | required `storage/activeTab/scripting`；optional `<all_urls>`；`content_scripts: []`；无 required hosts/WAR     |
-| Bundle budget             | Chrome/Firefox background 90150/90151 B、content 191669 B、page-main 77976 B raw；全部通过                      |
+- `MediaAdapterRegistry` 作为现有 MediaDiscovery 的单一复合 adapter；priority 降序、id 稳定 tie-break，GenericController
+  在每个媒体上先创建并作为永久 fallback。
+- Registry 对 catalog、rollback policy 和 Hook 表运行时校验并防御性冻结；selector 优先在目标媒体父容器内解析，
+  再回退 document，降低多播放器串控风险。
+- 静态 catalog 覆盖 Tier 1：YouTube、Bilibili、Tencent Video、iQIYI、Youku；Tier 2：Netflix、Ixigua、AcFun、
+  Sohu Video、TED。每项包含 owner、version、tier、support、fixture、lastVerified、match 和 feature。
+- selector 优先；受限 Hook 只允许随构建发布的 attach/detach/action/fullscreen 入口。attach、detach、selector、action
+  抛错均被隔离，SPA URL 变化在下一次 snapshot/command 自动重匹配。
+- `rollback-policy.ts` 支持精确 adapter version 或单 feature 禁用；禁止远程规则、页面规则和任意用户函数。
+- adapter health 经 page-main → content site state → background diagnostics 输出，只有 id/version/tier/status/failure count/
+  disabled features，不含完整 URL、title、媒体源或页面文本。
+- 10 个脱敏 fixture、compatibility contract、SHA-256 baseline 和 `test:compat:report` 已进入 `pnpm check`；报告同时冻结
+  support level/owner/lastVerified，并对超过 183 天未复核的 adapter 失败。
 
-Phase 2 的 30 分钟 churn 结果仍作为已批准历史证据保留；Phase 4 只重新执行 5 秒 smoke，没有伪称重跑 30 分钟。
+## 验证证据（Phase 5，2026-08-11 当前工作树）
+
+| 门禁                      | 结果                                                                                                        |
+| ------------------------- | ----------------------------------------------------------------------------------------------------------- |
+| Format / lint / typecheck | Passed                                                                                                      |
+| Unit                      | 37 files / 151 tests passed                                                                                 |
+| Component                 | 4 files / 19 tests passed                                                                                   |
+| Integration               | 9 files / 63 tests passed                                                                                   |
+| Compatibility             | 3 files / 33 tests passed；10 site fixtures + SHA baseline/report                                           |
+| Coverage                  | 54 files / 269 tests；Statements 85.29%；Branches 77.11%；Functions 86.71%；Lines 88.81%                    |
+| Security                  | 静态扫描 150 files + 2 manifests；security tests 3 passed                                                   |
+| Dependency boundaries     | 136 modules / 432 dependencies；0 violations                                                                |
+| Chrome E2E                | 3 passed（固定 workers=1）；1 configured churn skipped                                                      |
+| Firefox E2E               | Firefox 153.0；optional origin + activeTab harness、动态注册、6 类媒体命令和撤权通过                        |
+| Firefox lint              | 0 errors；2 条 Vue/runtime 生成代码 `UNSAFE_VAR_ASSIGNMENT` warning，业务源码无对应 sink                    |
+| Churn smoke               | 5064 ms；65 cycles；1 worker restart；listeners 4→4；heap 4905068→6461124 bytes                             |
+| Legacy regression         | SHA-256 `91b5312d7cf150cd852d005b1e5d5f3d8ed2ed7cd8a481dfa1d561d48f7b3f27`；561788 bytes                    |
+| Production manifests      | required `storage/activeTab/scripting`；optional `<all_urls>`；`content_scripts: []`；无 required hosts/WAR |
+| Bundle budget             | Chrome/Firefox background 90813/90814 B、content 192180 B、page-main 93458 B raw；全部通过                  |
+
+Phase 2 的 30 分钟 churn 结果仍作为已批准历史证据保留；Phase 5 只重新执行 5 秒 smoke，没有伪称重跑 30 分钟。
 Playwright 扩展生命周期套件固定单 worker；并行 persistent Chromium profiles 会争抢启动资源并产生假性 timeout。
 
 ## 权限自动化边界
@@ -116,14 +132,14 @@ Playwright 扩展生命周期套件固定单 worker；并行 persistent Chromium
    progress restore/complete、multi-tab advisory event 和 iframe-only media Overlay；这些不能由 unit/contract 结果外推。
 6. WXT 仍为 `0.x`；升级必须独立变更并重跑双浏览器 build/lint/security/E2E。
 
-## 下一步（Phase 5）
+## 下一步（Phase 6）
 
-1. 建立 adapter registry、failure isolation 和 Tier 1 fixture/smoke，不把通用 Preview 证据扩写成真实站点支持。
-2. iframe 聚合、capture 二进制通道、跨 Tab 仲裁和更有限的 z-index token 必须独立 ADR/spike。
-3. 在任何 Beta/Stable 决策前补 Firefox ESR/最低版本、Chrome previous stable、Edge、headed 权限 smoke 和商店文案审查。
+1. 执行 Tier 1 真实站点 smoke，冻结浏览器/OS/扩展 SHA/URL 类别和失败 artifact；不得用 fixture 替代。
+2. 建立可复现 zip、hash、SBOM、license、provenance、Alpha/Beta/Stable profile 和商店材料。
+3. 补 Firefox ESR/最低版本、Chrome previous stable、Edge、headed 权限 smoke 和两个连续 RC。
 4. 继续执行 Legacy hash/size 回归；共享核心与油猴主线重构仍只允许在 Phase 7 单独立项评估。
 
 ## 当前阻塞
 
-无代码硬阻塞。当前是“Preview 范围可进入下一阶段工程开发、不可发布 Stable”的状态；残余限制已写入 Phase 4 Exit
-Review、ADR-0009～0012 与风险台账。
+无代码硬阻塞。当前是“固定 fixture Preview 范围可进入 Phase 6、不可发布 Stable”的状态；残余限制已写入 Phase 5
+Exit Review、站点支持矩阵和质量门禁。

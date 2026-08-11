@@ -1,4 +1,4 @@
-import { genericAdapter } from '../../adapters/generic'
+import { createProductionAdapterRegistry } from '../../adapters'
 import { createMediaCommandRegistry } from '../../application/commands'
 import {
   mediaCommandResultResponseSchema,
@@ -13,6 +13,7 @@ import { createDomMediaDiscoveryService, type MediaDiscoveryUpdate } from '../..
 import { installOpenShadowRootHook } from './shadow-root-hook'
 
 export class MediaPageRuntime {
+  private readonly adapters
   private readonly discovery
   private readonly commands
   private latestUpdate: MediaDiscoveryUpdate
@@ -27,9 +28,12 @@ export class MediaPageRuntime {
     private readonly frameId: number,
     private readonly now: () => number = Date.now
   ) {
+    this.adapters = createProductionAdapterRegistry({
+      url: () => currentWindow.location.href
+    })
     this.discovery = createDomMediaDiscoveryService({
       root: currentDocument,
-      adapter: genericAdapter,
+      adapter: this.adapters,
       frameId,
       now
     })
@@ -61,6 +65,7 @@ export class MediaPageRuntime {
       revision: this.latestUpdate.revision,
       activeMediaId: this.latestUpdate.active?.id ?? null,
       media: [...this.latestUpdate.current],
+      adapters: this.adapters.getDiagnostics(),
       observedAt: Math.max(0, this.now())
     }
     return mediaPageStateSchema.parse(state)
@@ -73,6 +78,7 @@ export class MediaPageRuntime {
       revision: this.latestUpdate.revision,
       activeMediaId: this.latestUpdate.active?.id ?? null,
       mediaCount: this.latestUpdate.current.length,
+      adapters: this.adapters.getDiagnostics(),
       observedAt: Math.max(0, this.now())
     })
   }

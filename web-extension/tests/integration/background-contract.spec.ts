@@ -85,7 +85,7 @@ describe('background runtime contract boundary', () => {
     const settings = await handle(createRuntimeRequest('popup', 'settings.get', {}))
 
     expect(ping?.type).toBe('protocol.response')
-    if (ping?.type === 'protocol.response') expect(ping.payload.data).toMatchObject({ phase: 4 })
+    if (ping?.type === 'protocol.response') expect(ping.payload.data).toMatchObject({ phase: 5 })
     expect(settings?.type).toBe('protocol.response')
   })
 
@@ -282,7 +282,7 @@ describe('background runtime contract boundary', () => {
     expect(diagnostics?.type).toBe('protocol.response')
     if (diagnostics?.type === 'protocol.response') {
       expect(diagnosticResponseSchema.parse(diagnostics.payload.data).summary).toMatchObject({
-        phase: 4,
+        phase: 5,
         settingsSchemaVersion: 2
       })
     }
