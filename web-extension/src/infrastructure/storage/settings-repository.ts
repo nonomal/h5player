@@ -10,9 +10,11 @@ import {
   createDefaultSettings,
   mergeSettings,
   normalizeSiteOrigin,
+  SETTINGS_EXPORT_FORMAT_VERSION,
+  SETTINGS_SCHEMA_VERSION,
   settingsBackupSchema,
-  settingsExportFileSchema,
-  type PersistedSettingsV1,
+  settingsImportFileSchema,
+  type PersistedSettingsV2,
   type SettingsBackup,
   type SettingsData,
   type SettingsPatch
@@ -20,7 +22,7 @@ import {
 import { createRequestId } from '../../shared/ids'
 import { failure, success, type Result } from '../../shared/result'
 import { checksumUnknown } from './checksum'
-import { classifyPersistedSettings } from './settings-migrations'
+import { classifyPersistedSettings, migrateSettingsDataV1 } from './settings-migrations'
 
 export const SETTINGS_STORAGE_KEY = 'h5player.web-extension.settings'
 export const SETTINGS_BACKUP_KEY = 'h5player.web-extension.settings.backup'
@@ -48,12 +50,12 @@ export class SettingsRepository implements SettingsRepositoryPort {
     private readonly logger: LoggerPort
   ) {}
 
-  get(): Promise<Result<PersistedSettingsV1, SettingsError>> {
+  get(): Promise<Result<PersistedSettingsV2, SettingsError>> {
     return this.serialize(() => this.loadCurrent())
   }
 
   getSnapshot(): Promise<
-    Result<{ settings: PersistedSettingsV1; latestBackup: SettingsBackup | null }, SettingsError>
+    Result<{ settings: PersistedSettingsV2; latestBackup: SettingsBackup | null }, SettingsError>
   > {
     return this.serialize(async () => {
       const settings = await this.loadCurrent()
@@ -79,7 +81,7 @@ export class SettingsRepository implements SettingsRepositoryPort {
         return success({ settings: current.value, changedPaths: [], rebased })
       }
 
-      const next: PersistedSettingsV1 = {
+      const next: PersistedSettingsV2 = {
         ...current.value,
         revision: current.value.revision + 1,
         updatedAt: this.clock.now(),
@@ -100,7 +102,7 @@ export class SettingsRepository implements SettingsRepositoryPort {
         JSON.stringify(
           {
             format: 'h5player.web-extension.settings',
-            formatVersion: 1,
+            formatVersion: SETTINGS_EXPORT_FORMAT_VERSION,
             exportedAt: new Date(this.clock.now()).toISOString(),
             data: current.value.data
           },
@@ -128,23 +130,30 @@ export class SettingsRepository implements SettingsRepositoryPort {
         return failure(settingsError('IMPORT_INVALID', 'Import is not valid JSON'))
       }
 
-      const imported = settingsExportFileSchema.safeParse(parsedJson)
-      if (!imported.success || !validateIdentities(imported.data.data)) {
+      const imported = settingsImportFileSchema.safeParse(parsedJson)
+      if (!imported.success) {
         return failure(settingsError('IMPORT_INVALID', 'Import does not match settings schema'))
+      }
+      const importedData =
+        imported.data.formatVersion === SETTINGS_EXPORT_FORMAT_VERSION
+          ? imported.data.data
+          : migrateSettingsDataV1(imported.data.data)
+      if (!validateIdentities(importedData)) {
+        return failure(settingsError('IMPORT_INVALID', 'Import contains invalid site identities'))
       }
 
       const current = await this.loadCurrent()
       if (!current.ok) return current
       const rebased = expectedRevision !== undefined && expectedRevision !== current.value.revision
-      if (JSON.stringify(imported.data.data) === JSON.stringify(current.value.data)) {
+      if (JSON.stringify(importedData) === JSON.stringify(current.value.data)) {
         return success({ settings: current.value, changedPaths: [], rebased })
       }
-      const next: PersistedSettingsV1 = {
+      const next: PersistedSettingsV2 = {
         schema: 'h5player.web-extension',
-        schemaVersion: 1,
+        schemaVersion: SETTINGS_SCHEMA_VERSION,
         revision: current.value.revision + 1,
         updatedAt: this.clock.now(),
-        data: imported.data.data
+        data: importedData
       }
       const backup = this.createBackup(current.value, 'import')
       const stored = await this.writeValues({
@@ -184,9 +193,9 @@ export class SettingsRepository implements SettingsRepositoryPort {
 
       const current = await this.loadCurrent()
       if (!current.ok) return current
-      const next: PersistedSettingsV1 = {
+      const next: PersistedSettingsV2 = {
         schema: 'h5player.web-extension',
-        schemaVersion: 1,
+        schemaVersion: SETTINGS_SCHEMA_VERSION,
         revision: current.value.revision + 1,
         updatedAt: this.clock.now(),
         data: restored.value.data
@@ -208,6 +217,42 @@ export class SettingsRepository implements SettingsRepositoryPort {
     return this.readBackup()
   }
 
+  reset(
+    scope: 'all' | 'global' | 'sites' | 'progress',
+    source: string
+  ): Promise<Result<SettingsMutation, SettingsError>> {
+    return this.serialize(async () => {
+      const current = await this.loadCurrent()
+      if (!current.ok) return current
+      const defaults = createDefaultSettings()
+      const nextData: SettingsData = {
+        global: scope === 'all' || scope === 'global' ? defaults.global : current.value.data.global,
+        sites: scope === 'all' || scope === 'sites' ? {} : current.value.data.sites,
+        progress: scope === 'all' || scope === 'progress' ? {} : current.value.data.progress
+      }
+      if (JSON.stringify(nextData) === JSON.stringify(current.value.data)) {
+        return success({ settings: current.value, changedPaths: [], rebased: false })
+      }
+
+      const next: PersistedSettingsV2 = {
+        schema: 'h5player.web-extension',
+        schemaVersion: SETTINGS_SCHEMA_VERSION,
+        revision: current.value.revision + 1,
+        updatedAt: this.clock.now(),
+        data: nextData
+      }
+      const backup = this.createBackup(current.value, 'reset')
+      const stored = await this.writeValues({
+        [SETTINGS_STORAGE_KEY]: next,
+        [SETTINGS_BACKUP_KEY]: backup
+      })
+      if (!stored.ok) return stored
+      const changedPaths = scope === 'all' ? ['global', 'sites', 'progress'] : [scope]
+      this.notify({ revision: next.revision, changedPaths, source })
+      return success({ settings: next, changedPaths, rebased: false })
+    })
+  }
+
   subscribe(listener: (event: SettingsChangedEvent) => void): Teardown {
     this.listeners.add(listener)
     return () => this.listeners.delete(listener)
@@ -222,7 +267,7 @@ export class SettingsRepository implements SettingsRepositoryPort {
     return result
   }
 
-  private async loadCurrent(): Promise<Result<PersistedSettingsV1, SettingsError>> {
+  private async loadCurrent(): Promise<Result<PersistedSettingsV2, SettingsError>> {
     const rawResult = await this.readValue(SETTINGS_STORAGE_KEY)
     if (!rawResult.ok) return rawResult
     const outcome = classifyPersistedSettings(rawResult.value, this.clock.now())
@@ -250,14 +295,14 @@ export class SettingsRepository implements SettingsRepositoryPort {
         level: 'info',
         module: 'settings-repository',
         eventCode: 'SETTINGS_MIGRATED',
-        details: { schemaVersion: 1 }
+        details: { schemaVersion: SETTINGS_SCHEMA_VERSION }
       })
       return success(outcome.value)
     }
 
-    const recovered: PersistedSettingsV1 = {
+    const recovered: PersistedSettingsV2 = {
       schema: 'h5player.web-extension',
-      schemaVersion: 1,
+      schemaVersion: SETTINGS_SCHEMA_VERSION,
       revision: 0,
       updatedAt: this.clock.now(),
       data: createDefaultSettings()

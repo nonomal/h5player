@@ -37,6 +37,46 @@ export interface PermissionsPort {
   contains(request: PermissionRequest): Promise<boolean>
   request(request: PermissionRequest): Promise<boolean>
   remove(request: PermissionRequest): Promise<boolean>
+  getAll(): Promise<Readonly<{ permissions: readonly string[]; origins: readonly string[] }>>
+}
+
+export type ActiveTab = Readonly<{
+  id: number
+  url?: string
+  title?: string
+}>
+
+export interface ActiveTabPort {
+  getCurrent(): Promise<ActiveTab | null>
+  requestOrigins(origins: readonly string[]): Promise<boolean>
+  removeOrigins(origins: readonly string[]): Promise<boolean>
+  containsOrigins(origins: readonly string[]): Promise<boolean>
+  getGrantedOrigins(): Promise<readonly string[]>
+}
+
+export type ContentScriptRegistration = Readonly<{
+  origins: readonly string[]
+  bootstrapTabId?: number
+}>
+
+export interface ContentScriptRegistrationPort {
+  reconcile(origins: readonly string[]): Promise<void>
+  bootstrap(tabId: number): Promise<void>
+  teardown(tabId: number): Promise<void>
+}
+
+export type RuntimeEnvironment = Readonly<{
+  browserName: string
+  browserVersion: string
+  platform: string
+}>
+
+export interface RuntimeInfoPort {
+  getEnvironment(): Promise<RuntimeEnvironment>
+}
+
+export interface SettingsChangeSourcePort {
+  subscribe(listener: () => void): Teardown
 }
 
 export interface ClockPort {

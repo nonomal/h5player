@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { settingsImportPayloadSchema } from '../../src/application/settings/contracts'
+import { siteReconcilePayloadSchema } from '../../src/application/site/contracts'
 import { settingsPatchSchema } from '../../src/domain/settings'
 import {
   createRuntimeRequest,
@@ -19,6 +20,14 @@ describe('adversarial message inputs', () => {
     )
 
     expect(parseRuntimeRequest({ ...request, type: 'downloads.execute' })).toBeNull()
+    expect(
+      parseRuntimeRequest({
+        ...request,
+        source: 'popup',
+        type: 'site.request-permission',
+        payload: { origins: ['<all_urls>'] }
+      })
+    ).toBeNull()
     expect(parseRuntimeRequest({ ...request, permission: 'downloads' })).toBeNull()
     expect(runtimeRequestEnvelopeSchema.safeParse({ ...request, nonce: 'short' }).success).toBe(
       false
@@ -34,6 +43,21 @@ describe('adversarial message inputs', () => {
     expect(settingsPatchSchema.safeParse({ global: { enabled: () => true } }).success).toBe(false)
     expect(
       settingsPatchSchema.safeParse({ sites: { 'javascript:alert(1)': { enabled: true } } }).success
+    ).toBe(false)
+  })
+
+  it('does not accept caller-selected origins or script files during site reconciliation', () => {
+    expect(
+      siteReconcilePayloadSchema.safeParse({
+        bootstrapCurrentTab: true,
+        origins: ['https://attacker.invalid/*']
+      }).success
+    ).toBe(false)
+    expect(
+      siteReconcilePayloadSchema.safeParse({
+        bootstrapCurrentTab: true,
+        files: ['/content-scripts/content.js']
+      }).success
     ).toBe(false)
   })
 })

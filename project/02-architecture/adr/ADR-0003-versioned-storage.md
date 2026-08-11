@@ -1,7 +1,7 @@
 # ADR-0003：配置由版本化 Storage Repository 统一管理
 
 > 状态：Accepted  
-> 日期：2026-08-10  
+> 日期：2026-08-10（2026-08-11 更新至 Schema V2）  
 > 决策人：Architect  
 > 关联：REQ-001、ARCH-001
 
@@ -18,6 +18,7 @@ Legacy 同时使用页面 `localStorage`、GM storage、sessionStorage 和内存
 - 迁移函数按版本顺序执行，迁移前生成备份，失败可恢复。
 - 页面只缓存只读快照；修改通过 command/use case 请求 background。
 - site override、global settings、session state 分离存储，禁止混写。
+- `storage.local` 是 Preview 的唯一权威；`storage.sync` 只保留 ADR-0008 白名单设计，不在 Phase 3 启用。
 
 ## Alternatives considered
 
@@ -29,10 +30,17 @@ Legacy 同时使用页面 `localStorage`、GM storage、sessionStorage 和内存
 
 需要异步化 UI 和命令流程，并编写迁移测试；换来一致性、可恢复性、可导出和可审计的数据生命周期。
 
-Phase 1 已实现 V1：权威 key 为 `h5player.web-extension.settings`，backup key 为 `h5player.web-extension.settings.backup`。background repository 串行 mutation、每次重读权威值并执行字段 patch；落后 revision 在最新数据上 rebase，不丢失无关字段。N/N-1、损坏恢复、future schema 不覆盖、checksum backup、原子导入、rollback 和 service worker 重启恢复已有自动化证据。
+Phase 3 当前实现为 V2：权威 key 为 `h5player.web-extension.settings`，backup key 为
+`h5player.web-extension.settings.backup`。background repository 串行 mutation、每次重读权威值并执行字段 patch；落后
+revision 在最新数据上 rebase，不丢失无关字段。V0/V1 可向 V2 迁移；V2 将快捷键 key/command 收紧为 domain Schema，
+无效旧 binding 被过滤而不是执行。损坏恢复、future schema 不覆盖、checksum backup、262144-byte 原子导入、V1 导入、
+分类 reset、rollback、storage change live reload 和 service worker 重启恢复均已有自动化证据。
+
+浏览器 optional host permissions、content-script registration 和本页临时停用不是 Settings 数据：前两者由浏览器
+profile/API 管理并从授权集合派生，后者只存在于页面会话。它们不能被导入文件或 settings patch 伪造。
 
 ## Follow-ups
 
-- 固化 `SettingsSchema` 和 key namespace。
-- 设计并测试 Legacy JSON 导入映射。
-- 定义并发更新策略（版本号/乐观锁/字段级合并）。
+- Phase 4 若落地 progress repository，补容量、TTL、媒体 identity 和隐私清理策略。
+- Phase 6 前决定是否真正启用 ADR-0008 的 sync envelope；启用必须新增 ADR、opt-in、配额和冲突测试。
+- Legacy JSON 一次性转换仍为 EXT-143/Phase 7 独立评估，不直接读取 Tampermonkey 私有存储。

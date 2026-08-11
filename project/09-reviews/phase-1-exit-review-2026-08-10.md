@@ -10,18 +10,18 @@
 
 ## 完成交付
 
-| Task | 状态 | 主要证据 |
-| --- | --- | --- |
-| EXT-020 | Verified | protocol v1 Envelope、response/error、strict Schema、correlation tests |
-| EXT-021 | Verified | 256-bit nonce、origin/source/session/frame、replay guard、bridge/security tests |
-| EXT-022 | Verified | timeout、AbortSignal、scoped cancel、reconnect/new ID、真实 worker restart E2E |
-| EXT-023 | Verified | runtime/storage/tabs/permissions/time/logger Ports；dependency rules |
-| EXT-024～025 | Verified | Settings V1/default/resolve/patch/revision/rebase/concurrent writer tests |
-| EXT-026～027 | Verified | N/N-1/corrupt/future、checksum backup、atomic import/export/rollback |
-| EXT-028～029 | Verified | permission inventory、MV3 manifest allowlist、forbidden-code/output scan |
-| EXT-030 | Verified | structured local ring logger and redaction tests |
-| EXT-031 | Verified | forged sender/type/payload/tab/frame/nonce/replay/oversize adversarial tests |
-| EXT-032 | Verified | 本评审、ADR、风险、追踪、backlog 和 progress 同步 |
+| Task         | 状态     | 主要证据                                                                        |
+| ------------ | -------- | ------------------------------------------------------------------------------- |
+| EXT-020      | Verified | protocol v1 Envelope、response/error、strict Schema、correlation tests          |
+| EXT-021      | Verified | 256-bit nonce、origin/source/session/frame、replay guard、bridge/security tests |
+| EXT-022      | Verified | timeout、AbortSignal、scoped cancel、reconnect/new ID、真实 worker restart E2E  |
+| EXT-023      | Verified | runtime/storage/tabs/permissions/time/logger Ports；dependency rules            |
+| EXT-024～025 | Verified | Settings V1/default/resolve/patch/revision/rebase/concurrent writer tests       |
+| EXT-026～027 | Verified | N/N-1/corrupt/future、checksum backup、atomic import/export/rollback            |
+| EXT-028～029 | Verified | permission inventory、MV3 manifest allowlist、forbidden-code/output scan        |
+| EXT-030      | Verified | structured local ring logger and redaction tests                                |
+| EXT-031      | Verified | forged sender/type/payload/tab/frame/nonce/replay/oversize adversarial tests    |
+| EXT-032      | Verified | 本评审、ADR、风险、追踪、backlog 和 progress 同步                               |
 
 ## 退出条件核对
 
@@ -37,22 +37,22 @@
 
 ## 测试与指标
 
-| 检查 | 结果 |
-| --- | --- |
-| Unit | 10 files / 23 tests passed |
-| Component | 1 file / 1 test passed |
-| Integration | 3 files / 21 tests passed |
-| Compatibility | 7 fixtures passed |
-| Adversarial security | 2 tests passed |
-| Coverage | Statements 87.80%；Branches 76.43%；Functions 94.40%；Lines 92.03% |
-| Protocol coverage | 100% statements/lines/functions；90.9% branches |
-| Storage module | 90.58% statements；78.35% branches；96.66% functions；97.26% lines |
-| Chromium E2E | 1 real-extension scenario passed：bridge/runtime/UI/settings/worker restart |
-| Firefox | MV3 build passed；`web-ext lint` 0 errors / 1 known Vue warning |
-| Security scan | 58 source/output files and 2 manifests passed |
-| Dependency boundaries | 43 modules / 100 dependencies，0 violations |
-| Artifact footprint | Chrome/Firefox unpacked output 199.99 KB each |
-| Legacy regression | SHA-256 `91b5312d7cf150cd852d005b1e5d5f3d8ed2ed7cd8a481dfa1d561d48f7b3f27`；561788 bytes |
+| 检查                  | 结果                                                                                     |
+| --------------------- | ---------------------------------------------------------------------------------------- |
+| Unit                  | 10 files / 23 tests passed                                                               |
+| Component             | 1 file / 1 test passed                                                                   |
+| Integration           | 3 files / 21 tests passed                                                                |
+| Compatibility         | 7 fixtures passed                                                                        |
+| Adversarial security  | 2 tests passed                                                                           |
+| Coverage              | Statements 87.80%；Branches 76.43%；Functions 94.40%；Lines 92.03%                       |
+| Protocol coverage     | 100% statements/lines/functions；90.9% branches                                          |
+| Storage module        | 90.58% statements；78.35% branches；96.66% functions；97.26% lines                       |
+| Chromium E2E          | 1 real-extension scenario passed：bridge/runtime/UI/settings/worker restart              |
+| Firefox               | MV3 build passed；`web-ext lint` 0 errors / 1 known Vue warning                          |
+| Security scan         | 58 source/output files and 2 manifests passed                                            |
+| Dependency boundaries | 43 modules / 100 dependencies，0 violations                                              |
+| Artifact footprint    | Chrome/Firefox unpacked output 199.99 KB each                                            |
+| Legacy regression     | SHA-256 `91b5312d7cf150cd852d005b1e5d5f3d8ed2ed7cd8a481dfa1d561d48f7b3f27`；561788 bytes |
 
 验证命令：
 

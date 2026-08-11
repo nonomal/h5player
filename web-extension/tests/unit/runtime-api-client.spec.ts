@@ -17,9 +17,9 @@ describe('runtime API client', () => {
           return Promise.resolve(
             createRuntimeSuccess(request, {
               extensionVersion: '0.1.0',
-              phase: 2,
+              phase: 3,
               protocol: 1,
-              settingsSchemaVersion: 1
+              settingsSchemaVersion: 2
             })
           )
         case 'settings.get':
@@ -28,6 +28,56 @@ describe('runtime API client', () => {
           )
         case 'settings.export':
           return Promise.resolve(createRuntimeSuccess(request, { content: '{"safe":true}' }))
+        case 'site.get-context':
+          return Promise.resolve(
+            createRuntimeSuccess(request, {
+              tab: null,
+              permission: 'unknown',
+              enabled: true,
+              temporaryDisabled: false,
+              mediaCount: 0,
+              activeMedia: false,
+              runtime: 'unknown',
+              reason: 'no-active-tab'
+            })
+          )
+        case 'site.set-temporary-disabled':
+          return Promise.resolve(createRuntimeSuccess(request, { disabled: true }))
+        case 'site.reconcile':
+          return Promise.resolve(
+            createRuntimeSuccess(request, { registeredOrigins: 1, bootstrapped: true })
+          )
+        case 'diagnostics.get':
+          return Promise.resolve(
+            createRuntimeSuccess(request, {
+              summary: {
+                generatedAt: 1,
+                extensionVersion: '0.1.0',
+                build: 'test',
+                phase: 3,
+                protocolVersion: 1,
+                settingsSchemaVersion: 2,
+                browser: { name: 'Chromium', version: '140', platform: 'mac/arm64' },
+                permissions: {
+                  required: ['activeTab', 'scripting', 'storage'],
+                  origins: []
+                },
+                site: { hostname: null, frameCount: 0, mediaCount: 0, activeMedia: false },
+                settings: {
+                  revision: 4,
+                  enabled: true,
+                  siteRuleCount: 0,
+                  progressCount: 0,
+                  latestBackupReason: null
+                },
+                modules: ['background-runtime'],
+                adapters: [],
+                recentEvents: [],
+                notes: ['redacted']
+              },
+              json: '{"phase":3}'
+            })
+          )
         default:
           return Promise.resolve(
             createRuntimeSuccess(request, {
@@ -42,7 +92,7 @@ describe('runtime API client', () => {
       new RuntimeRequestClient('options', transport, systemScheduler)
     )
 
-    await expect(api.ping()).resolves.toMatchObject({ phase: 2 })
+    await expect(api.ping()).resolves.toMatchObject({ phase: 3, settingsSchemaVersion: 2 })
     await expect(api.getSettings()).resolves.toMatchObject({ settings: { revision: 4 } })
     await expect(api.updateSettings({ global: { enabled: false } }, 4)).resolves.toMatchObject({
       changedPaths: ['global.enabled']
@@ -52,6 +102,14 @@ describe('runtime API client', () => {
       settings: { revision: 4 }
     })
     await expect(api.restoreBackup('backup-id')).resolves.toMatchObject({ rebased: false })
+    await expect(api.resetSettings('sites')).resolves.toMatchObject({ rebased: false })
+    await expect(api.getSiteContext()).resolves.toMatchObject({ reason: 'no-active-tab' })
+    await expect(api.setTemporarySiteDisabled(true)).resolves.toEqual({ disabled: true })
+    await expect(api.reconcileSiteAccess(true)).resolves.toEqual({
+      registeredOrigins: 1,
+      bootstrapped: true
+    })
+    await expect(api.getDiagnostics()).resolves.toMatchObject({ summary: { phase: 3 } })
 
     const types = transport.sent.map(parseRuntimeRequest).map((request) => request?.type)
     expect(types).toEqual([
@@ -60,7 +118,12 @@ describe('runtime API client', () => {
       'settings.update',
       'settings.export',
       'settings.import',
-      'settings.restore-backup'
+      'settings.restore-backup',
+      'settings.reset',
+      'site.get-context',
+      'site.set-temporary-disabled',
+      'site.reconcile',
+      'diagnostics.get'
     ])
   })
 })

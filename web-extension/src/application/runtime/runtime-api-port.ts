@@ -6,6 +6,12 @@ import type {
   SettingsSnapshotResponse,
   SystemPingResponse
 } from '../settings/contracts'
+import type { DiagnosticResponse } from '../diagnostics/contracts'
+import type {
+  SiteContextResponse,
+  SiteReconcileResponse,
+  SiteTemporaryDisableResponse
+} from '../site/contracts'
 
 export interface RuntimeApiPort {
   ping(options?: { signal?: AbortSignal }): Promise<SystemPingResponse>
@@ -30,4 +36,18 @@ export interface RuntimeApiPort {
     backupId: string,
     options?: { signal?: AbortSignal }
   ): Promise<SettingsMutationResponse>
+  resetSettings(
+    scope: 'all' | 'global' | 'sites' | 'progress',
+    options?: { signal?: AbortSignal }
+  ): Promise<SettingsMutationResponse>
+  getSiteContext(options?: { signal?: AbortSignal }): Promise<SiteContextResponse>
+  setTemporarySiteDisabled(
+    disabled: boolean,
+    options?: { signal?: AbortSignal }
+  ): Promise<SiteTemporaryDisableResponse>
+  reconcileSiteAccess(
+    bootstrapCurrentTab: boolean,
+    options?: { signal?: AbortSignal }
+  ): Promise<SiteReconcileResponse>
+  getDiagnostics(options?: { signal?: AbortSignal }): Promise<DiagnosticResponse>
 }

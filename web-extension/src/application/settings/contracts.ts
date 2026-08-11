@@ -1,6 +1,6 @@
 import * as z from 'zod/mini'
 import {
-  persistedSettingsV1Schema,
+  persistedSettingsV2Schema,
   settingsPatchSchema,
   settingsBackupSchema
 } from '../../domain/settings'
@@ -23,17 +23,21 @@ export const settingsRestorePayloadSchema = z.strictObject({
   backupId: z.string().check(z.minLength(1), z.maxLength(256))
 })
 
+export const settingsResetPayloadSchema = z.strictObject({
+  scope: z.enum(['all', 'global', 'sites', 'progress'])
+})
+
 export const protocolCancelPayloadSchema = z.strictObject({
   targetRequestId: z.string().check(z.minLength(16), z.maxLength(128))
 })
 
 export const settingsSnapshotResponseSchema = z.strictObject({
-  settings: persistedSettingsV1Schema,
+  settings: persistedSettingsV2Schema,
   latestBackup: z.nullable(settingsBackupSchema)
 })
 
 export const settingsMutationResponseSchema = z.strictObject({
-  settings: persistedSettingsV1Schema,
+  settings: persistedSettingsV2Schema,
   changedPaths: z.array(z.string().check(z.minLength(1), z.maxLength(512))),
   rebased: z.boolean()
 })
@@ -48,9 +52,9 @@ export const cancellationResponseSchema = z.strictObject({
 
 export const systemPingResponseSchema = z.strictObject({
   extensionVersion: z.string().check(z.minLength(1), z.maxLength(32)),
-  phase: z.literal(2),
+  phase: z.literal(3),
   protocol: z.literal(1),
-  settingsSchemaVersion: z.literal(1),
+  settingsSchemaVersion: z.literal(2),
   tabId: z.optional(z.int().check(z.nonnegative())),
   frameId: z.optional(z.int().check(z.nonnegative()))
 })
@@ -58,6 +62,7 @@ export const systemPingResponseSchema = z.strictObject({
 export type SettingsUpdatePayload = z.infer<typeof settingsUpdatePayloadSchema>
 export type SettingsImportPayload = z.infer<typeof settingsImportPayloadSchema>
 export type SettingsRestorePayload = z.infer<typeof settingsRestorePayloadSchema>
+export type SettingsResetPayload = z.infer<typeof settingsResetPayloadSchema>
 export type ProtocolCancelPayload = z.infer<typeof protocolCancelPayloadSchema>
 export type SettingsSnapshotResponse = z.infer<typeof settingsSnapshotResponseSchema>
 export type SettingsMutationResponse = z.infer<typeof settingsMutationResponseSchema>

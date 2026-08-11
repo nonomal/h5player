@@ -16,7 +16,7 @@ const sourceOnlyForbidden = [
   { label: 'business innerHTML assignment', pattern: /\.innerHTML\s*=/ },
   { label: 'legacy runtime import', pattern: /(?:inject(?:\.base|\.main)?\.js|src\/h5player)/ }
 ]
-const allowedPermissions = new Set(['storage'])
+const allowedPermissions = new Set(['storage', 'activeTab', 'scripting'])
 const allowedOptionalHostPermissions = new Set(['<all_urls>'])
 const allowedFixtureMatches = new Set(['http://localhost/*', 'http://127.0.0.1/*'])
 

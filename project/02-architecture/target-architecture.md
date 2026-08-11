@@ -168,26 +168,26 @@ web-extension/
 ### 5.1 MediaSession
 
 ```ts
-type MediaId = string
-type FrameId = number
+type MediaId = string;
+type FrameId = number;
 
 interface MediaSession {
-  id: MediaId
-  frameId: FrameId
-  kind: 'video' | 'audio' | 'custom-video'
-  state: 'discovered' | 'ready' | 'active' | 'paused' | 'removed' | 'error'
+  id: MediaId;
+  frameId: FrameId;
+  kind: "video" | "audio" | "custom-video";
+  state: "discovered" | "ready" | "active" | "paused" | "removed" | "error";
   metrics: {
-    width: number
-    height: number
-    duration: number | null
-    currentTime: number
-    volume: number
-    playbackRate: number
-    visible: boolean
-  }
-  capabilities: MediaCapabilities
-  adapterId: string
-  updatedAt: number
+    width: number;
+    height: number;
+    duration: number | null;
+    currentTime: number;
+    volume: number;
+    playbackRate: number;
+    visible: boolean;
+  };
+  capabilities: MediaCapabilities;
+  adapterId: string;
+  updatedAt: number;
 }
 ```
 
@@ -203,12 +203,16 @@ interface MediaSession {
 
 ```ts
 type MediaCommand =
-  | { type: 'media.play'; mediaId: MediaId }
-  | { type: 'media.pause'; mediaId: MediaId }
-  | { type: 'media.seek'; mediaId: MediaId; deltaSeconds: number }
-  | { type: 'media.set-rate'; mediaId: MediaId; value: number }
-  | { type: 'media.set-volume'; mediaId: MediaId; value: number }
-  | { type: 'media.toggle-fullscreen'; mediaId: MediaId; mode: 'native' | 'web' }
+  | { type: "media.play"; mediaId: MediaId }
+  | { type: "media.pause"; mediaId: MediaId }
+  | { type: "media.seek"; mediaId: MediaId; deltaSeconds: number }
+  | { type: "media.set-rate"; mediaId: MediaId; value: number }
+  | { type: "media.set-volume"; mediaId: MediaId; value: number }
+  | {
+      type: "media.toggle-fullscreen";
+      mediaId: MediaId;
+      mode: "native" | "web";
+    };
 ```
 
 命令执行返回 `Result<Success, DomainError>`，包含 `code`、用户可见消息键和可选诊断上下文。
@@ -219,14 +223,14 @@ type MediaCommand =
 
 ```ts
 interface MessageEnvelope<T extends string, P> {
-  protocol: 1
-  type: T
-  requestId: string
-  source: 'page-main' | 'content' | 'background' | 'popup' | 'options'
-  tabId?: number
-  frameId?: number
-  sessionId?: string
-  payload: P
+  protocol: 1;
+  type: T;
+  requestId: string;
+  source: "page-main" | "content" | "background" | "popup" | "options";
+  tabId?: number;
+  frameId?: number;
+  sessionId?: string;
+  payload: P;
 }
 ```
 
@@ -241,15 +245,15 @@ interface MessageEnvelope<T extends string, P> {
 
 ## 7. 状态所有权
 
-| 状态 | 权威位置 | 可观察者 | 持久化 |
-| --- | --- | --- | --- |
-| 当前媒体 DOM/原生属性 | page-main | content/overlay | 否 |
-| 当前 frame 的媒体快照 | content/page-main session store | popup/options | 短期内存，可重建 |
-| 全局设置 | background settings repository | 所有上下文 | 是 |
-| 站点覆盖设置 | background settings repository | 当前站点上下文 | 是 |
-| 快捷键注册表 | background/application | UI、page-main | 是 |
-| 诊断 ring buffer | 各 runtime 本地 | 用户导出 | 可选、限量 |
-| 安装/迁移版本 | background metadata | release/diagnostics | 是 |
+| 状态                  | 权威位置                        | 可观察者            | 持久化           |
+| --------------------- | ------------------------------- | ------------------- | ---------------- |
+| 当前媒体 DOM/原生属性 | page-main                       | content/overlay     | 否               |
+| 当前 frame 的媒体快照 | content/page-main session store | popup/options       | 短期内存，可重建 |
+| 全局设置              | background settings repository  | 所有上下文          | 是               |
+| 站点覆盖设置          | background settings repository  | 当前站点上下文      | 是               |
+| 快捷键注册表          | background/application          | UI、page-main       | 是               |
+| 诊断 ring buffer      | 各 runtime 本地                 | 用户导出            | 可选、限量       |
+| 安装/迁移版本         | background metadata             | release/diagnostics | 是               |
 
 禁止同一配置同时由 `localStorage`、页面变量和扩展 storage 无规则竞争写入。迁移期旧桥接数据只能通过显式导入或一次性转换进入新仓储。
 

@@ -2,6 +2,7 @@
 
 > 状态：Accepted  
 > 日期：2026-08-10  
+> 最后更新：2026-08-11  
 > 决策人：Architecture / Security / Product  
 > 关联：SEC-001、SEC-002、NFR-SEC-*
 
@@ -17,13 +18,18 @@
 - 页面消息只能请求白名单命令，不能传函数、脚本、任意 URL 或权限名。
 - 远程推荐/助手不纳入首发；若未来需要，使用固定 HTTPS API、响应 Schema、超时、隐私声明和内容安全审查。
 
-Phase 1 manifest 只保留 `storage` 常规权限，并将 `<all_urls>` 放入 `optional_host_permissions`；不静默请求。静态 content script 与 `page-main.js` 可访问范围暂时只包含 localhost/127.0.0.1 fixture。`tabs`、`activeTab`、`scripting`、downloads、clipboard 和网络拦截能力在出现经过验证的使用点前均不申请。
+Phase 1 manifest 只保留 `storage` 常规权限，并将 `<all_urls>` 放入 `optional_host_permissions`；这是历史基线。
+Phase 3 已完成后续验证并由 ADR-0007 批准 `activeTab` 与 `scripting` 两个常规权限。当前 Chrome/Firefox production
+manifest 的 required permissions 精确为 `storage`、`activeTab`、`scripting`；`host_permissions` 不存在，
+`content_scripts` 为 `[]`，`<all_urls>` 只存在于 `optional_host_permissions`。
+
+Phase 3 的双浏览器 spike 已证明：真实站点若继续使用静态 `content_scripts.matches`，会在 optional grant 前执行，无法实现上述显式授权。ADR-0007 因此批准 `activeTab` 与 `scripting` 两个常规权限，分别用于 action 用户手势下读取/临时访问当前 tab，以及把已打包的 content/page-main 文件注册到已授权 origins。该修订不批准 `tabs`、静态真实站点 matches、required host permission、WAR 或任意代码注入。Phase 3 Exit 已通过 Chrome 的 grant/reject/revoke、注册与 worker restart，以及 Firefox 的 origin grant/revoke、注册和权限生命周期；Firefox all-sites/原生拒绝弹窗仍需发布前补证。
 
 权限事实源为 `project/06-security/permission-inventory.md`，构建产物由 `scripts/security-scan.ts` 对 manifest、CSP、远程资源和禁止代码执行模式进行检查。
 
 ## Consequences
 
-- 用户首次安装不会获得真实站点访问；Phase 2/3 必须实现明确授权和内容脚本注册流程。
+- 用户首次安装不会获得持久真实站点访问；Phase 3 通过 action 用户手势与 optional host grant 实现明确授权和内容脚本注册流程。
 - `<all_urls>` 只是可选能力，不代表 background 可以执行任意页面请求；sender、消息类型、payload 和具体 capability 仍要逐层校验。
-- 发布 profile 必须移除开发 fixture 匹配，或把它们与 production profile 明确分离。
+- production profile 保持空静态 matches；fixture 权限只存在于隔离 E2E profile，不进入产物。
 - 没有登记到权限清单的权限不得进入任何 Stable manifest。

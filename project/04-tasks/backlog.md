@@ -1,9 +1,9 @@
 # Web Extension 重构主任务台账
 
 > 文档 ID：TASK-003  
-> 状态：Approved as Initial Backlog  
+> 状态：Active / Phase 3 Preview Baseline  
 > 负责人：Project Owner  
-> 最后更新：2026-08-10  
+> 最后更新：2026-08-11  
 > 规则：任务状态以 `progress.md` 为当前摘要，本页保留完整规划。
 
 优先级：P0 稳定版阻塞；P1 稳定版目标；P2 后续/实验。估算：S（≤1 日）、M（2～3 日）、L（4～7 日）、XL（需拆分）。
@@ -62,18 +62,27 @@
 
 ## EPIC-03：设置、快捷键和扩展 UI（Phase 3）
 
-| ID      | 任务                      | 优先级 | 估算 | 依赖                    | 验收摘要               | 状态     |
-| ------- | ------------------------- | ------ | ---- | ----------------------- | ---------------------- | -------- |
-| EXT-060 | Hotkey domain/interpreter | P0     | L    | EXT-044,EXT-024         | 冲突/输入框规则测试    | Proposed |
-| EXT-061 | Popup view model 与状态页 | P0     | M    | EXT-048,EXT-060         | 真扩展 popup E2E       | Proposed |
-| EXT-062 | Options 路由与配置表单    | P0     | L    | EXT-025,EXT-027         | 保存/撤销/错误提示通过 | Proposed |
-| EXT-063 | 快捷键编辑器与冲突提示    | P0     | M    | EXT-060,EXT-062         | 键盘可操作             | Proposed |
-| EXT-064 | 站点规则与临时停用        | P0     | M    | EXT-025,EXT-061         | 当前站点状态正确       | Proposed |
-| EXT-065 | 配置导入导出/恢复 UI      | P0     | M    | EXT-027,EXT-062         | 失败可回滚             | Proposed |
-| EXT-066 | 诊断摘要与脱敏导出        | P0     | M    | EXT-030,EXT-061,EXT-062 | 诊断包无敏感数据       | Proposed |
-| EXT-067 | i18n zh-CN/en-US          | P0     | M    | EXT-061,EXT-062         | 无硬编码用户文案       | Proposed |
-| EXT-068 | A11y/组件测试             | P0     | M    | EXT-061..067            | 键盘与 AA 基线通过     | Proposed |
-| EXT-069 | Phase 3 产品/UX/安全审查  | P0     | M    | EXT-060..068            | 评审记录 Approved      | Proposed |
+| ID      | 任务                      | 优先级 | 估算 | 依赖                    | 验收摘要                                                                                               | 状态     |
+| ------- | ------------------------- | ------ | ---- | ----------------------- | ------------------------------------------------------------------------------------------------------ | -------- |
+| EXT-060 | Hotkey domain/interpreter | P0     | L    | EXT-044,EXT-024         | 冲突、输入框、焦点、repeat 规则及 domain/controller 测试通过                                           | Verified |
+| EXT-061 | Popup view model 与状态页 | P0     | M    | EXT-048,EXT-060         | 真扩展 Popup 状态、命令、权限和 worker restart E2E 通过                                                | Verified |
+| EXT-062 | Options 路由与配置表单    | P0     | L    | EXT-025,EXT-027         | 六个 Options 页面、保存、错误和 live reload 通过                                                       | Verified |
+| EXT-063 | 快捷键编辑器与冲突提示    | P0     | M    | EXT-060,EXT-062         | recorder、冲突、保留快捷键和键盘操作组件测试通过                                                       | Verified |
+| EXT-064 | 站点规则与临时停用        | P0     | M    | EXT-025,EXT-061         | Chrome grant/reject/revoke；Firefox origin grant/revoke；双端动态注册、临时/永久停用 E2E/contract 通过 | Verified |
+| EXT-065 | 配置导入导出/恢复 UI      | P0     | M    | EXT-027,EXT-062         | Schema 预览、导出 Blob 生命周期、reset/backup/restore 测试通过                                         | Verified |
+| EXT-066 | 诊断摘要与脱敏导出        | P0     | M    | EXT-030,EXT-061,EXT-062 | bounded summary、hostname 脱敏和 Options 诊断页测试通过                                                | Verified |
+| EXT-067 | i18n zh-CN/en-US          | P0     | M    | EXT-061,EXT-062         | 双 catalog 完整性、参数格式化和页面文案测试通过                                                        | Verified |
+| EXT-068 | A11y/组件测试             | P0     | M    | EXT-061..067            | Popup/Options/Recorder axe 与键盘组件测试通过                                                          | Verified |
+| EXT-069 | Phase 3 产品/UX/安全审查  | P0     | M    | EXT-060..068            | Phase 3 Exit Review 记录 Preview 条件 GO 与剩余风险                                                    | Verified |
+
+### Phase 3 交付证据（2026-08-11）
+
+- 单元：28 files / 93 tests；组件：3 files / 9 tests；集成：7 files / 40 tests。
+- Chrome：3 个真实扩展场景通过；默认 churn 场景按未配置时长跳过，独立 5 秒 smoke 为 82 cycles、1 次 worker restart、listeners 4→4。
+- Firefox：Firefox 153.0 临时安装 MV3；真实 optional origin、activeTab、动态注册、媒体命令和撤权链路通过。
+- 安全：静态扫描 120 files + 2 manifests；security tests 3 passed；依赖边界 105 modules / 330 dependencies 无违规。
+- Legacy：`pnpm test:legacy` SHA-256 与冻结基线一致；Legacy 源码和根构建链不在本阶段重构范围。
+- 受限项：headless 无法直接操作原生扩展权限确认框，见 [Phase 3 Exit Review](../09-reviews/phase-3-exit-review-2026-08-11.md) 的 harness 边界说明；Firefox ESR/最低版本和真实站点 Tier 1 仍是后续门槛。
 
 ## EPIC-04：高级通用能力（Phase 4）
 

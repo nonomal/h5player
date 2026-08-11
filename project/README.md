@@ -1,7 +1,8 @@
 # H5Player Web Extension 重构工程管理中心
 
-> 状态：Active  
+> 状态：Active / Phase 3 Preview Baseline  
 > 建立日期：2026-08-10  
+> 最后更新：2026-08-11  
 > 维护范围：Web Extension 重构的需求、架构、任务、质量、发布与审查资料  
 > 与 `docs/` 的边界：`docs/` 继续存放面向用户和现有工程的说明；本目录只管理项目治理与重构交付资料。
 
@@ -23,6 +24,8 @@
 4. 页面 MAIN world、扩展 isolated world 与 service worker 必须形成最小权限边界；禁止通过修改全站 CSP、`unsafe-eval`、`new Function` 或任意代码执行完成注入。
 5. 功能按纵向切片迁移，以可观测行为与旧脚本做对照；不以“代码搬完”作为完成标准。
 6. Web Extension 达到稳定门槛前，不启动油猴脚本的共享核心抽取或 TypeScript 全量迁移。
+7. 当前 Preview 的 required permissions 固定为 `storage`、`activeTab`、`scripting`；`<all_urls>` 只存在于
+   `optional_host_permissions`，真实站点静态 `content_scripts` 保持空数组。
 
 ## 3. 文档地图
 
@@ -58,6 +61,7 @@
 | 运维   | [可观测性与支持](./08-operations/observability-and-support.md)        | 日志、诊断、缺陷分级和兼容性维护                                  |
 | 审查   | [现状基线审查](./09-reviews/baseline-assessment-2026-08-10.md)        | 代码事实、缺口、风险与重构起点                                    |
 | 审查   | [Phase 2 Exit Review](./09-reviews/phase-2-exit-review-2026-08-10.md) | 通用媒体核心、双浏览器 E2E、差分和长稳态结论                      |
+| 审查   | [Phase 3 Exit Review](./09-reviews/phase-3-exit-review-2026-08-11.md) | 设置、快捷键、权限 onboarding、扩展 UI、双浏览器门禁与剩余风险    |
 | 审查   | [审查清单](./09-reviews/review-checklists.md)                         | 需求、架构、安全、测试和发布审查                                  |
 | 模板   | [模板目录](./templates/README.md)                                     | 新需求、任务、ADR、风险和发布记录模板                             |
 
@@ -70,6 +74,7 @@
 3. 《目标架构》《模块目录与契约》《迁移与 Legacy 边界》。
 4. 《阶段路线图》《主任务台账》《自动化测试策略》。
 5. 开始任务前阅读相应 ADR、安全基线和质量门禁。
+6. Phase 3 交付或接续 Phase 4 前阅读 [Phase 3 Exit Review](./09-reviews/phase-3-exit-review-2026-08-11.md)，特别是权限自动化限制和 Stable 前置条件。
 
 ## 5. 单一事实源
 
@@ -78,5 +83,7 @@
 - 计划与执行状态：`03-roadmap/`、`04-tasks/`。
 - 是否允许合并或发布：`05-quality/`、`06-security/`、`07-release/`。
 - 历史结论和审查证据：`09-reviews/`。
+
+当前阶段结论以 [Phase 3 Exit Review](./09-reviews/phase-3-exit-review-2026-08-11.md) 为准：Preview 范围可进入下一阶段工程化迭代，但尚未获得 Stable 发布资格，也不代表已完成 Tier 1 站点适配。
 
 当文档冲突时，优先级为：已接受 ADR > 已批准需求 > 路线图 > 任务描述 > 临时进度记录。冲突必须通过更新上位文档解决，不允许长期保留口头例外。

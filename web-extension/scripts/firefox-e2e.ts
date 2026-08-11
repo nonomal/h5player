@@ -20,6 +20,7 @@ const FIREFOX_EXTENSION_ID = 'h5player-webext@example.invalid'
 const FIREFOX_EXTENSION_UUID = '3b94c06a-3d88-4b51-a8c0-0d3e3d4f8be1'
 const FIXTURE_HOST = '127.0.0.1'
 const FIXTURE_PORT = 47_173
+const FIXTURE_PERMISSION = `http://${FIXTURE_HOST}:${FIXTURE_PORT}/*`
 const DEFAULT_TIMEOUT_MS = 15_000
 const POPUP_BACKGROUND_INITIALIZATION_MS = 1_500
 
@@ -154,6 +155,179 @@ async function waitForRuntimeReady(driver: firefox.Driver): Promise<void> {
   )
 }
 
+async function assertRuntimeAbsent(driver: firefox.Driver): Promise<void> {
+  await delay(500)
+  const value = await driver.executeScript<unknown>(
+    `return {
+      background: document.documentElement.dataset.h5playerWebextBackground,
+      bridge: document.documentElement.dataset.h5playerWebextBridge,
+      content: document.documentElement.dataset.h5playerWebextContent,
+      main: document.documentElement.dataset.h5playerWebextMain,
+      media: document.documentElement.dataset.h5playerWebextMedia
+    };`
+  )
+  const state = asRecord(value)
+  assert(state, 'Firefox page runtime marker result was not an object')
+  for (const marker of ['background', 'bridge', 'content', 'main', 'media']) {
+    assert.equal(
+      state[marker] ?? null,
+      null,
+      `Firefox runtime marker ${marker} existed before permission`
+    )
+  }
+}
+
+async function grantOptionalOrigins(
+  driver: firefox.Driver,
+  extensionId: string,
+  origins: readonly string[]
+): Promise<void> {
+  await driver.setContext(firefox.Context.CHROME)
+  try {
+    const rawResult = await driver.executeAsyncScript<unknown>(
+      function (
+        id: string,
+        requestedOrigins: readonly string[],
+        done: (value: ScriptResult) => void
+      ): void {
+        type FirefoxPermissionEmitter = Readonly<{
+          emit(eventName: string, value: unknown): unknown
+        }>
+        type FirefoxExtensionPermissions = Readonly<{
+          add(
+            extensionId: string,
+            permissions: Readonly<{
+              origins: readonly string[]
+              permissions: readonly string[]
+              data_collection: readonly string[]
+            }>,
+            emitter?: FirefoxPermissionEmitter
+          ): Promise<void>
+          get(extensionId: string): Promise<Readonly<{ origins?: readonly string[] }>>
+        }>
+        type FirefoxChromeUtils = Readonly<{
+          importESModule(uri: string): Readonly<{
+            ExtensionPermissions: FirefoxExtensionPermissions
+          }>
+        }>
+        type FirefoxWebExtensionPolicy = Readonly<{
+          getByID(extensionId: string): Readonly<{ extension?: FirefoxPermissionEmitter }> | null
+        }>
+        const chromeGlobal = globalThis as unknown as {
+          ChromeUtils?: FirefoxChromeUtils
+          WebExtensionPolicy?: FirefoxWebExtensionPolicy
+        }
+        const chromeUtils = chromeGlobal.ChromeUtils
+        const webExtensionPolicy = chromeGlobal.WebExtensionPolicy
+        if (!chromeUtils || !webExtensionPolicy) {
+          done({ ok: false, error: 'Firefox extension internals are unavailable' })
+          return
+        }
+        void (async () => {
+          const { ExtensionPermissions } = chromeUtils.importESModule(
+            'resource://gre/modules/ExtensionPermissions.sys.mjs'
+          )
+          const extension = webExtensionPolicy.getByID(id)?.extension
+          if (!extension) throw new Error('running Firefox extension instance was not found')
+          await ExtensionPermissions.add(
+            id,
+            {
+              origins: requestedOrigins,
+              permissions: [],
+              data_collection: []
+            },
+            extension
+          )
+          const granted = await ExtensionPermissions.get(id)
+          done({ ok: true, value: granted.origins ?? [] })
+        })().catch((error: unknown) => done({ ok: false, error: String(error) }))
+      },
+      extensionId,
+      [...origins]
+    )
+    const granted = unwrapScriptResult(rawResult, 'Grant Firefox optional host permissions')
+    assert(Array.isArray(granted), 'Firefox optional origin result must be an array')
+    for (const origin of origins) {
+      assert(granted.includes(origin), `Firefox did not grant optional origin: ${origin}`)
+    }
+  } finally {
+    await driver.setContext(firefox.Context.CONTENT)
+  }
+}
+
+async function getOptionalOrigins(
+  driver: firefox.Driver,
+  extensionId: string
+): Promise<readonly string[]> {
+  await driver.setContext(firefox.Context.CHROME)
+  try {
+    const rawResult = await driver.executeAsyncScript<unknown>(function (
+      id: string,
+      done: (value: ScriptResult) => void
+    ): void {
+      type FirefoxExtensionPermissions = Readonly<{
+        get(extensionId: string): Promise<Readonly<{ origins?: readonly string[] }>>
+      }>
+      type FirefoxChromeUtils = Readonly<{
+        importESModule(uri: string): Readonly<{
+          ExtensionPermissions: FirefoxExtensionPermissions
+        }>
+      }>
+      const chromeUtils = (
+        globalThis as unknown as {
+          ChromeUtils?: FirefoxChromeUtils
+        }
+      ).ChromeUtils
+      if (!chromeUtils) {
+        done({ ok: false, error: 'ChromeUtils is unavailable in Firefox chrome context' })
+        return
+      }
+      void (async () => {
+        const { ExtensionPermissions } = chromeUtils.importESModule(
+          'resource://gre/modules/ExtensionPermissions.sys.mjs'
+        )
+        const granted = await ExtensionPermissions.get(id)
+        done({ ok: true, value: granted.origins ?? [] })
+      })().catch((error: unknown) => done({ ok: false, error: String(error) }))
+    }, extensionId)
+    const origins = unwrapScriptResult(rawResult, 'Read Firefox optional host permissions')
+    assert(Array.isArray(origins), 'Firefox optional origin state must be an array')
+    return origins.filter((origin): origin is string => typeof origin === 'string')
+  } finally {
+    await driver.setContext(firefox.Context.CONTENT)
+  }
+}
+
+async function grantActiveTabPermission(
+  driver: firefox.Driver,
+  extensionId: string
+): Promise<void> {
+  await driver.setContext(firefox.Context.CHROME)
+  try {
+    const result = await driver.executeScript<ScriptResult>(function (id: string): ScriptResult {
+      type FirefoxTabManager = Readonly<{
+        addActiveTabPermission(): unknown
+      }>
+      type FirefoxExtensionPolicy = Readonly<{
+        getByID(extensionId: string): Readonly<{
+          extension: Readonly<{ tabManager: FirefoxTabManager }>
+        }> | null
+      }>
+      const policy = (globalThis as unknown as { WebExtensionPolicy?: FirefoxExtensionPolicy })
+        .WebExtensionPolicy
+      if (!policy) return { ok: false, error: 'WebExtensionPolicy is unavailable' }
+      const extension = policy.getByID(id)?.extension
+      if (!extension)
+        return { ok: false, error: 'running Firefox extension instance was not found' }
+      extension.tabManager.addActiveTabPermission()
+      return { ok: true }
+    }, extensionId)
+    unwrapScriptResult(result, 'Grant Firefox activeTab permission')
+  } finally {
+    await driver.setContext(firefox.Context.CONTENT)
+  }
+}
+
 async function popupText(driver: firefox.Driver, selector: string): Promise<string | null> {
   return driver.executeScript<string | null>(
     `return document.querySelector(arguments[0])?.textContent?.trim() ?? null;`,
@@ -232,6 +406,69 @@ async function sendPopupRequest(
     request
   )
   return unwrapScriptResult(rawResult, `Firefox popup request ${request.type}`)
+}
+
+async function reconcileSiteAccess(driver: firefox.Driver, targetTabId: number): Promise<void> {
+  const request = createRuntimeRequest('popup', 'site.reconcile', {
+    bootstrapCurrentTab: true
+  })
+  const response = parseRuntimeResponse(await sendPopupRequest(driver, targetTabId, request))
+  assert(response, 'Firefox site reconcile response did not match protocol schema')
+  assert.equal(response.type, 'protocol.response')
+  assert.equal(response.requestId, request.requestId)
+  assert.equal(response.payload.requestType, request.type)
+  const data = asRecord(response.payload.data)
+  assert(data, 'Firefox site reconcile payload was not an object')
+  assert.equal(data['registeredOrigins'], 1)
+  assert.equal(data['bootstrapped'], true)
+}
+
+async function getExtensionAccessState(driver: firefox.Driver): Promise<{
+  origins: readonly string[]
+  registeredContentScriptIds: readonly string[]
+}> {
+  const rawResult = await driver.executeAsyncScript<unknown>(function (
+    done: (value: ScriptResult) => void
+  ): void {
+    type ExtensionBrowser = Readonly<{
+      permissions: Readonly<{
+        getAll(): Promise<Readonly<{ origins?: readonly string[] }>>
+      }>
+      scripting: Readonly<{
+        getRegisteredContentScripts(): Promise<Readonly<{ id: string }>[]>
+      }>
+    }>
+    const browserApi = (globalThis as unknown as { browser?: ExtensionBrowser }).browser
+    if (!browserApi) {
+      done({ ok: false, error: 'browser API is unavailable in Firefox popup' })
+      return
+    }
+    void (async () => {
+      const [permissions, scripts] = await Promise.all([
+        browserApi.permissions.getAll(),
+        browserApi.scripting.getRegisteredContentScripts()
+      ])
+      done({
+        ok: true,
+        value: {
+          origins: permissions.origins ?? [],
+          registeredContentScriptIds: scripts.map((script) => script.id).sort()
+        }
+      })
+    })().catch((error: unknown) => done({ ok: false, error: String(error) }))
+  })
+  const value = asRecord(unwrapScriptResult(rawResult, 'Read Firefox extension access state'))
+  assert(value, 'Firefox extension access state must be an object')
+  const origins = value['origins']
+  const registeredContentScriptIds = value['registeredContentScriptIds']
+  assert(Array.isArray(origins), 'Firefox granted origins must be an array')
+  assert(Array.isArray(registeredContentScriptIds), 'Firefox registered scripts must be an array')
+  return {
+    origins: origins.filter((origin): origin is string => typeof origin === 'string'),
+    registeredContentScriptIds: registeredContentScriptIds.filter(
+      (id): id is string => typeof id === 'string'
+    )
+  }
 }
 
 async function getMediaState(driver: firefox.Driver, targetTabId: number): Promise<MediaPageState> {
@@ -402,15 +639,40 @@ try {
 
   await session.get(fixtureUrl)
   const targetHandle = await session.getWindowHandle()
-  await waitForRuntimeReady(session)
+  await assertRuntimeAbsent(session)
 
-  const popupHandle = await openTrustedBackgroundTab(session, popupUrl)
+  let popupHandle = await openTrustedBackgroundTab(session, popupUrl)
   await delay(POPUP_BACKGROUND_INITIALIZATION_MS)
   await session.switchTo().window(popupHandle)
-  await waitForPopupText(session, '[data-testid="phase-status"]', '平台内核已连接')
-  await waitForPopupText(session, '[data-testid="active-media"]', '视频 · 已暂停')
+  await waitForPopupText(session, 'h1', 'H5Player 控制台')
+  await waitForPopupText(session, '[data-testid="phase-status"]', '需要先授予当前站点权限')
 
   const targetTabId = await getTargetTabId(session)
+  await grantOptionalOrigins(session, installedId, [FIXTURE_PERMISSION])
+  await session.switchTo().window(targetHandle)
+  await session.get(fixtureUrl)
+  await grantActiveTabPermission(session, installedId)
+  await session.switchTo().window(popupHandle)
+  await reconcileSiteAccess(session, targetTabId)
+  const grantedAccess = await getExtensionAccessState(session)
+  assert.deepEqual(grantedAccess.origins, [FIXTURE_PERMISSION])
+  assert.deepEqual(grantedAccess.registeredContentScriptIds, [
+    'h5player-content-v3',
+    'h5player-page-main-v3'
+  ])
+  await session.switchTo().window(targetHandle)
+  await waitForRuntimeReady(session)
+
+  await session.switchTo().window(popupHandle)
+  await session.close()
+  await session.switchTo().window(targetHandle)
+  popupHandle = await openTrustedBackgroundTab(session, popupUrl)
+  await delay(POPUP_BACKGROUND_INITIALIZATION_MS)
+  await session.switchTo().window(popupHandle)
+  await waitForPopupText(session, '[data-testid="phase-status"]', '媒体控制已就绪')
+  await waitForPopupText(session, '[data-testid="active-media"]', '视频 · 已暂停')
+  await waitForPopupText(session, '.popup-footer', '配置修订 0')
+
   const initialState = await getMediaState(session, targetTabId)
   assert(initialState.activeMediaId, 'Firefox fixture did not expose an active media ID')
   assert.equal(initialState.media.length, 1)
@@ -499,12 +761,25 @@ try {
     'Firefox play command'
   )
 
+  await session.switchTo().window(popupHandle)
+  await clickPopupButton(session, targetTabId, '撤销当前站点权限')
+  await waitForPopupText(session, '[data-testid="phase-status"]', '需要先授予当前站点权限')
+  const accessState = await getExtensionAccessState(session)
+  assert.deepEqual(accessState.origins, [])
+  assert.deepEqual(accessState.registeredContentScriptIds, [])
+  assert.deepEqual(await getOptionalOrigins(session, installedId), [])
+
+  await session.switchTo().window(targetHandle)
+  await session.navigate().refresh()
+  await assertRuntimeAbsent(session)
+
   const capabilities = await session.getCapabilities()
   console.log(
     JSON.stringify({
       event: 'FIREFOX_EXTENSION_E2E_RESULT',
       browserVersion: capabilities.getBrowserVersion(),
       extensionId: installedId,
+      permissionLifecycle: ['absent', 'granted', 'registered', 'revoked'],
       commands: ['seek', 'rate', 'volume', 'mute', 'pause', 'play'],
       finalMedia
     })

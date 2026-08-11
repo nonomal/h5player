@@ -11,8 +11,8 @@ TODO：数量/范围/数据/安全/时间窗口。
 
 ## 时间线
 
-| 时间 | 事件 |
-| --- | --- |
+| 时间 | 事件                |
+| ---- | ------------------- |
 | TODO | 发现/止血/回滚/恢复 |
 
 ## 检测与响应
@@ -33,7 +33,6 @@ TODO：数量/范围/数据/安全/时间窗口。
 
 ## 行动项
 
-| Task | Owner | Deadline | Status |
-| --- | --- | --- | --- |
-| EXT-XXX | TODO | TODO | Proposed |
-
+| Task    | Owner | Deadline | Status   |
+| ------- | ----- | -------- | -------- |
+| EXT-XXX | TODO  | TODO     | Proposed |

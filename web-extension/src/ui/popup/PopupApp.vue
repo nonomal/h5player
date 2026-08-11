@@ -1,112 +1,188 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
-import type { RuntimeApiPort } from '../../application/runtime/runtime-api-port'
-import type { MediaPageState } from '../../application/media'
+import type { PopupApplication, PopupSnapshot } from '../../application/ui'
 import type { MediaCommand } from '../../domain/command'
+import BaseButton from '../components/BaseButton.vue'
+import BaseToggle from '../components/BaseToggle.vue'
+import MetricTile from '../components/MetricTile.vue'
+import StatusBanner from '../components/StatusBanner.vue'
+import { formatNumber, formatPercent, translate, type Locale, type MessageKey } from '../i18n'
 
-const props = defineProps<{ api: RuntimeApiPort }>()
-const runtimeStatus = ref<'checking' | 'ready' | 'unavailable'>('checking')
-const pageStatus = ref<'checking' | 'ready' | 'no-media' | 'unavailable'>('checking')
-const commandStatus = ref<'idle' | 'running' | 'error'>('idle')
-const commandError = ref<string | null>(null)
-const extensionVersion = ref('0.1.0')
-const settingsRevision = ref<number | null>(null)
-const mediaState = ref<MediaPageState | null>(null)
+const props = defineProps<{ application: PopupApplication }>()
+const snapshot = ref<PopupSnapshot | null>(null)
+const state = ref<'loading' | 'ready' | 'error'>('loading')
+const busy = ref(false)
+const error = ref<string | null>(null)
 const abortController = new AbortController()
 
+const locale = computed<Locale>(
+  () => snapshot.value?.settings.settings.data.global.ui.locale ?? 'zh-CN'
+)
+const t = (key: MessageKey, params: Readonly<Record<string, string | number>> = {}): string =>
+  translate(locale.value, key, params)
+
 const activeMedia = computed(() => {
-  const state = mediaState.value
-  if (!state?.activeMediaId) return null
-  return state.media.find((media) => media.id === state.activeMediaId) ?? null
+  const media = snapshot.value?.media
+  if (!media?.activeMediaId) return null
+  return media.media.find((item) => item.id === media.activeMediaId) ?? null
 })
 
-function applyMediaState(state: MediaPageState): void {
-  mediaState.value = state
-  pageStatus.value = state.activeMediaId === null ? 'no-media' : 'ready'
+const statusKey = computed<MessageKey>(() => {
+  const reason = snapshot.value?.site.reason
+  const map: Partial<Record<NonNullable<typeof reason>, MessageKey>> = {
+    'no-active-tab': 'status.noActiveTab',
+    'restricted-page': 'status.restricted',
+    'permission-required': 'status.permissionRequired',
+    'extension-disabled': 'status.extensionDisabled',
+    'site-disabled': 'status.siteDisabled',
+    'temporarily-disabled': 'status.temporaryDisabled',
+    'no-media': 'status.noMedia',
+    'initialization-failed': 'status.initializationFailed',
+    none: 'status.ready'
+  }
+  return reason ? (map[reason] ?? 'status.unavailable') : 'status.connecting'
+})
+
+const statusTone = computed<'success' | 'warning' | 'danger' | 'info'>(() => {
+  const reason = snapshot.value?.site.reason
+  if (reason === 'none') return 'success'
+  if (reason === 'initialization-failed') return 'danger'
+  if (reason && reason !== 'no-media') return 'warning'
+  return 'info'
+})
+
+function applyTheme(value: PopupSnapshot): void {
+  const theme = value.settings.settings.data.global.ui.theme
+  const resolved =
+    theme === 'system'
+      ? globalThis.matchMedia?.('(prefers-color-scheme: light)').matches
+        ? 'light'
+        : 'dark'
+      : theme
+  globalThis.document.documentElement.dataset['theme'] = resolved
+  globalThis.document.documentElement.lang = value.settings.settings.data.global.ui.locale
 }
 
-onMounted(async () => {
+async function load(): Promise<void> {
+  state.value = 'loading'
+  error.value = null
   try {
-    const [ping, settings] = await Promise.all([
-      props.api.ping({ signal: abortController.signal }),
-      props.api.getSettings({ signal: abortController.signal })
-    ])
-    extensionVersion.value = ping.extensionVersion
-    settingsRevision.value = settings.settings.revision
-    runtimeStatus.value = 'ready'
-  } catch {
+    const value = await props.application.load({ signal: abortController.signal })
+    snapshot.value = value
+    applyTheme(value)
+    state.value = 'ready'
+  } catch (caught) {
     if (!abortController.signal.aborted) {
-      runtimeStatus.value = 'unavailable'
-      pageStatus.value = 'unavailable'
+      error.value = caught instanceof Error ? caught.message : 'UNKNOWN'
+      state.value = 'error'
     }
-    return
   }
+}
 
+async function perform(operation: () => Promise<PopupSnapshot>): Promise<void> {
+  busy.value = true
+  error.value = null
   try {
-    applyMediaState(await props.api.getMediaState({ signal: abortController.signal }))
-  } catch {
-    if (!abortController.signal.aborted) pageStatus.value = 'unavailable'
+    const value = await operation()
+    snapshot.value = value
+    applyTheme(value)
+  } catch (caught) {
+    if (!abortController.signal.aborted) {
+      error.value = caught instanceof Error ? caught.message : 'UNKNOWN'
+    }
+  } finally {
+    busy.value = false
   }
-})
-
-onBeforeUnmount(() => abortController.abort())
+}
 
 async function execute(command: MediaCommand): Promise<void> {
-  commandStatus.value = 'running'
-  commandError.value = null
+  busy.value = true
+  error.value = null
   try {
-    const response = await props.api.executeMediaCommand(command, {
-      signal: abortController.signal
-    })
-    applyMediaState(response.state)
-    if (!response.result.ok) {
-      commandStatus.value = 'error'
-      commandError.value = response.result.error.code
-      return
-    }
-    commandStatus.value = 'idle'
-  } catch {
+    const result = await props.application.execute(command, { signal: abortController.signal })
+    if (!result.result.ok) error.value = result.result.error.code
+    snapshot.value = props.application.current()
+  } catch (caught) {
     if (!abortController.signal.aborted) {
-      commandStatus.value = 'error'
-      commandError.value = 'TARGET_UNAVAILABLE'
-      pageStatus.value = 'unavailable'
+      error.value = caught instanceof Error ? caught.message : 'TARGET_UNAVAILABLE'
     }
+  } finally {
+    busy.value = false
   }
 }
+
+async function toggleTemporaryDisabled(): Promise<void> {
+  const current = snapshot.value
+  if (!current) return
+  await perform(() =>
+    props.application.setTemporaryDisabled(!current.site.temporaryDisabled, {
+      signal: abortController.signal
+    })
+  )
+}
+
+onMounted(() => void load())
+onBeforeUnmount(() => abortController.abort())
 </script>
 
 <template>
-  <main class="popup-shell" aria-labelledby="title">
-    <h1 id="title">H5Player Web Extension</h1>
-    <p data-testid="phase-status">
-      状态：{{
-        runtimeStatus === 'ready'
-          ? '平台内核已连接'
-          : runtimeStatus === 'checking'
-            ? '连接中…'
-            : '不可用'
-      }}
+  <main class="popup-shell" aria-labelledby="popup-title">
+    <header class="brand-header">
+      <div>
+        <p class="kicker">{{ t('app.kicker') }}</p>
+        <h1 id="popup-title">{{ t('app.name') }}</h1>
+      </div>
+      <span class="signal" :class="{ 'is-ready': state === 'ready' }" aria-hidden="true" />
+    </header>
+
+    <div class="grid-line" aria-hidden="true" />
+
+    <p v-if="state === 'loading'" class="loading-line" role="status">
+      {{ t('common.loading') }}
     </p>
 
-    <section class="media-panel" aria-labelledby="media-title">
-      <h2 id="media-title">当前页面</h2>
-      <p v-if="pageStatus === 'checking'">正在读取媒体状态…</p>
-      <p v-else-if="pageStatus === 'unavailable'" role="status">当前页面未连接扩展</p>
-      <p v-else-if="pageStatus === 'no-media'" role="status">当前页面没有可控制媒体</p>
-      <template v-else-if="activeMedia">
-        <p data-testid="active-media">
-          {{ activeMedia.kind === 'audio' ? '音频' : '视频' }} ·
-          {{ activeMedia.state === 'active' ? '播放中' : '已暂停' }}
-        </p>
-        <p class="metrics">
-          速度 {{ activeMedia.metrics.playbackRate.toFixed(2) }}× · 音量
-          {{ Math.round(activeMedia.metrics.volume * 100) }}%
-          {{ activeMedia.metrics.muted ? ' · 已静音' : '' }}
-        </p>
-        <div class="controls" aria-label="媒体控制">
-          <button
-            type="button"
-            :disabled="commandStatus === 'running'"
+    <template v-else-if="snapshot">
+      <StatusBanner
+        data-testid="phase-status"
+        :tone="statusTone"
+        :title="t(statusKey)"
+        :detail="snapshot.site.tab?.hostname ?? t('popup.accessHint')"
+      />
+
+      <section v-if="activeMedia" class="media-deck" aria-labelledby="media-title">
+        <div class="media-heading">
+          <div>
+            <span class="eyebrow">{{ t('popup.currentPage') }}</span>
+            <h2 id="media-title" data-testid="active-media">
+              {{ activeMedia.kind === 'audio' ? t('popup.audio') : t('popup.video') }} ·
+              {{ activeMedia.state === 'active' ? t('popup.playing') : t('popup.paused') }}
+            </h2>
+          </div>
+          <span class="adapter-chip">{{ activeMedia.adapterId }}</span>
+        </div>
+
+        <div class="meter-row" aria-hidden="true">
+          <span v-for="index in 18" :key="index" :style="{ height: `${6 + (index % 5) * 3}px` }" />
+        </div>
+
+        <div class="metrics-grid">
+          <MetricTile
+            accent
+            :label="t('popup.speed')"
+            :value="`${formatNumber(activeMedia.metrics.playbackRate, locale)}×`"
+          />
+          <MetricTile
+            :label="t('popup.volume')"
+            :value="formatPercent(activeMedia.metrics.volume, locale)"
+            :detail="activeMedia.metrics.muted ? t('popup.muted') : undefined"
+          />
+        </div>
+
+        <div class="controls-grid" :aria-label="t('a11y.mediaControls')">
+          <BaseButton
+            kind="primary"
+            class="play-button"
+            :disabled="busy"
             @click="
               execute({
                 type: activeMedia.state === 'active' ? 'media.pause' : 'media.play',
@@ -114,113 +190,353 @@ async function execute(command: MediaCommand): Promise<void> {
               })
             "
           >
-            {{ activeMedia.state === 'active' ? '暂停' : '播放' }}
-          </button>
-          <button
-            type="button"
-            :disabled="commandStatus === 'running' || !activeMedia.capabilities.seek"
+            {{ activeMedia.state === 'active' ? t('popup.pause') : t('popup.play') }}
+          </BaseButton>
+          <BaseButton
+            :disabled="busy || !activeMedia.capabilities.seek"
             @click="execute({ type: 'media.seek', mediaId: activeMedia.id, deltaSeconds: -10 })"
           >
-            后退 10 秒
-          </button>
-          <button
-            type="button"
-            :disabled="commandStatus === 'running' || !activeMedia.capabilities.seek"
+            {{ t('popup.seekBack') }}
+          </BaseButton>
+          <BaseButton
+            :disabled="busy || !activeMedia.capabilities.seek"
             @click="execute({ type: 'media.seek', mediaId: activeMedia.id, deltaSeconds: 10 })"
           >
-            前进 10 秒
-          </button>
-          <button
-            type="button"
-            :disabled="commandStatus === 'running' || !activeMedia.capabilities.playbackRate"
+            {{ t('popup.seekForward') }}
+          </BaseButton>
+          <BaseButton
+            :disabled="busy || !activeMedia.capabilities.playbackRate"
             @click="execute({ type: 'media.adjust-rate', mediaId: activeMedia.id, delta: -0.1 })"
           >
-            减速
-          </button>
-          <button
-            type="button"
-            :disabled="commandStatus === 'running' || !activeMedia.capabilities.playbackRate"
+            {{ t('popup.rateDown') }}
+          </BaseButton>
+          <BaseButton
+            :disabled="busy || !activeMedia.capabilities.playbackRate"
             @click="execute({ type: 'media.adjust-rate', mediaId: activeMedia.id, delta: 0.1 })"
           >
-            加速
-          </button>
-          <button
-            type="button"
-            :disabled="commandStatus === 'running' || !activeMedia.capabilities.volume"
+            {{ t('popup.rateUp') }}
+          </BaseButton>
+          <BaseButton
+            :disabled="busy || !activeMedia.capabilities.volume"
             @click="execute({ type: 'media.adjust-volume', mediaId: activeMedia.id, delta: -0.05 })"
           >
-            降低音量
-          </button>
-          <button
-            type="button"
-            :disabled="commandStatus === 'running' || !activeMedia.capabilities.volume"
+            {{ t('popup.volumeDown') }}
+          </BaseButton>
+          <BaseButton
+            :disabled="busy || !activeMedia.capabilities.volume"
             @click="execute({ type: 'media.adjust-volume', mediaId: activeMedia.id, delta: 0.05 })"
           >
-            提高音量
-          </button>
-          <button
-            type="button"
-            :disabled="commandStatus === 'running' || !activeMedia.capabilities.mute"
+            {{ t('popup.volumeUp') }}
+          </BaseButton>
+          <BaseButton
+            :disabled="busy || !activeMedia.capabilities.mute"
             @click="execute({ type: 'media.toggle-mute', mediaId: activeMedia.id })"
           >
-            {{ activeMedia.metrics.muted ? '取消静音' : '静音' }}
-          </button>
+            {{ activeMedia.metrics.muted ? t('popup.unmute') : t('popup.mute') }}
+          </BaseButton>
         </div>
-        <p v-if="commandStatus === 'running'" role="status">正在执行命令…</p>
-        <p v-else-if="commandStatus === 'error'" role="alert">命令失败：{{ commandError }}</p>
-      </template>
-    </section>
+      </section>
 
-    <p v-if="settingsRevision !== null" class="revision">配置版本 {{ settingsRevision }}</p>
-    <p class="version">扩展版本 {{ extensionVersion }}</p>
+      <section v-else class="empty-deck" aria-labelledby="empty-title">
+        <span class="empty-icon" aria-hidden="true">◫</span>
+        <div>
+          <h2 id="empty-title">{{ t(statusKey) }}</h2>
+          <p>{{ t('popup.noMediaHint') }}</p>
+        </div>
+      </section>
+
+      <section class="access-panel" aria-labelledby="access-title">
+        <div class="section-heading">
+          <h2 id="access-title">{{ t('popup.siteAccess') }}</h2>
+          <span class="permission-state">{{ snapshot.site.permission }}</span>
+        </div>
+
+        <div v-if="snapshot.site.permission === 'missing'" class="permission-actions">
+          <p>{{ t('popup.accessHint') }}</p>
+          <BaseButton
+            kind="primary"
+            :disabled="busy || !snapshot.permissionPattern"
+            @click="
+              perform(() =>
+                props.application.requestCurrentSiteAccess({ signal: abortController.signal })
+              )
+            "
+          >
+            {{ t('popup.allowCurrent') }}
+          </BaseButton>
+          <BaseButton
+            :disabled="busy"
+            @click="
+              perform(() =>
+                props.application.requestAllSitesAccess({ signal: abortController.signal })
+              )
+            "
+          >
+            {{ t('popup.allowAll') }}
+          </BaseButton>
+        </div>
+
+        <template v-else-if="snapshot.site.permission === 'granted'">
+          <BaseToggle
+            :model-value="snapshot.site.enabled"
+            :label="t('popup.siteEnabled')"
+            :disabled="busy"
+            @update:model-value="
+              perform(() =>
+                props.application.setSiteEnabled($event, { signal: abortController.signal })
+              )
+            "
+          />
+          <div class="access-actions">
+            <BaseButton kind="quiet" size="sm" :disabled="busy" @click="toggleTemporaryDisabled">
+              {{
+                snapshot.site.temporaryDisabled
+                  ? t('popup.temporaryEnable')
+                  : t('popup.temporaryDisable')
+              }}
+            </BaseButton>
+            <BaseButton
+              kind="danger"
+              size="sm"
+              :disabled="busy || !snapshot.permissionPattern"
+              @click="
+                perform(() =>
+                  props.application.revokeCurrentSiteAccess({ signal: abortController.signal })
+                )
+              "
+            >
+              {{ t('popup.revokeCurrent') }}
+            </BaseButton>
+          </div>
+        </template>
+      </section>
+
+      <p v-if="error" class="error-line" role="alert">
+        {{
+          error === 'PERMISSION_DENIED'
+            ? t('popup.permissionDenied')
+            : t('popup.commandFailed', { code: error })
+        }}
+      </p>
+
+      <footer class="popup-footer">
+        <a href="/options.html" target="_blank">{{ t('common.openOptions') }}</a>
+        <span>{{ t('popup.revision', { value: snapshot.settings.settings.revision }) }}</span>
+        <span>{{ t('common.version', { value: snapshot.ping.extensionVersion }) }}</span>
+      </footer>
+    </template>
+
+    <StatusBanner
+      v-else
+      tone="danger"
+      :title="t('status.unavailable')"
+      :detail="error ?? undefined"
+    />
   </main>
 </template>
 
 <style scoped>
 .popup-shell {
-  min-width: 320px;
-  max-width: 380px;
-  padding: 16px;
-  color: #172033;
-  font:
-    14px/1.5 system-ui,
-    sans-serif;
+  position: relative;
+  width: 380px;
+  min-height: 520px;
+  padding: 18px;
+  overflow: hidden;
+  background:
+    radial-gradient(circle at 92% 4%, rgb(239 157 77 / 0.16), transparent 32%),
+    linear-gradient(160deg, var(--h5-bg-elevated), var(--h5-bg));
+}
+
+.popup-shell::before {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-image: linear-gradient(rgb(255 255 255 / 0.018) 1px, transparent 1px);
+  background-size: 100% 6px;
+  content: '';
+}
+
+.brand-header,
+.media-heading,
+.section-heading,
+.popup-footer,
+.access-actions {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--h5-space-3);
+}
+
+.kicker,
+.eyebrow {
+  margin: 0 0 2px;
+  color: var(--h5-accent);
+  font-family: var(--h5-font-mono);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.18em;
 }
 
 h1,
-h2 {
-  margin: 0 0 8px;
+h2,
+p {
+  margin-top: 0;
 }
 
 h1 {
-  font-size: 16px;
+  margin-bottom: 0;
+  font-family: var(--h5-font-display);
+  font-size: 21px;
+  letter-spacing: 0.035em;
 }
 
 h2 {
+  margin-bottom: 0;
   font-size: 14px;
 }
 
-.media-panel {
-  margin: 12px 0;
-  padding: 12px;
-  border: 1px solid #dbe1ea;
-  border-radius: 8px;
+.signal {
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+  background: var(--h5-text-faint);
+  box-shadow: 0 0 0 6px rgb(115 131 127 / 0.1);
 }
 
-.metrics,
-.revision,
-.version {
-  color: #5b6475;
+.signal.is-ready {
+  background: var(--h5-success);
+  box-shadow:
+    0 0 0 6px rgb(155 213 143 / 0.1),
+    0 0 14px rgb(155 213 143 / 0.45);
+}
+
+.grid-line {
+  height: 1px;
+  margin: var(--h5-space-4) 0;
+  background: linear-gradient(90deg, var(--h5-accent), var(--h5-border-soft) 35%, transparent);
+}
+
+.loading-line {
+  color: var(--h5-text-muted);
+}
+
+.media-deck,
+.empty-deck,
+.access-panel {
+  position: relative;
+  margin-top: var(--h5-space-3);
+  padding: var(--h5-space-4);
+  border: 1px solid var(--h5-border-soft);
+  border-radius: var(--h5-radius-md);
+  background: rgb(29 40 46 / 0.82);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.035);
+  backdrop-filter: blur(12px);
+}
+
+:global(:root[data-theme='light']) .media-deck,
+:global(:root[data-theme='light']) .empty-deck,
+:global(:root[data-theme='light']) .access-panel {
+  background: rgb(255 253 247 / 0.88);
+}
+
+.adapter-chip,
+.permission-state {
+  padding: 3px 7px;
+  border: 1px solid var(--h5-border);
+  border-radius: 999px;
+  color: var(--h5-text-muted);
+  font-family: var(--h5-font-mono);
+  font-size: 9px;
+  text-transform: uppercase;
+}
+
+.meter-row {
+  display: flex;
+  height: 24px;
+  align-items: end;
+  gap: 3px;
+  margin: var(--h5-space-3) 0;
+  opacity: 0.65;
+}
+
+.meter-row span {
+  width: 3px;
+  border-radius: 2px;
+  background: linear-gradient(var(--h5-accent), var(--h5-teal));
+}
+
+.metrics-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--h5-space-2);
+}
+
+.controls-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--h5-space-2);
+  margin-top: var(--h5-space-3);
+}
+
+.play-button {
+  grid-column: 1 / -1;
+}
+
+.empty-deck {
+  display: flex;
+  align-items: center;
+  gap: var(--h5-space-4);
+}
+
+.empty-deck p,
+.permission-actions p {
+  margin: 4px 0 0;
+  color: var(--h5-text-muted);
   font-size: 12px;
 }
 
-.controls {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 6px;
+.empty-icon {
+  color: var(--h5-accent);
+  font-family: var(--h5-font-display);
+  font-size: 36px;
 }
 
-button {
-  min-height: 32px;
+.permission-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--h5-space-2);
+  margin-top: var(--h5-space-3);
+}
+
+.permission-actions p {
+  grid-column: 1 / -1;
+}
+
+.access-actions {
+  align-items: stretch;
+  margin-top: var(--h5-space-2);
+}
+
+.error-line {
+  position: relative;
+  margin: var(--h5-space-3) 0 0;
+  color: var(--h5-danger);
+  font-size: 12px;
+}
+
+.popup-footer {
+  margin-top: var(--h5-space-4);
+  color: var(--h5-text-faint);
+  font-family: var(--h5-font-mono);
+  font-size: 9px;
+}
+
+.popup-footer a {
+  color: var(--h5-accent-strong);
+  font-family: var(--h5-font-body);
+  font-size: 11px;
+  font-weight: 700;
+  text-decoration: none;
 }
 </style>

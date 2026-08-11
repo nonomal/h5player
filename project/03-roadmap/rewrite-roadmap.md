@@ -1,9 +1,9 @@
 # Web Extension 重构路线图
 
 > 文档 ID：ROADMAP-001  
-> 状态：Approved as Planning Baseline  
+> 状态：Approved / Phase 3 Exit Baseline  
 > 负责人：Project Owner  
-> 最后更新：2026-08-10  
+> 最后更新：2026-08-11  
 > 估算方式：以退出条件为主，不以日期驱动；建议两周一个可演示增量。
 
 ## 总体路径
@@ -18,6 +18,17 @@ Phase 0 基线与脚手架
             -> Phase 6 Beta、发布工程与稳定化
               -> Phase 7 实验能力与是否共享核心的决策
 ```
+
+## 当前阶段状态
+
+| 阶段       | 状态                  | 结论                                                                                                                 |
+| ---------- | --------------------- | -------------------------------------------------------------------------------------------------------------------- |
+| Phase 0    | Completed             | 独立工程基线与 Legacy 隔离已批准                                                                                     |
+| Phase 1    | Completed             | typed protocol、storage、security boundary 已批准                                                                    |
+| Phase 2    | Completed             | Tier 0 媒体核心与双浏览器真实扩展证据已批准                                                                          |
+| Phase 3    | Completed for Preview | [Exit Review](../09-reviews/phase-3-exit-review-2026-08-11.md) 为 Conditional GO；可进入 Phase 4，不具备 Stable 资格 |
+| Phase 4    | Next                  | 高级通用能力、页面组件、性能预算                                                                                     |
+| Phase 5～7 | Planned               | 站点适配、发布稳定化、实验与 Legacy 后续决策                                                                         |
 
 ## Phase 0：基线冻结与工程脚手架
 
@@ -82,19 +93,30 @@ Phase 2 的 Firefox 证据以当前自动化 Firefox 153.0 为基线；Firefox �
 
 目标：让用户可理解地管理扩展，而不是依赖油猴菜单模拟。
 
+状态：**Completed for Preview / Conditional GO（2026-08-11）**。
+
 范围：
 
 - Popup 当前页面状态、常用命令和站点开关。
 - Options 全局/站点设置、快捷键编辑、冲突校验、导入导出、恢复默认。
-- 跨 Tab 配置同步与诊断导出。
+- 跨 Tab `storage.local` change event + revision 重拉、诊断脱敏导出；Preview 不启用跨设备 `storage.sync`。
 - 全局页面/播放器聚焦快捷键模式。
+- optional host onboarding、动态 isolated/MAIN registration、当前页 bootstrap 与撤权 teardown。
 
 退出条件：
 
-- 所有 P0 配置/快捷键/UI 需求 E2E 通过。
-- UI 达到键盘操作和 WCAG AA 基线。
-- 配置导入失败不会修改现有数据；导出/恢复可逆。
-- Popup 能准确解释无权限/无媒体/站点禁用/初始化失败。
+- [x] P0 配置/快捷键/UI 需求在 unit/component/integration 与 Chrome 真扩展主路径通过；Firefox 真扩展覆盖权限和媒体核心链路。
+- [x] Popup/Options/ShortcutRecorder 的 axe 自动基线与键盘交互通过；完整 headed/manual WCAG 与视觉审查保留为 Beta 门禁。
+- [x] 配置导入失败不会修改现有数据；V1/V2 读取、V2 导出、reset/backup/restore 可逆并有测试。
+- [x] Popup 能解释无权限、受限页面、无媒体、站点/本页停用和 runtime 状态。
+- [x] 生产 manifest 无 required host、静态 content scripts 和 WAR；Chrome grant/reject/revoke 与 Firefox grant/revoke 生命周期通过。
+
+验证摘要：28 个 unit files / 93 tests、3 个 component files / 9 tests、7 个 integration files / 40 tests、
+21 个 compatibility tests；Chrome 3 个 E2E 场景、Firefox 153.0 权限/媒体 E2E、5 秒 churn smoke、security scan、
+dependency boundaries 和 Legacy hash 回归均通过。精确证据以 Phase 3 Exit Review 为准。
+
+未纳入本阶段完成声明：Tier 1 真实站点、Firefox ESR/最低版本、Chrome previous stable、Edge、原生权限确认框 headed UX、
+商店审核材料、完整 RC 长稳和 Stable Go/No-Go。
 
 ## Phase 4：高级通用能力与页面组件
 
@@ -171,3 +193,4 @@ Phase 2 的 Firefox 证据以当前自动化 Firefox 153.0 为基线；Firefox �
 - 一个阶段可提前实现后续 spike，但不能宣告后续功能完成。
 - 每个阶段结束都必须在 `09-reviews/` 新增评审记录，并更新 backlog、progress、矩阵和风险。
 - 若连续两个里程碑质量门禁未过，暂停新增功能，优先偿还架构和测试债。
+- Phase 3 的 Conditional GO 只授权继续 Phase 4 工程开发；任何 Beta/Stable 或 Tier 1 对外承诺仍必须满足 Phase 5/6 门禁。

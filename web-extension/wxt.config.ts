@@ -7,7 +7,7 @@ export default defineConfig({
     name: 'H5Player Web Extension (Preview)',
     version: '0.1.0',
     description: 'H5Player 的独立 Manifest V3 Web Extension 预览版',
-    permissions: ['storage'],
+    permissions: ['storage', 'activeTab', 'scripting'],
     optional_host_permissions: ['<all_urls>'],
     action: {
       default_title: 'H5Player'

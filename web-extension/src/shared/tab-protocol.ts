@@ -4,7 +4,13 @@ import { PROTOCOL_VERSION } from './protocol'
 
 const requestIdSchema = z.string().check(z.minLength(16), z.maxLength(128))
 
-export const tabRequestTypeSchema = z.enum(['media.get-state', 'media.execute'])
+export const tabRequestTypeSchema = z.enum([
+  'media.get-state',
+  'media.execute',
+  'site.get-state',
+  'site.set-temporary-disabled',
+  'site.permission-revoked'
+])
 
 export const tabRequestEnvelopeSchema = z.strictObject({
   protocol: z.literal(PROTOCOL_VERSION),

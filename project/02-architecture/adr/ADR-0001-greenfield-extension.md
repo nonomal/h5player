@@ -35,4 +35,3 @@ Web Extension 在独立源码边界内进行绿地重构；Legacy 油猴实现�
 - Phase 0 建立 Legacy 行为基线和差分 fixture。
 - Beta 后根据代码重复、缺陷率和维护成本评估共享包。
 - 任何共享抽取必须新增 ADR，不得以“顺手复用”绕过边界。
-

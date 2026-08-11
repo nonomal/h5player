@@ -21,14 +21,14 @@
 
 以下变更额外要求：
 
-| 变更 | 额外门禁 |
-| --- | --- |
-| message/schema | contract tests + backwards compatibility review |
-| storage/migration | N/N-1/corrupt/rollback tests |
-| permission/manifest | security review + store text update |
-| DOM Hook/adapter | hostile page + lifecycle + target browser E2E |
-| UI | component + a11y + i18n tests |
-| build/release | reproducibility + artifact inspection |
+| 变更                | 额外门禁                                        |
+| ------------------- | ----------------------------------------------- |
+| message/schema      | contract tests + backwards compatibility review |
+| storage/migration   | N/N-1/corrupt/rollback tests                    |
+| permission/manifest | security review + store text update             |
+| DOM Hook/adapter    | hostile page + lifecycle + target browser E2E   |
+| UI                  | component + a11y + i18n tests                   |
+| build/release       | reproducibility + artifact inspection           |
 
 ## 2. Nightly 门禁
 
@@ -71,4 +71,3 @@
 ## 5. 例外规则
 
 例外必须写入 `RISK-*` 或发布审批记录，包含：范围、理由、用户影响、临时缓解、owner、到期版本和回退条件。P0 安全门禁、远程执行禁止项和数据损坏保护不可豁免。
-

@@ -8,6 +8,12 @@ import {
   systemPingResponseSchema
 } from '../../application/settings/contracts'
 import type { SettingsPatch } from '../../domain/settings'
+import { diagnosticResponseSchema } from '../../application/diagnostics/contracts'
+import {
+  siteContextResponseSchema,
+  siteReconcileResponseSchema,
+  siteTemporaryDisableResponseSchema
+} from '../../application/site/contracts'
 import type { RuntimeRequestClient } from './request-client'
 
 export class RuntimeApiClient implements RuntimeApiPort {
@@ -71,5 +77,38 @@ export class RuntimeApiClient implements RuntimeApiPort {
       settingsMutationResponseSchema,
       options
     )
+  }
+
+  resetSettings(
+    scope: 'all' | 'global' | 'sites' | 'progress',
+    options: { signal?: AbortSignal } = {}
+  ) {
+    return this.client.request('settings.reset', { scope }, settingsMutationResponseSchema, options)
+  }
+
+  getSiteContext(options: { signal?: AbortSignal } = {}) {
+    return this.client.request('site.get-context', {}, siteContextResponseSchema, options)
+  }
+
+  setTemporarySiteDisabled(disabled: boolean, options: { signal?: AbortSignal } = {}) {
+    return this.client.request(
+      'site.set-temporary-disabled',
+      { disabled },
+      siteTemporaryDisableResponseSchema,
+      options
+    )
+  }
+
+  reconcileSiteAccess(bootstrapCurrentTab: boolean, options: { signal?: AbortSignal } = {}) {
+    return this.client.request(
+      'site.reconcile',
+      { bootstrapCurrentTab },
+      siteReconcileResponseSchema,
+      options
+    )
+  }
+
+  getDiagnostics(options: { signal?: AbortSignal } = {}) {
+    return this.client.request('diagnostics.get', {}, diagnosticResponseSchema, options)
   }
 }

@@ -1,14 +1,19 @@
+import { hotkeyChordSchema, hotkeyCommandIdSchema } from '../../domain/hotkey'
 import {
   createDefaultSettings,
   persistedSettingsV0Schema,
   persistedSettingsV1Schema,
-  type PersistedSettingsV1
+  persistedSettingsV2Schema,
+  SETTINGS_SCHEMA_VERSION,
+  type PersistedSettingsV2,
+  type SettingsData,
+  type SettingsDataV1
 } from '../../domain/settings'
 
 export type SettingsMigrationOutcome =
-  | { kind: 'missing'; value: PersistedSettingsV1 }
-  | { kind: 'current'; value: PersistedSettingsV1 }
-  | { kind: 'migrated'; value: PersistedSettingsV1; raw: unknown }
+  | { kind: 'missing'; value: PersistedSettingsV2 }
+  | { kind: 'current'; value: PersistedSettingsV2 }
+  | { kind: 'migrated'; value: PersistedSettingsV2; raw: unknown }
   | { kind: 'future'; schemaVersion: number }
   | { kind: 'corrupt'; raw: unknown }
 
@@ -18,45 +23,87 @@ function readSchemaVersion(value: unknown): number | null {
   return typeof version === 'number' && Number.isInteger(version) ? version : null
 }
 
-export function classifyPersistedSettings(raw: unknown, now: number): SettingsMigrationOutcome {
-  if (raw === undefined) {
-    return {
-      kind: 'missing',
-      value: {
-        schema: 'h5player.web-extension',
-        schemaVersion: 1,
-        revision: 0,
-        updatedAt: now,
-        data: createDefaultSettings()
-      }
+export function migrateSettingsDataV1(data: SettingsDataV1): SettingsData {
+  const bindings: SettingsData['global']['hotkeys']['bindings'] = {}
+  for (const [chord, binding] of Object.entries(data.global.hotkeys.bindings)) {
+    const parsedChord = hotkeyChordSchema.safeParse(chord)
+    const parsedCommand = hotkeyCommandIdSchema.safeParse(binding.commandId)
+    if (!parsedChord.success || !parsedCommand.success) continue
+    bindings[parsedChord.data] = {
+      commandId: parsedCommand.data,
+      disabled: binding.disabled
     }
   }
 
-  const current = persistedSettingsV1Schema.safeParse(raw)
+  return {
+    global: {
+      enabled: data.global.enabled,
+      ui: { ...data.global.ui },
+      hotkeys: {
+        enabled: data.global.hotkeys.enabled,
+        scope: data.global.hotkeys.scope,
+        bindings
+      },
+      media: { ...data.global.media },
+      policies: { ...data.global.policies },
+      diagnostics: { ...data.global.diagnostics }
+    },
+    sites: { ...data.sites },
+    progress: { ...data.progress }
+  }
+}
+
+function createCurrentEnvelope(
+  now: number,
+  revision = 0,
+  data: SettingsData = createDefaultSettings()
+): PersistedSettingsV2 {
+  return {
+    schema: 'h5player.web-extension',
+    schemaVersion: SETTINGS_SCHEMA_VERSION,
+    revision,
+    updatedAt: now,
+    data
+  }
+}
+
+export function classifyPersistedSettings(raw: unknown, now: number): SettingsMigrationOutcome {
+  if (raw === undefined) {
+    return { kind: 'missing', value: createCurrentEnvelope(now) }
+  }
+
+  const current = persistedSettingsV2Schema.safeParse(raw)
   if (current.success) return { kind: 'current', value: current.data }
 
   const schemaVersion = readSchemaVersion(raw)
-  if (schemaVersion !== null && schemaVersion > 1) {
+  if (schemaVersion !== null && schemaVersion > SETTINGS_SCHEMA_VERSION) {
     return { kind: 'future', schemaVersion }
   }
 
-  const previous = persistedSettingsV0Schema.safeParse(raw)
-  if (!previous.success) return { kind: 'corrupt', raw }
+  const previous = persistedSettingsV1Schema.safeParse(raw)
+  if (previous.success) {
+    return {
+      kind: 'migrated',
+      raw,
+      value: createCurrentEnvelope(
+        now,
+        previous.data.revision + 1,
+        migrateSettingsDataV1(previous.data.data)
+      )
+    }
+  }
+
+  const oldest = persistedSettingsV0Schema.safeParse(raw)
+  if (!oldest.success) return { kind: 'corrupt', raw }
 
   const defaults = createDefaultSettings()
-  defaults.global.enabled = previous.data.data.enabled
-  defaults.global.media.defaultPlaybackRate = previous.data.data.defaultPlaybackRate
-  defaults.global.media.defaultVolume = previous.data.data.defaultVolume
+  defaults.global.enabled = oldest.data.data.enabled
+  defaults.global.media.defaultPlaybackRate = oldest.data.data.defaultPlaybackRate
+  defaults.global.media.defaultVolume = oldest.data.data.defaultVolume
 
   return {
     kind: 'migrated',
     raw,
-    value: {
-      schema: 'h5player.web-extension',
-      schemaVersion: 1,
-      revision: previous.data.revision + 1,
-      updatedAt: now,
-      data: defaults
-    }
+    value: createCurrentEnvelope(now, oldest.data.revision + 1, defaults)
   }
 }

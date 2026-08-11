@@ -47,11 +47,10 @@ TODO：Chrome/Firefox、iframe、Shadow DOM、SPA、站点 Tier。
 
 ## 测试映射
 
-| 标准 | Unit | Integration | E2E | Manual gap |
-| --- | --- | --- | --- | --- |
-| AC-01 | TODO | TODO | TODO | TODO |
+| 标准  | Unit | Integration | E2E  | Manual gap |
+| ----- | ---- | ----------- | ---- | ---------- |
+| AC-01 | TODO | TODO        | TODO | TODO       |
 
 ## 风险、依赖与开放问题
 
 - TODO
-

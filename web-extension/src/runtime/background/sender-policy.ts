@@ -22,6 +22,11 @@ const allowedRequestTypes = {
     'system.ping',
     'settings.get',
     'settings.update',
+    'settings.reset',
+    'site.get-context',
+    'site.set-temporary-disabled',
+    'site.reconcile',
+    'diagnostics.get',
     'media.get-state',
     'media.execute'
   ]),
@@ -32,7 +37,12 @@ const allowedRequestTypes = {
     'settings.update',
     'settings.export',
     'settings.import',
-    'settings.restore-backup'
+    'settings.restore-backup',
+    'settings.reset',
+    'site.get-context',
+    'site.set-temporary-disabled',
+    'site.reconcile',
+    'diagnostics.get'
   ])
 } as const
 

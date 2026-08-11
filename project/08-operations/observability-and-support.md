@@ -16,14 +16,14 @@
 
 ```ts
 interface DiagnosticEvent {
-  timestamp: number
-  level: 'error' | 'warn' | 'info' | 'debug'
-  context: 'background' | 'content' | 'page-main' | 'popup' | 'options'
-  module: string
-  code: string
-  requestId?: string
-  sessionId?: string
-  details?: Record<string, string | number | boolean | null>
+  timestamp: number;
+  level: "error" | "warn" | "info" | "debug";
+  context: "background" | "content" | "page-main" | "popup" | "options";
+  module: string;
+  code: string;
+  requestId?: string;
+  sessionId?: string;
+  details?: Record<string, string | number | boolean | null>;
 }
 ```
 
@@ -56,12 +56,12 @@ interface DiagnosticEvent {
 
 ## 5. 缺陷分级
 
-| 等级 | 定义 | 响应目标 | 发布影响 |
-| --- | --- | --- | --- |
-| P0 | 数据损坏、安全、扩展普遍无法运行 | 立即止血/回滚 | 阻塞所有发布 |
-| P1 | 核心能力在目标浏览器/Tier 1 大面积失效 | 1 个工作日内定位 | 阻塞 Stable |
-| P2 | 局部站点/次要功能/有明确绕过 | 进入近期迭代 | 可带已知问题发布 |
-| P3 | 体验、文案、低频兼容 | Backlog | 不阻塞 |
+| 等级 | 定义                                   | 响应目标         | 发布影响         |
+| ---- | -------------------------------------- | ---------------- | ---------------- |
+| P0   | 数据损坏、安全、扩展普遍无法运行       | 立即止血/回滚    | 阻塞所有发布     |
+| P1   | 核心能力在目标浏览器/Tier 1 大面积失效 | 1 个工作日内定位 | 阻塞 Stable      |
+| P2   | 局部站点/次要功能/有明确绕过           | 进入近期迭代     | 可带已知问题发布 |
+| P3   | 体验、文案、低频兼容                   | Backlog          | 不阻塞           |
 
 ## 6. Issue 最低信息
 
@@ -86,4 +86,3 @@ interface DiagnosticEvent {
 ## 8. Incident 复盘
 
 P0/P1 事故记录：影响、时间线、检测方式、根因、为什么门禁没发现、止血/回滚、永久修复、测试补充、文档/流程改进和 owner。复盘禁止只归因于“站点变化”或“浏览器问题”，必须说明系统为何未安全降级。
-

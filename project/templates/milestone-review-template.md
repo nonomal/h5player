@@ -10,9 +10,9 @@ TODO
 
 ## 完成交付
 
-| Task/Requirement | 状态 | 证据 |
-| --- | --- | --- |
-| TODO | Verified | TODO |
+| Task/Requirement | 状态     | 证据 |
+| ---------------- | -------- | ---- |
+| TODO             | Verified | TODO |
 
 ## 退出条件
 
@@ -38,4 +38,3 @@ TODO
 `GO / CONDITIONAL GO / NO-GO`
 
 条件与 owner：TODO
-

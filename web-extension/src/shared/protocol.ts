@@ -17,6 +17,11 @@ export const runtimeRequestTypeSchema = z.enum([
   'settings.export',
   'settings.import',
   'settings.restore-backup',
+  'settings.reset',
+  'site.get-context',
+  'site.set-temporary-disabled',
+  'site.reconcile',
+  'diagnostics.get',
   'media.get-state',
   'media.execute'
 ])

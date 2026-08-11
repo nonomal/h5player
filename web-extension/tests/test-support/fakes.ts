@@ -1,12 +1,24 @@
 import type {
+  ActiveTab,
+  ActiveTabPort,
   BrowserStoragePort,
   ClockPort,
+  ContentScriptRegistrationPort,
+  PermissionRequest,
+  PermissionsPort,
+  RuntimeEnvironment,
+  RuntimeInfoPort,
   RuntimeTransportPort,
+  SettingsChangeSourcePort,
   StorageChange,
   TabsPort,
   Teardown
 } from '../../src/application/ports/browser'
-import type { LoggerPort, LogRecord } from '../../src/application/ports/logging'
+import type {
+  DiagnosticLoggerPort,
+  LoggerPort,
+  LogRecord
+} from '../../src/application/ports/logging'
 
 export class FakeClock implements ClockPort {
   constructor(private current = 1_700_000_000_000) {}
@@ -25,6 +37,27 @@ export class FakeLogger implements LoggerPort {
 
   log(record: Omit<LogRecord, 'timestamp' | 'context'>): void {
     this.records.push(record)
+  }
+}
+
+export class FakeDiagnosticLogger implements DiagnosticLoggerPort {
+  readonly records: LogRecord[] = []
+
+  constructor(
+    private readonly context: LogRecord['context'] = 'background',
+    private readonly clock: ClockPort = new FakeClock()
+  ) {}
+
+  log(record: Omit<LogRecord, 'timestamp' | 'context'>): void {
+    this.records.push({ ...record, timestamp: this.clock.now(), context: this.context })
+  }
+
+  snapshot(): readonly LogRecord[] {
+    return this.records.map((record) => ({ ...record }))
+  }
+
+  clear(): void {
+    this.records.length = 0
   }
 }
 
@@ -109,5 +142,119 @@ export class FakeTabsPort implements TabsPort {
     if (frameId !== undefined) sent.frameId = frameId
     this.sent.push(sent)
     return this.handler(message, tabId, frameId)
+  }
+}
+
+function requestValues(request: PermissionRequest): readonly string[] {
+  return [...(request.permissions ?? []), ...(request.origins ?? [])]
+}
+
+export class FakePermissionsPort implements PermissionsPort {
+  readonly permissions = new Set(['storage', 'activeTab', 'scripting'])
+  readonly origins = new Set<string>()
+  requestResult = true
+  removeResult = true
+
+  contains(request: PermissionRequest): Promise<boolean> {
+    const hasAllSites = this.origins.has('<all_urls>')
+    const allowed = requestValues(request).every((value) => {
+      if (request.permissions?.includes(value)) return this.permissions.has(value)
+      return this.origins.has(value) || hasAllSites
+    })
+    return Promise.resolve(allowed)
+  }
+
+  request(request: PermissionRequest): Promise<boolean> {
+    if (!this.requestResult) return Promise.resolve(false)
+    for (const permission of request.permissions ?? []) this.permissions.add(permission)
+    for (const origin of request.origins ?? []) this.origins.add(origin)
+    return Promise.resolve(true)
+  }
+
+  remove(request: PermissionRequest): Promise<boolean> {
+    if (!this.removeResult) return Promise.resolve(false)
+    for (const permission of request.permissions ?? []) this.permissions.delete(permission)
+    for (const origin of request.origins ?? []) this.origins.delete(origin)
+    return Promise.resolve(true)
+  }
+
+  getAll(): Promise<Readonly<{ permissions: readonly string[]; origins: readonly string[] }>> {
+    return Promise.resolve({
+      permissions: [...this.permissions],
+      origins: [...this.origins]
+    })
+  }
+}
+
+export class FakeActiveTabPort implements ActiveTabPort {
+  current: ActiveTab | null = { id: 1, url: 'https://example.com/watch', title: 'Fixture' }
+  readonly permissions = new FakePermissionsPort()
+
+  getCurrent(): Promise<ActiveTab | null> {
+    return Promise.resolve(this.current)
+  }
+
+  requestOrigins(origins: readonly string[]): Promise<boolean> {
+    return this.permissions.request({ origins })
+  }
+
+  removeOrigins(origins: readonly string[]): Promise<boolean> {
+    return this.permissions.remove({ origins })
+  }
+
+  containsOrigins(origins: readonly string[]): Promise<boolean> {
+    return this.permissions.contains({ origins })
+  }
+
+  async getGrantedOrigins(): Promise<readonly string[]> {
+    return (await this.permissions.getAll()).origins
+  }
+}
+
+export class FakeContentScriptRegistrationPort implements ContentScriptRegistrationPort {
+  readonly reconciled: (readonly string[])[] = []
+  readonly bootstrapped: number[] = []
+  readonly tornDown: number[] = []
+  failReconcile = false
+
+  reconcile(origins: readonly string[]): Promise<void> {
+    if (this.failReconcile) return Promise.reject(new Error('registration failed'))
+    this.reconciled.push([...origins])
+    return Promise.resolve()
+  }
+
+  bootstrap(tabId: number): Promise<void> {
+    this.bootstrapped.push(tabId)
+    return Promise.resolve()
+  }
+
+  teardown(tabId: number): Promise<void> {
+    this.tornDown.push(tabId)
+    return Promise.resolve()
+  }
+}
+
+export class FakeRuntimeInfoPort implements RuntimeInfoPort {
+  environment: RuntimeEnvironment = {
+    browserName: 'Chromium',
+    browserVersion: '140.0',
+    platform: 'mac/arm64'
+  }
+
+  getEnvironment(): Promise<RuntimeEnvironment> {
+    return Promise.resolve(this.environment)
+  }
+}
+
+export class FakeSettingsChangeSourcePort implements SettingsChangeSourcePort {
+  private readonly listeners = new Set<() => void>()
+
+  subscribe(listener: () => void): Teardown {
+    this.listeners.add(listener)
+    return () => this.listeners.delete(listener)
+  }
+
+  emit(): void {
+    for (const listener of this.listeners) listener()
   }
 }

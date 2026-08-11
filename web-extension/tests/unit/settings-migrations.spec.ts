@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { createDefaultSettings } from '../../src/domain/settings'
 import { classifyPersistedSettings } from '../../src/infrastructure/storage/settings-migrations'
 
 describe('settings migrations', () => {
@@ -9,13 +10,29 @@ describe('settings migrations', () => {
   })
 
   it('migrates N-1 settings without guessing unknown fields', () => {
+    const data = createDefaultSettings()
+    const legacyData = {
+      ...data,
+      global: {
+        ...data.global,
+        enabled: false,
+        hotkeys: {
+          ...data.global.hotkeys,
+          bindings: {
+            Space: { commandId: 'media.toggle-play', disabled: false },
+            'Ctrl+KeyL': { commandId: 'media.toggle-play', disabled: false },
+            KeyQ: { commandId: 'unknown.command', disabled: false }
+          }
+        }
+      }
+    }
     const result = classifyPersistedSettings(
       {
         schema: 'h5player.web-extension',
-        schemaVersion: 0,
+        schemaVersion: 1,
         revision: 4,
         updatedAt: 50,
-        data: { enabled: false, defaultPlaybackRate: 2, defaultVolume: 0.5 }
+        data: legacyData
       },
       100
     )
@@ -23,6 +40,25 @@ describe('settings migrations', () => {
     if (result.kind === 'migrated') {
       expect(result.value.revision).toBe(5)
       expect(result.value.data.global.enabled).toBe(false)
+      expect(result.value.data.global.hotkeys.bindings).toEqual({
+        Space: { commandId: 'media.toggle-play', disabled: false }
+      })
+    }
+  })
+
+  it('still migrates the oldest V0 envelope through safe defaults', () => {
+    const result = classifyPersistedSettings(
+      {
+        schema: 'h5player.web-extension',
+        schemaVersion: 0,
+        revision: 2,
+        updatedAt: 50,
+        data: { enabled: false, defaultPlaybackRate: 2, defaultVolume: 0.5 }
+      },
+      100
+    )
+    expect(result.kind).toBe('migrated')
+    if (result.kind === 'migrated') {
       expect(result.value.data.global.media).toMatchObject({
         defaultPlaybackRate: 2,
         defaultVolume: 0.5
@@ -34,9 +70,9 @@ describe('settings migrations', () => {
     expect(classifyPersistedSettings({ schemaVersion: 1, data: 'broken' }, 100).kind).toBe(
       'corrupt'
     )
-    expect(classifyPersistedSettings({ schemaVersion: 2, data: {} }, 100)).toEqual({
+    expect(classifyPersistedSettings({ schemaVersion: 3, data: {} }, 100)).toEqual({
       kind: 'future',
-      schemaVersion: 2
+      schemaVersion: 3
     })
   })
 })

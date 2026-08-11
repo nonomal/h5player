@@ -3,88 +3,117 @@
 > 文档 ID：TASK-002  
 > 状态：Active  
 > 负责人：Project Owner / Quality Owner  
-> 最后更新：2026-08-10  
+> 最后更新：2026-08-11  
 > 更新频率：每周或每个开发周期
 
 ## 当前阶段
 
-**Phase 2 Exit：通用媒体核心 MVP 已验证，Phase 3 Ready**
+**Phase 3 Exit：设置、快捷键、站点权限与原生扩展 UI 已完成 Preview 范围验证**
 
-整体状态：🟢 `EXT-040`～`EXT-051` 已 Verified；Phase 2 Exit Review 为 `Approved / GO`，完整
-静态、测试、双浏览器、长稳态、安全、边界和 Legacy 门禁已在当前工作树重跑通过。
+整体状态：🟢 `EXT-060`～`EXT-069` 已 Verified；[Phase 3 Exit Review](../09-reviews/phase-3-exit-review-2026-08-11.md)
+结论为 `Approved / Conditional GO`。可以进入 Phase 4 工程化迭代，但尚不具备 Stable 发布资格，也不宣告
+Tier 1 真实站点、Firefox ESR/最低版本或商店上架准备已完成。
 
-## Phase 0/1 已完成基线
+## 已完成基线
 
-- Legacy 油猴主线保持独立：根 Yarn/Rollup、源码、构建命令和产物基线不被 Web Extension 改写。
-- WXT/Vite 多入口、TypeScript strict、Vue presentation、Vitest、Playwright、pnpm lockfile 和
-  依赖边界已建立。
-- Protocol v1、nonce/replay、sender policy、request lifecycle、Browser Ports、Settings V1、
-  migration/backup/rollback、structured logger、最小权限和安全扫描已通过 Phase 1 Exit。
-- 生产 page-main 入口遵循 ADR-0006：声明式 MAIN world、`document_start`、`allFrames`；不使用
-  运行时 `injectScript()`、WAR、CSP 放宽或动态执行。
+- Legacy 油猴主线继续独立：根 Yarn/Rollup、`src/h5player/`、`src/libs/`、`config/` 和冻结产物未被
+  Web Extension 重构改写。
+- WXT/Vite 多入口、TypeScript strict、Vue presentation、Vitest、Playwright、Selenium、pnpm lockfile、
+  依赖边界和静态安全扫描已形成独立闭环。
+- Protocol v1、nonce/replay、sender policy、request lifecycle、Browser Ports、structured logger、
+  SettingsRepository、版本迁移与恢复在 Phase 1 建立。
+- 通用媒体发现、GenericAdapter、active-player scoring、page/content/background bridge、核心命令和
+  双浏览器真实扩展 E2E 在 Phase 2 建立。
 
-## Phase 2 已完成交付
+## Phase 3 已完成交付
 
-- `MediaSession`/`MediaSnapshot`/`Capabilities`/`MediaId` 领域模型、Schema 和不变量。
-- GenericAdapter、原生媒体引用捕获、hostile page 防护、媒体 DOM/Shadow DOM/SPA 发现和 teardown。
-- active-player scoring、媒体生命周期事件、frame 独立 session 与幂等 page runtime。
-- Command Registry 和 play/pause/seek/rate/volume/mute 全部命令及能力/错误边界。
-- page-main → content → background → popup 的媒体状态与命令消息链；service worker 重启后设置与
-  页面连接可恢复。
-- Chrome/Firefox 构建 profile；Firefox Selenium 真扩展 core E2E 与驱动生命周期治理。
-- Legacy 核心媒体差分 oracle；seek/rate/volume 精度、近零 seek、调音解除静音和 Popup 步长已对齐。
-- Chrome multi/SPA/Shadow/hostile/CSP/iframe fixture 与 5 秒 churn smoke。
+### 快捷键与领域策略
 
-## 验证证据（截至当前运行）
+- `domain/hotkey` 提供固定 command ID、物理 `KeyboardEvent.code` chord、规范化、显示、冲突和浏览器保留
+  快捷键校验。
+- interpreter/controller 明确 editable、player focus、composition、repeat、disabled 和事件消费策略；连续命令
+  串行化，异步失败进入 logger。
+- DOM event source 使用 composed path 识别输入控件和媒体焦点；页面临时停用、站点停用和全局停用均阻断命令。
 
-| 门禁                             | 结果                                                                                            |
-| -------------------------------- | ----------------------------------------------------------------------------------------------- |
-| Format / lint / typecheck        | Passed                                                                                          |
-| Unit                             | 21 files / 73 tests passed                                                                      |
-| Component                        | 1 file / 2 tests passed                                                                         |
-| Integration                      | 5 files / 32 tests passed                                                                       |
-| Compatibility                    | 2 files / 21 tests passed                                                                       |
-| Coverage                         | Statements 88.53%；Branches 77.53%；Functions 92.58%；Lines 91.67%                              |
-| Core domain/application coverage | domain/application lines ≥85%、branches ≥80% 门槛通过                                           |
-| Security                         | 静态扫描 83 files + 2 manifests；security tests 2 passed                                        |
-| Dependency boundaries            | 66 modules / 176 dependencies；0 violations                                                     |
-| Chrome E2E                       | 3 real-extension scenarios passed；1 churn test skipped（未配置时）                             |
-| Firefox E2E                      | Firefox 153.0；临时 MV3 安装；seek/rate/volume/mute/play/pause passed                           |
-| Firefox lint                     | 0 errors；1 条已登记 Vue runtime `UNSAFE_VAR_ASSIGNMENT` warning                                |
-| Churn smoke                      | 5 秒通过：109 cycles、2 worker restarts、listeners 4→4、heap 3.35→4.12 MB                       |
-| 30 分钟 churn                    | Passed：1800711 ms、8056 cycles、161 worker restarts、listeners 4→4、heap 3353988→5559956 bytes |
-| Legacy regression                | SHA-256 `91b5312d7cf150cd852d005b1e5d5f3d8ed2ed7cd8a481dfa1d561d48f7b3f27`；561788 bytes        |
-| Artifact footprint               | Chrome 262755 bytes；Firefox 262750 bytes（unpacked production output）                         |
+### Settings Schema V2 与数据生命周期
 
-## 关键决策
+- `storage.local` 仍是唯一权威；Schema V2 将快捷键 chord/command ID 收紧为 domain Schema。
+- V0/V1 可迁移至 V2；无效旧快捷键在迁移时丢弃，不执行未知命令；future/corrupt 数据不覆盖原值。
+- 导入格式升级为 V2，同时兼容 V1；支持预览、262144-byte 上限、原子导入、导出、分类 reset、最近备份和恢复。
+- ADR-0008 冻结未来 sync 白名单，但 Preview 不启用 `storage.sync`；跨 Tab 更新只依赖 local change event + revision 重拉。
 
-- 不新增 `tabs`、`activeTab`、`webRequestBlocking`、downloads 或 required host permission；Popup 测试
-  通过保持 fixture tab active 适配最小权限约束。
-- Phase 0 的异步 WAR 注入仅保留为历史 spike；生产入口以 ADR-0006 的声明式 MAIN content script
-  为准。
-- Legacy 默认快捷键继续作为只读 baseline；快捷键解释器、编辑器、冲突校验属于 Phase 3，不在
-  Phase 2 增加第二套命令协议。
-- Tier 1 站点冻结为通用 HTMLMediaElement、YouTube、Bilibili、Tencent Video、iQIYI、Youku；站点
-  adapter 仍在 Phase 5 交付。
+### 站点权限与动态运行时
+
+- required permissions 固定为 `storage`、`activeTab`、`scripting`；`<all_urls>` 只位于
+  `optional_host_permissions`。
+- production manifests 的 `content_scripts` 为 `[]`，不含 `host_permissions` 或 WAR；构建仍输出
+  `content-scripts/content.js` 和 `content-scripts/page-main.js`。
+- background 只从 `permissions.getAll()` 派生动态注册，稳定注册 isolated/MAIN 两个脚本；grant/revoke、
+  permission event、显式 reconcile 和 worker 启动都经过串行 reconcile。
+- 当前 origin 保留非默认端口；拒绝、受限页面、当前站点/所有站点授权、撤权、临时停用、永久站点停用和 worker
+  restart 均有自动化证据。
+
+### Popup、Options、诊断与组件
+
+- PopupApplication/OptionsApplication 隔离 browser/runtime API，Vue 组件只依赖 application facade。
+- Popup 提供权限状态、媒体指标与命令、全局/站点/本页开关、当前站点撤权和 Options 入口。
+- Options 提供 General、Shortcuts、Sites、Data、Diagnostics、About 六个路由页面。
+- 快捷键 recorder、确认对话框、toggle、status、metric、panel 等公共组件已建立；Popup/Options/Recorder 通过 axe
+  自动检查和键盘交互测试。
+- zh-CN/en-US catalog 结构完整；诊断仅输出本地 bounded summary，URL 降为 hostname，排除 title、媒体 URL、
+  page text、cookie 和 token。
+
+## 验证证据（2026-08-11 当前工作树）
+
+| 门禁                      | 结果                                                                                                            |
+| ------------------------- | --------------------------------------------------------------------------------------------------------------- |
+| Format / lint / typecheck | Passed                                                                                                          |
+| Unit                      | 28 files / 93 tests passed                                                                                      |
+| Component                 | 3 files / 9 tests passed                                                                                        |
+| Integration               | 7 files / 40 tests passed                                                                                       |
+| Compatibility             | 2 files / 21 tests passed                                                                                       |
+| Coverage                  | Statements 85.84%；Branches 75.18%；Functions 88.24%；Lines 89.50%                                              |
+| Security                  | 静态扫描 120 files + 2 manifests；security tests 3 passed                                                       |
+| Dependency boundaries     | 105 modules / 330 dependencies；0 violations                                                                    |
+| Chrome E2E                | 3 passed；未授权/拒绝/受限、当前站点媒体与 worker restart、all-sites 生命周期与撤权；1 configured churn skipped |
+| Firefox E2E               | Firefox 153.0；optional origin + activeTab harness、动态注册、6 类媒体命令和撤权通过                            |
+| Firefox lint              | 0 errors；1 条 Vue runtime 生成代码 `UNSAFE_VAR_ASSIGNMENT` warning                                             |
+| Churn smoke               | 5017 ms；82 cycles；1 worker restart；listeners 4→4；heap 3613664→4315488 bytes                                 |
+| Legacy regression         | SHA-256 `91b5312d7cf150cd852d005b1e5d5f3d8ed2ed7cd8a481dfa1d561d48f7b3f27`；561788 bytes                        |
+| Production manifests      | required `storage/activeTab/scripting`；optional `<all_urls>`；`content_scripts: []`；无 required hosts/WAR     |
+| Artifact footprint        | Chrome 484 KiB；Firefox 484 KiB（unpacked production directories）                                              |
+
+Phase 2 的 30 分钟 churn 结果仍作为已批准历史证据保留在对应 Exit Review；本次 Phase 3 变更重新执行了 5 秒
+churn smoke，没有伪称重新完成 30 分钟运行。
+
+## 权限自动化边界
+
+原生扩展 optional-host 确认框在当前 headless Chrome/Firefox 自动化中不可稳定接受或拒绝。测试采用隔离 harness：
+
+- Chrome grant：复制 production extension，在临时 profile 第一次启动时短暂把目标 origin 放入
+  `host_permissions` 生成浏览器授权状态，关闭后恢复原 production manifest，再用同一 profile 启动；测试结束删除临时目录。
+- Chrome reject：测试副本移除 `optional_host_permissions`，使真实 `permissions.request()` 确定性返回拒绝；生产 manifest 不变。
+- Firefox grant：Selenium `--allow-system-access` 仅在测试 profile 中调用 Firefox
+  `ExtensionPermissions` 和 tab manager，分别模拟 optional origin 与 action `activeTab`；生产代码和 manifest 不引用内部 API。
+- 所有测试继续检查最终 production manifests、授权集合和动态注册 ID；Beta/商店提交前仍需至少一次 headed 手工权限 smoke。
 
 ## 已知项与风险
 
-1. Firefox 已验证 Playwright bundled 153.0，不等价于最低 `142.0` 或 Firefox ESR；Stable 前需补
-   ESR/最低版本 core + permissions 矩阵。
-2. `web-ext lint` warning 来自 Vue runtime 生成代码；业务源码 innerHTML assignment 为 0，Phase 3
-   Exit 前继续跟踪，禁止业务源码通配豁免。
-3. 静态 content matches 仍仅覆盖 localhost fixture；Phase 3 完成显式站点授权/onboarding 前不扩展
-   真实站点运行范围。
-4. WXT 仍为 `0.x`；升级必须独立变更并重跑双浏览器构建、lint、安全和 E2E。
+1. Firefox 自动化版本为 153.0；manifest minimum `142.0`、Firefox ESR、Chrome previous stable 和 Edge 尚未完成
+   发布矩阵，Stable 前不可豁免。
+2. Headless harness 证明权限状态机与产品代码，但不能取代原生确认框文案、焦点和商店审核体验的 headed/manual 验证。
+3. `web-ext lint` warning 来自 Vue 生成 runtime；业务源码 innerHTML assignment 为 0，继续按供应链/构建风险跟踪。
+4. Tier 1 adapter、视觉增强、截图、进度、跨 Tab 媒体协同属于 Phase 4/5；当前 Preview 只承诺 Tier 0 通用媒体能力。
+5. WXT 仍为 `0.x`；升级必须独立变更并重跑双浏览器 build/lint/security/E2E。
 
-## 下一步（Phase 3）
+## 下一步（Phase 4）
 
-1. 实现 `EXT-060`～`EXT-069`：快捷键 domain/interpreter、Popup/Options view model、站点开关、导入
-   导出 UI、诊断摘要、i18n、A11y 和产品/UX/安全审查。
-2. 在扩大 matches 或申请真实站点权限前，完成权限 onboarding、撤销/拒绝路径和商店文案审查。
-3. 保持 Legacy hash/size 回归门禁；任何共享核心抽取延后到 Phase 7 决策。
+1. 先冻结 EXT-080～EXT-087 的视觉/overlay/capture/progress 范围和性能预算，避免把 Phase 4 变成 Legacy 全量搬运。
+2. 保持 Phase 3 权限、Schema V2、facade 和组件边界；新增能力不得绕过 typed command、settings repository 或 dynamic registration。
+3. 在任何 Beta/Stable 决策前补 Firefox ESR/最低版本、Chrome previous stable、Edge、headed 权限 smoke 和真实商店文案审查。
+4. 继续执行 Legacy hash/size 回归；共享核心与油猴主线重构仍只允许在 Phase 7 单独立项评估。
 
 ## 当前阻塞
 
-无代码硬阻塞。Phase 3 开始时首先冻结快捷键语义和权限 onboarding UX；不得以增加 required
-全站权限、恢复 WAR 注入或修改 Legacy 主线作为实现捷径。
+无代码硬阻塞。当前是“可进入下一阶段工程开发、不可发布 Stable”的状态；若项目 Owner 不接受 headless 权限 harness
+边界，则 EXT-069 需退回 In Review，并先投入 headed 浏览器权限自动化或人工审查流程。

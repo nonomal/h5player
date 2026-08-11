@@ -39,11 +39,11 @@ UI 使用显式判别状态：
 
 ```ts
 type Loadable<T> =
-  | { state: 'idle' }
-  | { state: 'loading' }
-  | { state: 'ready'; data: T }
-  | { state: 'empty'; reason: string }
-  | { state: 'error'; error: ViewError }
+  | { state: "idle" }
+  | { state: "loading" }
+  | { state: "ready"; data: T }
+  | { state: "empty"; reason: string }
+  | { state: "error"; error: ViewError };
 ```
 
 - 组件 props 是可序列化 view model；不传 DOM、browser port 或 mutable domain object。
@@ -120,4 +120,3 @@ type Loadable<T> =
 - popup/options/overlay 至少一个真实消费方验证；
 - bundle 增量和依赖影响符合预算；
 - teardown、错误和权限拒绝状态有测试。
-

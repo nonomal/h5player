@@ -1,5 +1,9 @@
 import * as z from 'zod/mini'
+import { hotkeyChordSchema, hotkeyCommandIdSchema } from '../hotkey'
 import { isNormalizedSiteOrigin } from './site-identity'
+
+export const SETTINGS_SCHEMA_VERSION = 2 as const
+export const SETTINGS_EXPORT_FORMAT_VERSION = 2 as const
 
 const boundedKeySchema = z.string().check(z.minLength(1), z.maxLength(256))
 const siteOriginSchema = boundedKeySchema.check(z.refine(isNormalizedSiteOrigin))
@@ -9,40 +13,68 @@ const timestampSchema = z.number().check(z.nonnegative())
 const playbackRateSchema = z.number().check(z.gte(0.1), z.lte(16))
 const volumeSchema = z.number().check(z.gte(0), z.lte(1))
 
-export const hotkeyBindingSchema = z.strictObject({
+const uiSettingsSchema = z.strictObject({
+  overlayEnabled: z.boolean(),
+  theme: z.enum(['system', 'light', 'dark']),
+  locale: z.enum(['zh-CN', 'en-US'])
+})
+
+const mediaSettingsSchema = z.strictObject({
+  defaultPlaybackRate: playbackRateSchema,
+  defaultVolume: volumeSchema,
+  restoreProgress: z.boolean()
+})
+
+const policySettingsSchema = z.strictObject({
+  protectPlaybackRate: z.boolean(),
+  protectCurrentTime: z.boolean(),
+  protectVolume: z.boolean(),
+  allowExperimental: z.boolean()
+})
+
+const diagnosticSettingsSchema = z.strictObject({
+  localLogLevel: z.enum(['error', 'warn', 'info', 'debug']),
+  retainProgressDays: z.int().check(z.gte(0), z.lte(365))
+})
+
+const legacyHotkeyBindingSchema = z.strictObject({
   commandId: boundedKeySchema,
   disabled: z.boolean()
 })
 
-export const globalSettingsSchema = z.strictObject({
+export const hotkeyBindingSchema = z.strictObject({
+  commandId: hotkeyCommandIdSchema,
+  disabled: z.boolean()
+})
+
+const globalSettingsV1Schema = z.strictObject({
   enabled: z.boolean(),
-  ui: z.strictObject({
-    overlayEnabled: z.boolean(),
-    theme: z.enum(['system', 'light', 'dark']),
-    locale: z.enum(['zh-CN', 'en-US'])
-  }),
+  ui: uiSettingsSchema,
   hotkeys: z.strictObject({
     enabled: z.boolean(),
     scope: z.enum(['page', 'player']),
     bindings: z
-      .record(boundedKeySchema, hotkeyBindingSchema)
+      .record(boundedKeySchema, legacyHotkeyBindingSchema)
       .check(z.refine((value) => Object.keys(value).length <= 256))
   }),
-  media: z.strictObject({
-    defaultPlaybackRate: playbackRateSchema,
-    defaultVolume: volumeSchema,
-    restoreProgress: z.boolean()
+  media: mediaSettingsSchema,
+  policies: policySettingsSchema,
+  diagnostics: diagnosticSettingsSchema
+})
+
+export const globalSettingsSchema = z.strictObject({
+  enabled: z.boolean(),
+  ui: uiSettingsSchema,
+  hotkeys: z.strictObject({
+    enabled: z.boolean(),
+    scope: z.enum(['page', 'player']),
+    bindings: z
+      .record(hotkeyChordSchema, hotkeyBindingSchema)
+      .check(z.refine((value) => Object.keys(value).length <= 256))
   }),
-  policies: z.strictObject({
-    protectPlaybackRate: z.boolean(),
-    protectCurrentTime: z.boolean(),
-    protectVolume: z.boolean(),
-    allowExperimental: z.boolean()
-  }),
-  diagnostics: z.strictObject({
-    localLogLevel: z.enum(['error', 'warn', 'info', 'debug']),
-    retainProgressDays: z.int().check(z.gte(0), z.lte(365))
-  })
+  media: mediaSettingsSchema,
+  policies: policySettingsSchema,
+  diagnostics: diagnosticSettingsSchema
 })
 
 export const siteOverrideSchema = z.strictObject({
@@ -80,18 +112,28 @@ export const progressRecordSchema = z.strictObject({
   expiresAt: timestampSchema
 })
 
+const siteMapSchema = z
+  .record(siteOriginSchema, siteOverrideSchema)
+  .check(z.refine((value) => Object.keys(value).length <= 1_000))
+
+const progressMapSchema = z
+  .record(boundedKeySchema, progressRecordSchema)
+  .check(z.refine((value) => Object.keys(value).length <= 5_000))
+
+export const settingsDataV1Schema = z.strictObject({
+  global: globalSettingsV1Schema,
+  sites: siteMapSchema,
+  progress: progressMapSchema
+})
+
 export const settingsDataSchema = z.strictObject({
   global: globalSettingsSchema,
-  sites: z
-    .record(siteOriginSchema, siteOverrideSchema)
-    .check(z.refine((value) => Object.keys(value).length <= 1_000)),
-  progress: z
-    .record(boundedKeySchema, progressRecordSchema)
-    .check(z.refine((value) => Object.keys(value).length <= 5_000))
+  sites: siteMapSchema,
+  progress: progressMapSchema
 })
 
 const hotkeyBindingsPatchSchema = z
-  .record(boundedKeySchema, z.union([hotkeyBindingSchema, z.null()]))
+  .record(hotkeyChordSchema, z.union([hotkeyBindingSchema, z.null()]))
   .check(z.refine((value) => Object.keys(value).length <= 256))
 
 export const settingsPatchSchema = z.strictObject({
@@ -142,12 +184,20 @@ export const settingsPatchSchema = z.strictObject({
   )
 })
 
+export const persistedSettingsV2Schema = z.strictObject({
+  schema: z.literal('h5player.web-extension'),
+  schemaVersion: z.literal(SETTINGS_SCHEMA_VERSION),
+  revision: revisionSchema,
+  updatedAt: timestampSchema,
+  data: settingsDataSchema
+})
+
 export const persistedSettingsV1Schema = z.strictObject({
   schema: z.literal('h5player.web-extension'),
   schemaVersion: z.literal(1),
   revision: revisionSchema,
   updatedAt: timestampSchema,
-  data: settingsDataSchema
+  data: settingsDataV1Schema
 })
 
 export const persistedSettingsV0Schema = z.strictObject({
@@ -165,23 +215,39 @@ export const persistedSettingsV0Schema = z.strictObject({
 export const settingsBackupSchema = z.strictObject({
   backupId: boundedKeySchema,
   createdAt: timestampSchema,
-  reason: z.enum(['migration', 'corrupt-recovery', 'import', 'rollback']),
+  reason: z.enum(['migration', 'corrupt-recovery', 'import', 'rollback', 'reset']),
   checksum: z.string().check(z.regex(/^fnv1a64:[a-f0-9]{16}$/)),
   raw: z.unknown()
 })
 
-export const settingsExportFileSchema = z.strictObject({
+export const settingsExportFileV1Schema = z.strictObject({
   format: z.literal('h5player.web-extension.settings'),
   formatVersion: z.literal(1),
+  exportedAt: z.string().check(z.minLength(20), z.maxLength(64)),
+  data: settingsDataV1Schema
+})
+
+export const settingsExportFileSchema = z.strictObject({
+  format: z.literal('h5player.web-extension.settings'),
+  formatVersion: z.literal(SETTINGS_EXPORT_FORMAT_VERSION),
   exportedAt: z.string().check(z.minLength(20), z.maxLength(64)),
   data: settingsDataSchema
 })
 
+export const settingsImportFileSchema = z.union([
+  settingsExportFileSchema,
+  settingsExportFileV1Schema
+])
+
 export type GlobalSettings = z.infer<typeof globalSettingsSchema>
+export type GlobalSettingsV1 = z.infer<typeof globalSettingsV1Schema>
 export type SiteOverride = z.infer<typeof siteOverrideSchema>
 export type SettingsData = z.infer<typeof settingsDataSchema>
+export type SettingsDataV1 = z.infer<typeof settingsDataV1Schema>
 export type SettingsPatch = z.infer<typeof settingsPatchSchema>
+export type PersistedSettingsV2 = z.infer<typeof persistedSettingsV2Schema>
 export type PersistedSettingsV1 = z.infer<typeof persistedSettingsV1Schema>
 export type PersistedSettingsV0 = z.infer<typeof persistedSettingsV0Schema>
 export type SettingsBackup = z.infer<typeof settingsBackupSchema>
 export type SettingsExportFile = z.infer<typeof settingsExportFileSchema>
+export type SettingsExportFileV1 = z.infer<typeof settingsExportFileV1Schema>

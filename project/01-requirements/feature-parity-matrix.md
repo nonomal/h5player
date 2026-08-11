@@ -1,42 +1,46 @@
 # Legacy 功能对照与迁移矩阵
 
 > 文档 ID：REQ-003  
-> 状态：Approved as Planning Baseline  
+> 状态：Approved / Phase 3 Exit Update  
 > 负责人：Product Owner / Quality Owner  
-> 最后更新：2026-08-10  
+> 最后更新：2026-08-11  
 > 维护规则：每个里程碑更新状态、测试和差异说明。
 
 状态：`Baseline` 已盘点；`Planned` 已排期；`Building` 开发中；`Verified` 已验证；`Deferred` 明确延期；`Rejected` 不迁移。
 
 ## 1. 核心功能矩阵
 
-| ID             | Legacy 能力/证据                                                | Web Extension 目标模块            | 优先级 | 阶段    | 验证                       | 当前状态 | 差异说明                                                               |
-| -------------- | --------------------------------------------------------------- | --------------------------------- | ------ | ------- | -------------------------- | -------- | ---------------------------------------------------------------------- |
-| FR-BOOT-001    | `src/h5player/index.js:3-35` 启动重试                           | runtime/content + page-main       | P0     | Phase 2 | integration + e2e          | Verified | 改为幂等会话，不复制 200 次轮询                                        |
-| FR-BOOT-002    | `src/h5player/h5player.js:163-190` 媒体发现                     | domain/media + infrastructure/dom | P0     | Phase 2 | unit + fixture + e2e       | Verified | 生命周期显式清理                                                       |
-| FR-BOOT-003    | `src/h5player/h5player.js:2767-2782` Shadow DOM                 | dom observer                      | P0     | Phase 2 | fixture + e2e              | Verified | 不依赖全局 `_shadowDomList_`                                           |
-| FR-SESSION-001 | `src/h5player/h5player.js:138-155` 当前播放器                   | media selection service           | P0     | Phase 2 | unit + e2e                 | Verified | 使用评分规则，不取列表最后一个                                         |
-| FR-CORE-001    | `src/h5player/configManager.js:23-79` 快捷命令配置              | command registry                  | P0     | Phase 2 | unit + e2e + differential  | Verified | 保留用户语义，不保留对象直调                                           |
-| FR-CORE-002    | `src/h5player/h5player.js` 音量控制                             | command handlers                  | P0     | Phase 2 | unit + e2e                 | Verified | 统一范围与错误                                                         |
-| FR-CORE-003    | `src/h5player/configManager.js` enhance 开关                    | media policy                      | P0     | Phase 3 | unit + adversarial fixture | Baseline | 逐能力启用 Hook                                                        |
-| FR-HOTKEY-001  | `src/h5player/configManager.js:23-100+` 默认快捷键              | hotkey registry                   | P0     | Phase 3 | unit + component + e2e     | Baseline | 默认集经冲突审查后冻结                                                 |
-| FR-HOTKEY-002  | `src/libs/utils/hotkeysRunner.js`                               | hotkey interpreter                | P0     | Phase 3 | keyboard matrix            | Baseline | 明确 editable/repeat 规则                                              |
-| FR-VISUAL-001  | `src/h5player/h5player.js:71-96` transform 状态                 | visual command module             | P1     | Phase 4 | unit + screenshot e2e      | Baseline | 状态按 MediaSession 隔离                                               |
-| FR-VISUAL-003  | `src/libs/FullScreen/index.js`、TCC                             | fullscreen/PiP capability         | P1     | Phase 4 | fixture + browser e2e      | Baseline | 站点能力优先、通用实现兜底                                             |
-| FR-MEDIA-001   | `src/libs/videoCapturer/index.js`                               | capture module                    | P1     | Phase 4 | canvas fixture + e2e       | Baseline | 明确 CORS/DRM 失败                                                     |
-| FR-MEDIA-002   | `src/h5player/h5player.js` 进度记录                             | progress repository               | P1     | Phase 4 | migration + time tests     | Baseline | 加过期、容量和隐私开关                                                 |
-| FR-MEDIA-003   | `src/h5player/monkeyMsg.js:98-131` 广播                         | cross-tab event service           | P1     | Phase 3 | multi-page integration     | Baseline | 移除 2 秒轮询广播                                                      |
-| FR-MEDIA-004   | `src/h5player/mediaSource.js`、`mediaDownload.js`               | experimental media package        | P2     | Phase 7 | security + perf + e2e      | Deferred | 独立权限和开关                                                         |
-| FR-ADAPTER-001 | `src/h5player/h5PlayerTccInit.js` 通用回退                      | generic adapter                   | P0     | Phase 2 | fixture + e2e              | Verified | 通用能力不依赖站点表                                                   |
-| FR-ADAPTER-002 | `src/h5player/h5PlayerTccInit.js:75-600` 站点任务               | site adapter registry             | P1     | Phase 5 | per-adapter fixture        | Baseline | 每个适配器独立文件与测试                                               |
-| FR-ADAPTER-005 | `src/h5player/h5player.js:2657-2705` 外部函数配置               | declarative custom rules          | P2     | Phase 7 | schema + security tests    | Deferred | 不执行任意函数                                                         |
-| FR-CONFIG-001  | `src/h5player/configManager.js`、`libs/monkey/configManager.ts` | settings domain + repository      | P0     | Phase 1 | unit + migration           | Verified | 单一权威和 schemaVersion                                               |
-| FR-CONFIG-003  | `src/h5player/monkeyStorageProxy.js`                            | settings service                  | P0     | Phase 1 | concurrency integration    | Verified | 字段级/版本化更新                                                      |
-| FR-UI-001      | `web-extension/popup.*`                                         | popup application                 | P0     | Phase 3 | component + extension e2e  | Building | Phase 2 已有核心状态/命令；Phase 3 补站点开关、快捷键与完整 view model |
-| FR-UI-002      | Legacy 菜单/配置编辑器                                          | options application               | P0     | Phase 3 | component + e2e            | Planned  | 原生设置页，不跳转远程 JSON 编辑器                                     |
-| FR-UI-003      | `src/h5player/ui/h5playerUI.js`                                 | overlay components                | P1     | Phase 4 | component + visual e2e     | Baseline | 不复用生成的 `h5playerUI.es.js`                                        |
-| FR-DIAG-001    | `src/h5player/debug.js`                                         | structured logger                 | P0     | Phase 1 | unit + redaction tests     | Verified | 默认本地、限量、结构化                                                 |
-| FR-DIAG-002    | 当前无正式诊断导出                                              | diagnostics service               | P0     | Phase 3 | redaction + e2e            | Planned  | 新能力                                                                 |
+| ID             | Legacy 能力/证据                                                | Web Extension 目标模块             | 优先级 | 阶段    | 验证                       | 当前状态 | 差异说明                                                            |
+| -------------- | --------------------------------------------------------------- | ---------------------------------- | ------ | ------- | -------------------------- | -------- | ------------------------------------------------------------------- |
+| FR-BOOT-001    | `src/h5player/index.js:3-35` 启动重试                           | runtime/content + page-main        | P0     | Phase 2 | integration + e2e          | Verified | 改为幂等会话，不复制 200 次轮询                                     |
+| FR-BOOT-002    | `src/h5player/h5player.js:163-190` 媒体发现                     | domain/media + infrastructure/dom  | P0     | Phase 2 | unit + fixture + e2e       | Verified | 生命周期显式清理                                                    |
+| FR-BOOT-003    | `src/h5player/h5player.js:2767-2782` Shadow DOM                 | dom observer                       | P0     | Phase 2 | fixture + e2e              | Verified | 不依赖全局 `_shadowDomList_`                                        |
+| FR-SESSION-001 | `src/h5player/h5player.js:138-155` 当前播放器                   | media selection service            | P0     | Phase 2 | unit + e2e                 | Verified | 使用评分规则，不取列表最后一个                                      |
+| FR-CORE-001    | `src/h5player/configManager.js:23-79` 快捷命令配置              | command registry                   | P0     | Phase 2 | unit + e2e + differential  | Verified | 保留用户语义，不保留对象直调                                        |
+| FR-CORE-002    | `src/h5player/h5player.js` 音量控制                             | command handlers                   | P0     | Phase 2 | unit + e2e                 | Verified | 统一范围与错误                                                      |
+| FR-CORE-003    | `src/h5player/configManager.js` enhance 开关                    | media policy                       | P0     | Phase 3 | unit + adversarial fixture | Verified | 保护策略进入 Settings V2；通用 Hook 保持能力化，页面/站点停用可恢复 |
+| FR-HOTKEY-001  | `src/h5player/configManager.js:23-100+` 默认快捷键              | hotkey registry                    | P0     | Phase 3 | unit + component + e2e     | Verified | 冻结核心语义，改用 typed command ID、physical code 和显式 override  |
+| FR-HOTKEY-002  | `src/libs/utils/hotkeysRunner.js`                               | hotkey interpreter/controller      | P0     | Phase 3 | keyboard matrix            | Verified | editable/composition/repeat/player-focus 规则显式化并可测试         |
+| FR-HOTKEY-003  | Legacy 菜单缺少可靠冲突校验                                     | shortcut recorder + conflict model | P0     | Phase 3 | unit + component           | Verified | 拒绝浏览器保留组合，保存前检测冲突，支持禁用和恢复默认              |
+| FR-HOTKEY-004  | Legacy 全局监听与播放器语义混合                                 | hotkey scope policy                | P1     | Phase 3 | unit + Chrome E2E          | Verified | 提供 page/player 两种 scope，输入框与临时/站点停用优先              |
+| FR-VISUAL-001  | `src/h5player/h5player.js:71-96` transform 状态                 | visual command module              | P1     | Phase 4 | unit + screenshot e2e      | Baseline | 状态按 MediaSession 隔离                                            |
+| FR-VISUAL-003  | `src/libs/FullScreen/index.js`、TCC                             | fullscreen/PiP capability          | P1     | Phase 4 | fixture + browser e2e      | Baseline | 站点能力优先、通用实现兜底                                          |
+| FR-MEDIA-001   | `src/libs/videoCapturer/index.js`                               | capture module                     | P1     | Phase 4 | canvas fixture + e2e       | Baseline | 明确 CORS/DRM 失败                                                  |
+| FR-MEDIA-002   | `src/h5player/h5player.js` 进度记录                             | progress repository                | P1     | Phase 4 | migration + time tests     | Baseline | 加过期、容量和隐私开关                                              |
+| FR-MEDIA-003   | `src/h5player/monkeyMsg.js:98-131` 广播                         | cross-tab event service            | P1     | Phase 4 | multi-page integration     | Baseline | Phase 3 仅完成配置 change event；媒体跨 Tab 协同仍不复刻 2 秒轮询   |
+| FR-MEDIA-004   | `src/h5player/mediaSource.js`、`mediaDownload.js`               | experimental media package         | P2     | Phase 7 | security + perf + e2e      | Deferred | 独立权限和开关                                                      |
+| FR-ADAPTER-001 | `src/h5player/h5PlayerTccInit.js` 通用回退                      | generic adapter                    | P0     | Phase 2 | fixture + e2e              | Verified | 通用能力不依赖站点表                                                |
+| FR-ADAPTER-002 | `src/h5player/h5PlayerTccInit.js:75-600` 站点任务               | site adapter registry              | P1     | Phase 5 | per-adapter fixture        | Baseline | 每个适配器独立文件与测试                                            |
+| FR-ADAPTER-005 | `src/h5player/h5player.js:2657-2705` 外部函数配置               | declarative custom rules           | P2     | Phase 7 | schema + security tests    | Deferred | 不执行任意函数                                                      |
+| FR-CONFIG-001  | `src/h5player/configManager.js`、`libs/monkey/configManager.ts` | settings domain + repository       | P0     | Phase 1 | unit + migration           | Verified | 单一权威和 schemaVersion                                            |
+| FR-CONFIG-003  | `src/h5player/monkeyStorageProxy.js`                            | settings service                   | P0     | Phase 1 | concurrency integration    | Verified | 字段级/版本化更新                                                   |
+| FR-UI-001      | `web-extension/popup.*`                                         | popup application                  | P0     | Phase 3 | component + extension e2e  | Verified | 完整状态机、媒体命令、权限引导、站点/本页开关和撤权                 |
+| FR-UI-002      | Legacy 菜单/配置编辑器                                          | options application                | P0     | Phase 3 | component + e2e            | Verified | 六个本地 Options 页面；不跳转远程 JSON 编辑器                       |
+| FR-UI-004      | Legacy UI 直接耦合全局对象与浏览器能力                          | application facade/view model      | P1     | Phase 3 | unit + boundary            | Verified | Vue presentation 不直接调用媒体 DOM/background contract             |
+| FR-UI-005      | Legacy 多语言资源分散                                           | typed i18n catalog                 | P1     | Phase 3 | unit + component           | Verified | 首发 zh-CN/en-US 结构完整；其他语言不在当前 Preview 范围            |
+| FR-UI-003      | `src/h5player/ui/h5playerUI.js`                                 | overlay components                 | P1     | Phase 4 | component + visual e2e     | Baseline | 不复用生成的 `h5playerUI.es.js`                                     |
+| FR-DIAG-001    | `src/h5player/debug.js`                                         | structured logger                  | P0     | Phase 1 | unit + redaction tests     | Verified | 默认本地、限量、结构化                                              |
+| FR-DIAG-002    | 当前无正式诊断导出                                              | diagnostics service                | P0     | Phase 3 | redaction + component      | Verified | 新增本地 bounded summary 和显式文件导出；不远程上传                 |
 
 ## 2. 菜单与全局功能迁移
 

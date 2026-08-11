@@ -140,9 +140,9 @@ describe('page/content runtime bridge', () => {
           request,
           {
             extensionVersion: '0.1.0',
-            phase: 2,
+            phase: 3,
             protocol: 1,
-            settingsSchemaVersion: 1
+            settingsSchemaVersion: 2
           },
           request.sessionId ? { sessionId: request.sessionId } : {}
         )

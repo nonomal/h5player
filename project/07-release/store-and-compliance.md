@@ -13,14 +13,14 @@
 
 每个实际权限都要有一行可审计说明：
 
-| 权限/能力 | 使用场景 | 最小替代方案 | 用户可见说明 | 测试/证据 | 首发决策 |
-| --- | --- | --- | --- | --- | --- |
-| `storage` | 配置/迁移/诊断元数据 | 无 | 保存本扩展设置 | repository/migration tests | Required |
-| host access | 页面媒体增强 | 用户主动授权当前站点 | 只在授权站点运行 | permission E2E | Decision pending |
-| `activeTab` | 当前 Tab 快速操作 | host permission | 点击扩展后操作当前页 | popup E2E | Evaluate |
-| clipboard | 用户主动复制截图/诊断 | 手工复制 | 仅在点击操作时写剪贴板 | permission/error E2E | Optional |
-| downloads | 实验下载 | 页面原生下载 | 用户主动触发实验能力 | security/perf review | Deferred |
-| webRequest/DNR | 特殊网络处理 | 页面/声明式替代 | 明确网络影响 | threat model/store review | Default reject |
+| 权限/能力      | 使用场景              | 最小替代方案         | 用户可见说明           | 测试/证据                  | 首发决策         |
+| -------------- | --------------------- | -------------------- | ---------------------- | -------------------------- | ---------------- |
+| `storage`      | 配置/迁移/诊断元数据  | 无                   | 保存本扩展设置         | repository/migration tests | Required         |
+| host access    | 页面媒体增强          | 用户主动授权当前站点 | 只在授权站点运行       | permission E2E             | Decision pending |
+| `activeTab`    | 当前 Tab 快速操作     | host permission      | 点击扩展后操作当前页   | popup E2E                  | Evaluate         |
+| clipboard      | 用户主动复制截图/诊断 | 手工复制             | 仅在点击操作时写剪贴板 | permission/error E2E       | Optional         |
+| downloads      | 实验下载              | 页面原生下载         | 用户主动触发实验能力   | security/perf review       | Deferred         |
+| webRequest/DNR | 特殊网络处理          | 页面/声明式替代      | 明确网络影响           | threat model/store review  | Default reject   |
 
 禁止用“未来可能需要”作为权限理由；每项权限都必须有当前版本调用点和移除条件。
 
@@ -67,4 +67,3 @@
 - [ ] Quality Owner 确认矩阵、E2E、性能和缺陷门禁。
 - [ ] Release Manager 确认产物、签名、SBOM、hash 和回滚包。
 - [ ] 支持负责人确认安装、诊断、Issue 和事故说明。
-

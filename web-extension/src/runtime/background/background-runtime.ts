@@ -13,10 +13,20 @@ import {
   settingsImportPayloadSchema,
   settingsMutationResponseSchema,
   settingsRestorePayloadSchema,
+  settingsResetPayloadSchema,
   settingsSnapshotResponseSchema,
   settingsUpdatePayloadSchema,
   systemPingResponseSchema
 } from '../../application/settings/contracts'
+import type { DiagnosticsService } from '../../application/diagnostics/diagnostics-service'
+import {
+  siteContextResponseSchema,
+  siteReconcilePayloadSchema,
+  siteReconcileResponseSchema,
+  siteTemporaryDisablePayloadSchema,
+  siteTemporaryDisableResponseSchema
+} from '../../application/site/contracts'
+import type { SiteAccessService } from '../../application/site/site-access-service'
 import type { SettingsService } from '../../application/settings/settings-service'
 import type { SettingsError } from '../../application/settings/settings-port'
 import type { ReplayGuard } from '../../infrastructure/messaging/replay-guard'
@@ -43,6 +53,8 @@ type BackgroundRuntimeOptions = {
   replayGuard: ReplayGuard
   logger: LoggerPort
   tabs: TabsPort
+  siteAccess: SiteAccessService
+  diagnostics: DiagnosticsService
 }
 
 type SafeParser<T> = {
@@ -106,6 +118,16 @@ export class BackgroundRuntime {
         module: 'background-runtime',
         eventCode: 'SETTINGS_INITIALIZATION_FAILED',
         details: { code: initialized.error.code }
+      })
+    }
+    try {
+      await this.options.siteAccess.initialize()
+    } catch (error) {
+      this.options.logger.log({
+        level: 'error',
+        module: 'background-runtime',
+        eventCode: 'CONTENT_SCRIPT_REGISTRATION_FAILED',
+        details: { error }
       })
     }
   }
@@ -200,16 +222,16 @@ export class BackgroundRuntime {
         }
         const response: {
           extensionVersion: string
-          phase: 2
+          phase: 3
           protocol: 1
-          settingsSchemaVersion: 1
+          settingsSchemaVersion: 2
           tabId?: number
           frameId?: number
         } = {
           extensionVersion: this.options.extensionVersion,
-          phase: 2,
+          phase: 3,
           protocol: 1,
-          settingsSchemaVersion: 1
+          settingsSchemaVersion: 2
         }
         if (context.tabId !== undefined) response.tabId = context.tabId
         if (context.frameId !== undefined) response.frameId = context.frameId
@@ -280,6 +302,48 @@ export class BackgroundRuntime {
               context
             )
           : this.settingsFailure(request, result.error, context)
+      }
+      case 'settings.reset': {
+        const payload = settingsResetPayloadSchema.safeParse(request.payload)
+        if (!payload.success) return this.invalidPayload(request, context)
+        const result = await this.options.settings.reset(payload.data.scope, source)
+        return result.ok
+          ? createRuntimeSuccess(
+              request,
+              settingsMutationResponseSchema.parse(result.value),
+              context
+            )
+          : this.settingsFailure(request, result.error, context)
+      }
+      case 'site.get-context': {
+        if (!emptyPayloadSchema.safeParse(request.payload).success) {
+          return this.invalidPayload(request, context)
+        }
+        const result = await this.options.siteAccess.getContext()
+        return createRuntimeSuccess(request, siteContextResponseSchema.parse(result), context)
+      }
+      case 'site.set-temporary-disabled': {
+        const payload = siteTemporaryDisablePayloadSchema.safeParse(request.payload)
+        if (!payload.success) return this.invalidPayload(request, context)
+        const result = await this.options.siteAccess.setTemporaryDisabled(payload.data.disabled)
+        return createRuntimeSuccess(
+          request,
+          siteTemporaryDisableResponseSchema.parse(result),
+          context
+        )
+      }
+      case 'site.reconcile': {
+        const payload = siteReconcilePayloadSchema.safeParse(request.payload)
+        if (!payload.success) return this.invalidPayload(request, context)
+        const result = await this.options.siteAccess.reconcile(payload.data.bootstrapCurrentTab)
+        return createRuntimeSuccess(request, siteReconcileResponseSchema.parse(result), context)
+      }
+      case 'diagnostics.get': {
+        if (!emptyPayloadSchema.safeParse(request.payload).success) {
+          return this.invalidPayload(request, context)
+        }
+        const result = await this.options.diagnostics.get()
+        return createRuntimeSuccess(request, result, context)
       }
       case 'media.get-state': {
         const payload = mediaGetStatePayloadSchema.safeParse(request.payload)

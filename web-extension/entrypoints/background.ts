@@ -1,6 +1,14 @@
 import { browser } from 'wxt/browser'
 import { SettingsService } from '../src/application/settings/settings-service'
-import { WxtStoragePort, WxtTabsPort } from '../src/infrastructure/browser/wxt-browser-ports'
+import { DiagnosticsService } from '../src/application/diagnostics/diagnostics-service'
+import { SiteAccessService } from '../src/application/site/site-access-service'
+import {
+  WxtContentScriptRegistrationPort,
+  WxtPermissionsPort,
+  WxtRuntimeInfoPort,
+  WxtStoragePort,
+  WxtTabsPort
+} from '../src/infrastructure/browser/wxt-browser-ports'
 import { StructuredLogger } from '../src/infrastructure/logging/structured-logger'
 import { ReplayGuard } from '../src/infrastructure/messaging/replay-guard'
 import { SettingsRepository } from '../src/infrastructure/storage/settings-repository'
@@ -22,13 +30,37 @@ function senderMetadata(
 export default defineBackground(() => {
   const logger = new StructuredLogger('background', systemClock)
   const repository = new SettingsRepository(new WxtStoragePort(), systemClock, logger)
+  const settings = new SettingsService(repository)
+  const tabs = new WxtTabsPort()
+  const permissions = new WxtPermissionsPort()
+  const siteAccess = new SiteAccessService(
+    settings,
+    tabs,
+    permissions,
+    new WxtContentScriptRegistrationPort()
+  )
+  const buildValue = (import.meta.env as unknown as { ['VITE_BUILD_SHA']?: unknown })[
+    'VITE_BUILD_SHA'
+  ]
+  const diagnostics = new DiagnosticsService({
+    extensionVersion: browser.runtime.getManifest().version,
+    buildId: typeof buildValue === 'string' && buildValue.length > 0 ? buildValue : 'local',
+    clock: systemClock,
+    runtimeInfo: new WxtRuntimeInfoPort(),
+    permissions,
+    settings,
+    siteAccess,
+    logger
+  })
   const runtime = new BackgroundRuntime({
     extensionId: browser.runtime.id,
     extensionVersion: browser.runtime.getManifest().version,
-    settings: new SettingsService(repository),
+    settings,
     replayGuard: new ReplayGuard(systemClock),
     logger,
-    tabs: new WxtTabsPort()
+    tabs,
+    siteAccess,
+    diagnostics
   })
 
   void runtime.initialize()
@@ -36,14 +68,21 @@ export default defineBackground(() => {
   browser.runtime.onInstalled.addListener(() => {
     void browser.storage.local.set({
       'h5player.extension.version': browser.runtime.getManifest().version,
-      'h5player.extension.phase': 1,
+      'h5player.extension.phase': 3,
       'h5player.extension.protocol': 1,
-      'h5player.extension.settings-schema': 1
+      'h5player.extension.settings-schema': 2
     })
   })
 
   browser.runtime.onMessage.addListener((rawMessage, sender, sendResponse): boolean => {
     void runtime.handle(rawMessage, senderMetadata(sender)).then(sendResponse)
     return true
+  })
+
+  browser.permissions.onAdded.addListener(() => {
+    void siteAccess.reconcile(false)
+  })
+  browser.permissions.onRemoved.addListener(() => {
+    void siteAccess.reconcile(false)
   })
 })

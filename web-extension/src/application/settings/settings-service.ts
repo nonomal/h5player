@@ -1,5 +1,5 @@
 import { failure, success, type Result } from '../../shared/result'
-import type { PersistedSettingsV1, SettingsBackup, SettingsPatch } from '../../domain/settings'
+import type { PersistedSettingsV2, SettingsBackup, SettingsPatch } from '../../domain/settings'
 import type { SettingsError, SettingsMutation, SettingsRepositoryPort } from './settings-port'
 
 export class SettingsService {
@@ -8,7 +8,7 @@ export class SettingsService {
   async getSnapshot(): Promise<
     Result<
       {
-        settings: PersistedSettingsV1
+        settings: PersistedSettingsV2
         latestBackup: SettingsBackup | null
       },
       SettingsError
@@ -43,5 +43,12 @@ export class SettingsService {
     source: string
   ): Promise<Result<SettingsMutation, SettingsError>> {
     return this.repository.restoreBackup(backupId, source)
+  }
+
+  reset(
+    scope: 'all' | 'global' | 'sites' | 'progress',
+    source: string
+  ): Promise<Result<SettingsMutation, SettingsError>> {
+    return this.repository.reset(scope, source)
   }
 }

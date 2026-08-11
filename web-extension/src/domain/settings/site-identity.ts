@@ -19,3 +19,10 @@ export function isNormalizedSiteOrigin(value: string): boolean {
   const normalized = normalizeSiteOrigin(value)
   return normalized.ok && normalized.value === value
 }
+
+export function toHostPermissionPattern(value: string): Result<string, SiteIdentityError> {
+  const normalized = normalizeSiteOrigin(value)
+  if (!normalized.ok) return normalized
+  const url = new URL(normalized.value)
+  return success(`${url.protocol}//${url.host}/*`)
+}

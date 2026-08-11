@@ -1,5 +1,5 @@
 import type { Teardown } from '../ports/browser'
-import type { PersistedSettingsV1, SettingsBackup, SettingsPatch } from '../../domain/settings'
+import type { PersistedSettingsV2, SettingsBackup, SettingsPatch } from '../../domain/settings'
 import type { Result } from '../../shared/result'
 
 export type SettingsErrorCode =
@@ -18,7 +18,7 @@ export type SettingsError = {
 }
 
 export type SettingsMutation = {
-  settings: PersistedSettingsV1
+  settings: PersistedSettingsV2
   changedPaths: string[]
   rebased: boolean
 }
@@ -30,9 +30,9 @@ export type SettingsChangedEvent = {
 }
 
 export interface SettingsRepositoryPort {
-  get(): Promise<Result<PersistedSettingsV1, SettingsError>>
+  get(): Promise<Result<PersistedSettingsV2, SettingsError>>
   getSnapshot(): Promise<
-    Result<{ settings: PersistedSettingsV1; latestBackup: SettingsBackup | null }, SettingsError>
+    Result<{ settings: PersistedSettingsV2; latestBackup: SettingsBackup | null }, SettingsError>
   >
   update(
     patch: SettingsPatch,
@@ -46,6 +46,10 @@ export interface SettingsRepositoryPort {
     source: string
   ): Promise<Result<SettingsMutation, SettingsError>>
   restoreBackup(backupId: string, source: string): Promise<Result<SettingsMutation, SettingsError>>
+  reset(
+    scope: 'all' | 'global' | 'sites' | 'progress',
+    source: string
+  ): Promise<Result<SettingsMutation, SettingsError>>
   getLatestBackup(): Promise<Result<SettingsBackup | null, SettingsError>>
   subscribe(listener: (event: SettingsChangedEvent) => void): Teardown
 }

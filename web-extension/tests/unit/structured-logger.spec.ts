@@ -20,6 +20,7 @@ describe('structured logger', () => {
     const redacted = JSON.stringify(logger.snapshot())
     expect(redacted).not.toContain('secret')
     expect(redacted).not.toContain('?q=private')
+    expect(redacted).not.toContain('/path')
     expect(redacted).toContain('[redacted]')
 
     clock.advance(1)

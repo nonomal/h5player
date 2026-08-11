@@ -1,5 +1,9 @@
 import type { ClockPort } from '../../application/ports/browser'
-import type { LoggerPort, LogRecord, RuntimeContext } from '../../application/ports/logging'
+import type {
+  DiagnosticLoggerPort,
+  LogRecord,
+  RuntimeContext
+} from '../../application/ports/logging'
 
 const REDACTED = '[redacted]'
 const SENSITIVE_KEYS =
@@ -10,7 +14,7 @@ function sanitizeString(value: string): string {
   return truncated.replace(/https?:\/\/[^\s"']+/gi, (match) => {
     try {
       const url = new URL(match)
-      return `${url.origin}${url.pathname}`
+      return url.hostname
     } catch {
       return REDACTED
     }
@@ -39,7 +43,7 @@ function sanitizeDetails(
   return sanitized
 }
 
-export class StructuredLogger implements LoggerPort {
+export class StructuredLogger implements DiagnosticLoggerPort {
   private readonly records: LogRecord[] = []
 
   constructor(

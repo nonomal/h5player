@@ -1,8 +1,11 @@
 import { describe, expect, it } from 'vitest'
+import { DiagnosticsService, diagnosticResponseSchema } from '../../src/application/diagnostics'
 import { SettingsService } from '../../src/application/settings/settings-service'
+import { SiteAccessService } from '../../src/application/site'
 import { mediaCommandResultResponseSchema, mediaPageStateSchema } from '../../src/application/media'
 import {
   settingsExportResponseSchema,
+  settingsMutationResponseSchema,
   settingsSnapshotResponseSchema
 } from '../../src/application/settings/contracts'
 import { ReplayGuard } from '../../src/infrastructure/messaging/replay-guard'
@@ -14,25 +17,55 @@ import {
   type RuntimeRequestEnvelope
 } from '../../src/shared/protocol'
 import { createTabSuccess, parseTabRequest } from '../../src/shared/tab-protocol'
-import { FakeClock, FakeLogger, FakeStoragePort, FakeTabsPort } from '../test-support/fakes'
+import {
+  FakeClock,
+  FakeContentScriptRegistrationPort,
+  FakeDiagnosticLogger,
+  FakePermissionsPort,
+  FakeRuntimeInfoPort,
+  FakeLogger,
+  FakeStoragePort,
+  FakeTabsPort
+} from '../test-support/fakes'
 
 function createRuntime() {
   const clock = new FakeClock()
   const logger = new FakeLogger()
   const repository = new SettingsRepository(new FakeStoragePort(), clock, logger)
   const tabs = new FakeTabsPort()
+  const settings = new SettingsService(repository)
+  const permissions = new FakePermissionsPort()
+  const siteAccess = new SiteAccessService(
+    settings,
+    tabs,
+    permissions,
+    new FakeContentScriptRegistrationPort()
+  )
+  const diagnostics = new DiagnosticsService({
+    extensionVersion: '0.1.0',
+    buildId: 'test-build',
+    clock,
+    runtimeInfo: new FakeRuntimeInfoPort(),
+    permissions,
+    settings,
+    siteAccess,
+    logger: new FakeDiagnosticLogger('background', clock)
+  })
   return {
     runtime: new BackgroundRuntime({
       extensionId: 'extension-id',
       extensionVersion: '0.1.0',
-      settings: new SettingsService(repository),
+      settings,
       replayGuard: new ReplayGuard(clock),
       logger,
-      tabs
+      tabs,
+      siteAccess,
+      diagnostics
     }),
     repository,
     logger,
-    tabs
+    tabs,
+    permissions
   }
 }
 
@@ -52,7 +85,7 @@ describe('background runtime contract boundary', () => {
     const settings = await handle(createRuntimeRequest('popup', 'settings.get', {}))
 
     expect(ping?.type).toBe('protocol.response')
-    if (ping?.type === 'protocol.response') expect(ping.payload.data).toMatchObject({ phase: 2 })
+    if (ping?.type === 'protocol.response') expect(ping.payload.data).toMatchObject({ phase: 3 })
     expect(settings?.type).toBe('protocol.response')
   })
 
@@ -193,19 +226,181 @@ describe('background runtime contract boundary', () => {
     expect(cancelled?.type).toBe('protocol.response')
   })
 
+  it('routes settings reset, site context/reconciliation and diagnostics through typed contracts', async () => {
+    const { runtime, permissions } = createRuntime()
+    const sender = {
+      id: 'extension-id',
+      url: 'chrome-extension://extension-id/options.html'
+    }
+
+    const updated = parseRuntimeResponse(
+      await runtime.handle(
+        createRuntimeRequest('options', 'settings.update', {
+          patch: { global: { enabled: false } },
+          expectedRevision: 0
+        }),
+        sender
+      )
+    )
+    expect(updated?.type).toBe('protocol.response')
+
+    const reset = parseRuntimeResponse(
+      await runtime.handle(
+        createRuntimeRequest('options', 'settings.reset', { scope: 'global' }),
+        sender
+      )
+    )
+    expect(reset?.type).toBe('protocol.response')
+    if (reset?.type === 'protocol.response') {
+      const mutation = settingsMutationResponseSchema.parse(reset.payload.data)
+      expect(mutation.settings.data.global.enabled).toBe(true)
+    }
+
+    const context = parseRuntimeResponse(
+      await runtime.handle(createRuntimeRequest('options', 'site.get-context', {}), sender)
+    )
+    expect(context?.type).toBe('protocol.response')
+    if (context?.type === 'protocol.response') {
+      expect(context.payload.data).toMatchObject({ permission: 'missing' })
+    }
+
+    permissions.origins.add('https://example.com/*')
+    const reconciled = parseRuntimeResponse(
+      await runtime.handle(
+        createRuntimeRequest('options', 'site.reconcile', { bootstrapCurrentTab: false }),
+        sender
+      )
+    )
+    expect(reconciled?.type).toBe('protocol.response')
+    if (reconciled?.type === 'protocol.response') {
+      expect(reconciled.payload.data).toEqual({ registeredOrigins: 1, bootstrapped: false })
+    }
+
+    const diagnostics = parseRuntimeResponse(
+      await runtime.handle(createRuntimeRequest('options', 'diagnostics.get', {}), sender)
+    )
+    expect(diagnostics?.type).toBe('protocol.response')
+    if (diagnostics?.type === 'protocol.response') {
+      expect(diagnosticResponseSchema.parse(diagnostics.payload.data).summary).toMatchObject({
+        phase: 3,
+        settingsSchemaVersion: 2
+      })
+    }
+  })
+
+  it('rejects privileged content routes and arbitrary permission or file directives', async () => {
+    const { runtime } = createRuntime()
+    const contentSender = {
+      id: 'extension-id',
+      tabId: 1,
+      frameId: 0,
+      url: 'https://example.com/watch'
+    }
+    const contentRequests = [
+      createRuntimeRequest(
+        'content',
+        'settings.reset',
+        { scope: 'all' },
+        {
+          sessionId: 'session-identifier-1'
+        }
+      ),
+      createRuntimeRequest(
+        'content',
+        'site.get-context',
+        {},
+        {
+          sessionId: 'session-identifier-2'
+        }
+      ),
+      createRuntimeRequest(
+        'content',
+        'site.reconcile',
+        { bootstrapCurrentTab: true },
+        {
+          sessionId: 'session-identifier-3'
+        }
+      ),
+      createRuntimeRequest(
+        'content',
+        'diagnostics.get',
+        {},
+        {
+          sessionId: 'session-identifier-4'
+        }
+      )
+    ]
+
+    for (const request of contentRequests) {
+      const response = parseRuntimeResponse(await runtime.handle(request, contentSender))
+      expect(response?.type).toBe('protocol.error')
+      if (response?.type === 'protocol.error') {
+        expect(response.payload.error.code).toBe('UNAUTHORIZED_SOURCE')
+      }
+    }
+
+    const sender = {
+      id: 'extension-id',
+      url: 'chrome-extension://extension-id/options.html'
+    }
+    const injectedPayloads = [
+      createRuntimeRequest('options', 'site.reconcile', {
+        bootstrapCurrentTab: true,
+        origins: ['<all_urls>'],
+        files: ['/content-scripts/content.js']
+      }),
+      createRuntimeRequest('options', 'diagnostics.get', {
+        permissions: ['downloads'],
+        files: ['background.js']
+      }),
+      createRuntimeRequest('options', 'settings.reset', {
+        scope: 'all',
+        origins: ['https://attacker.invalid/*']
+      })
+    ]
+
+    for (const request of injectedPayloads) {
+      const response = parseRuntimeResponse(await runtime.handle(request, sender))
+      expect(response?.type).toBe('protocol.error')
+      if (response?.type === 'protocol.error') {
+        expect(response.payload.error.code).toBe('INVALID_PAYLOAD')
+      }
+    }
+  })
+
   it('reports initialization and import failures without exposing raw data', async () => {
     const clock = new FakeClock()
     const logger = new FakeLogger()
     const storage = new FakeStoragePort()
     storage.failReads = true
     const repository = new SettingsRepository(storage, clock, logger)
+    const settings = new SettingsService(repository)
+    const permissions = new FakePermissionsPort()
+    const tabs = new FakeTabsPort()
+    const siteAccess = new SiteAccessService(
+      settings,
+      tabs,
+      permissions,
+      new FakeContentScriptRegistrationPort()
+    )
     const runtime = new BackgroundRuntime({
       extensionId: 'extension-id',
       extensionVersion: '0.1.0',
-      settings: new SettingsService(repository),
+      settings,
       replayGuard: new ReplayGuard(clock),
       logger,
-      tabs: new FakeTabsPort()
+      tabs,
+      siteAccess,
+      diagnostics: new DiagnosticsService({
+        extensionVersion: '0.1.0',
+        buildId: 'test-build',
+        clock,
+        runtimeInfo: new FakeRuntimeInfoPort(),
+        permissions,
+        settings,
+        siteAccess,
+        logger: new FakeDiagnosticLogger('background', clock)
+      })
     })
     await runtime.initialize()
     expect(

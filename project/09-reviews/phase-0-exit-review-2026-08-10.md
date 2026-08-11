@@ -10,15 +10,15 @@
 
 ## 完成交付
 
-| Task | 状态 | 证据 |
-| --- | --- | --- |
-| EXT-001～EXT-002 | Verified | 独立 WXT 多入口、Chrome/Firefox MV3、TypeScript strict |
-| EXT-003～EXT-004 | Verified | ESLint/Prettier/dependency-cruiser、Vitest/coverage |
+| Task             | 状态     | 证据                                                                   |
+| ---------------- | -------- | ---------------------------------------------------------------------- |
+| EXT-001～EXT-002 | Verified | 独立 WXT 多入口、Chrome/Firefox MV3、TypeScript strict                 |
+| EXT-003～EXT-004 | Verified | ESLint/Prettier/dependency-cruiser、Vitest/coverage                    |
 | EXT-005～EXT-006 | Verified | Chromium 真扩展 Playwright smoke；Firefox build + `web-ext lint` spike |
-| EXT-007～EXT-008 | Verified | basic/multi/SPA/Shadow/iframe/hostile/CSP 固定 fixtures |
-| EXT-009 | Verified | Legacy userscript、快捷键和允许差异 baselines |
-| EXT-010～EXT-011 | Verified | 双构建 CI、固定环境/产物目录/source map 约束 |
-| EXT-012 | Verified | 本评审及 ADR、风险、进度、backlog 同步 |
+| EXT-007～EXT-008 | Verified | basic/multi/SPA/Shadow/iframe/hostile/CSP 固定 fixtures                |
+| EXT-009          | Verified | Legacy userscript、快捷键和允许差异 baselines                          |
+| EXT-010～EXT-011 | Verified | 双构建 CI、固定环境/产物目录/source map 约束                           |
+| EXT-012          | Verified | 本评审及 ADR、风险、进度、backlog 同步                                 |
 
 ## 退出条件核对
 
@@ -33,20 +33,20 @@
 
 ## 指标与测试结果
 
-| 检查 | 结果 |
-| --- | --- |
-| Format / lint / typecheck | Passed |
-| Unit | 3 files，5 tests passed |
-| Component | 1 test passed |
-| Integration | 1 test passed |
-| Compatibility | 7 fixture checks passed |
-| Coverage | Statements 80.95%；Branches 90%；Functions 80%；Lines 83.33% |
-| Chromium E2E | 1 real-extension smoke passed |
-| Firefox | MV3 build passed；`web-ext lint` 0 errors / 1 known warning |
-| Security scan | 30 source/output files passed；禁止动态执行、远程脚本、Data URI、CSP 放宽 |
-| Dependency boundaries | 15 modules cruised，0 violations |
-| Legacy regression | SHA-256 `91b5312d7cf150cd852d005b1e5d5f3d8ed2ed7cd8a481dfa1d561d48f7b3f27`；561788 bytes |
-| Artifact footprint | Chrome and Firefox unpacked outputs are about 106.49 KB each |
+| 检查                      | 结果                                                                                     |
+| ------------------------- | ---------------------------------------------------------------------------------------- |
+| Format / lint / typecheck | Passed                                                                                   |
+| Unit                      | 3 files，5 tests passed                                                                  |
+| Component                 | 1 test passed                                                                            |
+| Integration               | 1 test passed                                                                            |
+| Compatibility             | 7 fixture checks passed                                                                  |
+| Coverage                  | Statements 80.95%；Branches 90%；Functions 80%；Lines 83.33%                             |
+| Chromium E2E              | 1 real-extension smoke passed                                                            |
+| Firefox                   | MV3 build passed；`web-ext lint` 0 errors / 1 known warning                              |
+| Security scan             | 30 source/output files passed；禁止动态执行、远程脚本、Data URI、CSP 放宽                |
+| Dependency boundaries     | 15 modules cruised，0 violations                                                         |
+| Legacy regression         | SHA-256 `91b5312d7cf150cd852d005b1e5d5f3d8ed2ed7cd8a481dfa1d561d48f7b3f27`；561788 bytes |
+| Artifact footprint        | Chrome and Firefox unpacked outputs are about 106.49 KB each                             |
 
 执行命令：
 

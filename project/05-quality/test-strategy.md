@@ -1,9 +1,9 @@
 # 自动化测试策略
 
 > 文档 ID：QA-001  
-> 状态：Approved as Planning Baseline  
+> 状态：Approved / Phase 3 Executed Baseline  
 > 负责人：Quality Owner  
-> 最后更新：2026-08-10
+> 最后更新：2026-08-11
 
 ## 1. 测试目标
 
@@ -36,7 +36,9 @@
 - 消息 Envelope 编解码、nonce、超时和重放拒绝。
 - URL/origin 规范化与诊断脱敏。
 
-要求：核心 domain/application 包行覆盖率 ≥85%、分支 ≥80%；配置/消息/迁移包分支 ≥95%。
+当前仓库强制门禁以 `vitest.config.ts` 为事实源：statements ≥80%、lines ≥80%、functions ≥80%、branches ≥75%。
+核心 domain/application 的 lines ≥85%、branches ≥80%，以及配置/消息/迁移关键分支 ≥95% 仍是 Stable 收敛目标；在改为
+按包强制阈值前，只能作为审查指标，不能虚报为 CI 已阻断的门禁。
 
 ### 2.3 组件测试
 
@@ -73,9 +75,14 @@
 执行约定：
 
 - Chromium 使用 Playwright persistent context 加载 unpacked MV3，并通过 CDP 验证 service worker restart、listener 和 heap。
+- Chromium 权限 E2E 使用隔离 `extension-harness.ts`：临时 profile 预置 grant，拒绝副本确定性返回 `false`；每次仍扫描
+  原 production manifest，避免测试副本改变发布事实。
 - Firefox 使用 Selenium WebDriver 临时安装 `.output/firefox-mv3`；Selenium Manager 解析 geckodriver，禁止在 pnpm 依赖安装阶段执行驱动下载脚本。
-- Firefox popup 测试不申请 `tabs`/`activeTab`；测试夹具保持目标网页为 active tab，再从后台 popup context 发出真实 runtime 请求。
+- Firefox 权限 E2E 在测试 profile 中使用 `ExtensionPermissions.add(..., extensionEmitter)` 建立 optional origin，并用
+  `tabManager.addActiveTabPermission()` 模拟 action 用户手势；这些 Firefox 内部 API 禁止进入生产源码、manifest 或产物。
 - 浏览器版本、扩展 ID、命令集合和聚合指标必须输出为机器可读事件，供阶段审查和 CI artifact 引用。
+- 原生权限确认框在 headless 自动化中不可稳定操作；harness 证明权限状态机，不证明弹窗文案、焦点或商店体验。
+  Beta/商店提交前必须执行 headed 手工 permission smoke。
 
 ### 2.6 兼容性与差分测试
 
@@ -91,6 +98,8 @@
 - 30 分钟媒体 churn、SPA 导航和 worker 重启压力。
 - bundle gzip 大小、首次执行和按需 chunk 预算。
 - 每次发布候选至少跑一次性能 smoke；每周夜间跑完整压力。
+- 阶段审查必须区分本次运行与继承证据：Phase 3 重新执行 5 秒 churn smoke，Phase 2 的 30 分钟结果只作为历史证据引用，
+  不得写成 Phase 3 已重跑。
 
 ### 2.8 安全测试
 
@@ -133,3 +142,36 @@
 ## 6. 测试缺口处理
 
 暂时无法自动化的真实站点/浏览器能力必须登记：场景、手工步骤、风险、owner、替代 fixture 和补齐里程碑。没有记录的手工“已验证”不计入 Stable 证据。
+
+## 7. Phase 3 已执行门禁（2026-08-11）
+
+| 层级                      | 当前结果                                                                                 | 主要覆盖                                                                         |
+| ------------------------- | ---------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------- |
+| Format / lint / typecheck | Passed                                                                                   | Prettier、ESLint、Vue/TS strict                                                  |
+| Unit                      | 28 files / 93 tests                                                                      | hotkey、settings V2、migration、i18n、download lifecycle、logger                 |
+| Component                 | 3 files / 9 tests                                                                        | Popup、Options、ShortcutRecorder、axe 与键盘交互                                 |
+| Integration               | 7 files / 40 tests                                                                       | background contract、site access、diagnostics、settings repository、page runtime |
+| Compatibility             | 2 files / 21 tests                                                                       | Legacy core-media differential 与 oracle 完整性                                  |
+| Coverage                  | 85.84% statements / 75.18% branches / 88.24% functions / 89.50% lines                    | 通过当前全局阈值                                                                 |
+| Security                  | 静态扫描 120 files + 2 manifests；3 tests passed                                         | 权限 allowlist、危险模式、sender/adversarial messages                            |
+| Dependency boundaries     | 105 modules / 330 dependencies；0 violations                                             | domain/application/UI/runtime 依赖方向                                           |
+| Chrome E2E                | 3 passed；configured churn 默认 skipped                                                  | 权限生命周期、Popup/Options、媒体/快捷键、fixture 矩阵、worker restart           |
+| Firefox E2E               | Firefox 153.0 passed                                                                     | origin grant + activeTab、注册/bootstrap、6 类媒体命令、撤权                     |
+| Churn smoke               | 5017 ms / 82 cycles / 1 worker restart / listeners `4→4`                                 | Phase 3 短稳回归                                                                 |
+| Legacy regression         | SHA-256 `91b5312d7cf150cd852d005b1e5d5f3d8ed2ed7cd8a481dfa1d561d48f7b3f27`；561788 bytes | Legacy 冻结边界                                                                  |
+
+## 8. 标准验证命令
+
+在 `web-extension/` 执行：
+
+```bash
+corepack pnpm@11.21.0 check
+corepack pnpm@11.21.0 test:coverage
+corepack pnpm@11.21.0 test:e2e
+corepack pnpm@11.21.0 test:e2e:firefox
+corepack pnpm@11.21.0 test:churn:smoke
+corepack pnpm@11.21.0 test:legacy
+```
+
+`test:churn` 是 30 分钟夜间/候选门禁，不应并入普通 PR 快速检查；Stable 候选仍需运行完整浏览器版本矩阵、headed
+权限 smoke、真实 Tier 1 smoke 和发布产物复现。
