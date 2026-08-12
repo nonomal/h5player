@@ -3,6 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "description": "H5Player Manifest V3 Web Extension",
+  "license": "GPL-3.0-or-later",
   "type": "module",
   "packageManager": "pnpm@11.21.0",
   "engines": {
@@ -36,8 +37,12 @@
     "test:compat": "vitest run tests/compatibility",
     "test:compat:report": "tsx scripts/compatibility-report.ts",
     "test:boundaries": "depcruise --config dependency-cruiser.config.cjs src entrypoints",
+    "test:release": "vitest run tests/unit/release-*.spec.ts tests/integration/release-*.spec.ts",
+    "release:bundle": "tsx scripts/release-package.ts",
+    "release:verify": "tsx scripts/release-verify.ts",
+    "release:reproducibility": "tsx scripts/release-reproducibility.ts",
     "check": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm test:unit && pnpm test:component && pnpm test:integration && pnpm test:compat && pnpm test:compat:report && pnpm test:security && pnpm test:boundaries",
-    "package": "wxt zip -b chrome && wxt zip -b firefox"
+    "package": "pnpm release:bundle"
   },
   "dependencies": {
     "vue": "3.5.41",

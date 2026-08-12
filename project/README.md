@@ -1,6 +1,6 @@
 # H5Player Web Extension 重构工程管理中心
 
-> 状态：Active / Phase 5 Preview Baseline  
+> 状态：Active / Phase 6 Release Engineering Baseline<br>
 > 建立日期：2026-08-10  
 > 最后更新：2026-08-11  
 > 维护范围：Web Extension 重构的需求、架构、任务、质量、发布与审查资料  
@@ -26,6 +26,9 @@
 6. Web Extension 达到稳定门槛前，不启动油猴脚本的共享核心抽取或 TypeScript 全量迁移。
 7. 当前 Preview 的 required permissions 固定为 `storage`、`activeTab`、`scripting`；`<all_urls>` 只存在于
    `optional_host_permissions`，真实站点静态 `content_scripts` 保持空数组。
+8. Phase 6 已建立单一版本源、确定性 Chrome/Firefox release bundle、供应链 evidence 和分层 no-publish CI；该能力不等于
+   真实 Beta、商店提交或 Stable 批准。
+9. Stable 当前明确为 `NO-GO`；两个连续真实 Beta RC、真实浏览器/站点/权限矩阵、商店签字和观察窗口不可由本地 fixture 替代。
 
 ## 3. 文档地图
 
@@ -59,13 +62,18 @@
 | 安全   | [权限清单](./06-security/permission-inventory.md)                     | 每项 manifest 权限、使用点、替代方案、测试和移除条件              |
 | 发布   | [版本与发布策略](./07-release/release-strategy.md)                    | 渠道、版本、构建、签名、灰度和回滚                                |
 | 发布   | [商店与合规清单](./07-release/store-and-compliance.md)                | 权限说明、隐私、审核材料与内容边界                                |
+| 发布   | [发布产物与证据契约](./07-release/release-artifact-and-evidence-contract.md) | 版本输入、9 文件 bundle、ZIP、SBOM、gate 与复现规则 |
+| 发布   | [Chrome/Firefox Listing 包](./07-release/store-listing-package.md)     | 商店文案、截图、浏览器/站点声明和签字清单 |
+| 发布   | [隐私与权限披露](./07-release/privacy-and-permission-disclosure.md)   | 本地数据、保留/清除、无遥测边界和权限理由 |
 | 运维   | [可观测性与支持](./08-operations/observability-and-support.md)        | 日志、诊断、缺陷分级和兼容性维护                                  |
 | 运维   | [站点适配问题与回退手册](./08-operations/site-adapter-runbook.md)     | 问题收敛、版本/功能 kill switch、热修复与恢复流程                 |
+| 运维   | [Beta/更新/回滚/Incident](./08-operations/beta-update-rollback-incident-runbook.md) | opt-in、升级、forward-fix、事故与外部演练 |
 | 审查   | [现状基线审查](./09-reviews/baseline-assessment-2026-08-10.md)        | 代码事实、缺口、风险与重构起点                                    |
 | 审查   | [Phase 2 Exit Review](./09-reviews/phase-2-exit-review-2026-08-10.md) | 通用媒体核心、双浏览器 E2E、差分和长稳态结论                      |
 | 审查   | [Phase 3 Exit Review](./09-reviews/phase-3-exit-review-2026-08-11.md) | 设置、快捷键、权限 onboarding、扩展 UI、双浏览器门禁与剩余风险    |
 | 审查   | [Phase 4 Exit Review](./09-reviews/phase-4-exit-review-2026-08-11.md) | 高级媒体、Overlay、截图、进度、预算门禁与剩余端侧缺口             |
 | 审查   | [Phase 5 Exit Review](./09-reviews/phase-5-exit-review-2026-08-11.md) | 站点 registry、fixture、故障隔离、诊断和证据边界                  |
+| 审查   | [Phase 6 Exit Review](./09-reviews/phase-6-exit-review-2026-08-11.md) | 发布工程证据、外部门禁和 Stable NO-GO |
 | 审查   | [审查清单](./09-reviews/review-checklists.md)                         | 需求、架构、安全、测试和发布审查                                  |
 | 模板   | [模板目录](./templates/README.md)                                     | 新需求、任务、ADR、风险和发布记录模板                             |
 
@@ -78,7 +86,8 @@
 3. 《目标架构》《模块目录与契约》《迁移与 Legacy 边界》。
 4. 《阶段路线图》《主任务台账》《自动化测试策略》。
 5. 开始任务前阅读相应 ADR、安全基线和质量门禁。
-6. 接续 Phase 6 前阅读 [Phase 5 Exit Review](./09-reviews/phase-5-exit-review-2026-08-11.md)，特别是 fixture 与真实站点证据边界、浏览器矩阵缺口和 Stable 前置条件。
+6. 真实 Beta/发布工作前阅读 [Phase 6 Exit Review](./09-reviews/phase-6-exit-review-2026-08-11.md)、artifact contract、
+   Listing/隐私材料和 Beta runbook；不得跳过外部证据门禁。
 
 ## 5. 单一事实源
 
@@ -88,8 +97,8 @@
 - 是否允许合并或发布：`05-quality/`、`06-security/`、`07-release/`。
 - 历史结论和审查证据：`09-reviews/`。
 
-当前阶段结论以 [Phase 5 Exit Review](./09-reviews/phase-5-exit-review-2026-08-11.md) 为准：固定脱敏 fixture
-范围可进入 Phase 6 工程开发，但尚未获得 Beta/Stable 发布资格，也不代表 Tier 1 真实生产站点、最低浏览器版本或
-商店发布准备已经完成。
+当前阶段结论以 [Phase 6 Exit Review](./09-reviews/phase-6-exit-review-2026-08-11.md) 为准：repository
+release-engineering baseline 可进入真实 Beta 取证，但尚未获得外部 Beta/Stable 发布资格，也不代表 Tier 1 真实生产站点、
+最低浏览器版本、headed 权限 UX、商店签名/提交或观察窗口已经完成。Stable 为 `NO-GO`。
 
 当文档冲突时，优先级为：已接受 ADR > 已批准需求 > 路线图 > 任务描述 > 临时进度记录。冲突必须通过更新上位文档解决，不允许长期保留口头例外。

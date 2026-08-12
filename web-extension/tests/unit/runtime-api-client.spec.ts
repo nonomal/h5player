@@ -17,7 +17,7 @@ describe('runtime API client', () => {
           return Promise.resolve(
             createRuntimeSuccess(request, {
               extensionVersion: '0.1.0',
-              phase: 5,
+              phase: 6,
               protocol: 1,
               settingsSchemaVersion: 2
             })
@@ -54,7 +54,7 @@ describe('runtime API client', () => {
                 generatedAt: 1,
                 extensionVersion: '0.1.0',
                 build: 'test',
-                phase: 5,
+                phase: 6,
                 protocolVersion: 1,
                 settingsSchemaVersion: 2,
                 browser: { name: 'Chromium', version: '140', platform: 'mac/arm64' },
@@ -92,7 +92,7 @@ describe('runtime API client', () => {
       new RuntimeRequestClient('options', transport, systemScheduler)
     )
 
-    await expect(api.ping()).resolves.toMatchObject({ phase: 5, settingsSchemaVersion: 2 })
+    await expect(api.ping()).resolves.toMatchObject({ phase: 6, settingsSchemaVersion: 2 })
     await expect(api.getSettings()).resolves.toMatchObject({ settings: { revision: 4 } })
     await expect(api.updateSettings({ global: { enabled: false } }, 4)).resolves.toMatchObject({
       changedPaths: ['global.enabled']
@@ -109,7 +109,7 @@ describe('runtime API client', () => {
       registeredOrigins: 1,
       bootstrapped: true
     })
-    await expect(api.getDiagnostics()).resolves.toMatchObject({ summary: { phase: 5 } })
+    await expect(api.getDiagnostics()).resolves.toMatchObject({ summary: { phase: 6 } })
 
     const types = transport.sent.map(parseRuntimeRequest).map((request) => request?.type)
     expect(types).toEqual([

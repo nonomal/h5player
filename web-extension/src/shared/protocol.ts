@@ -2,7 +2,7 @@ import * as z from 'zod/mini'
 import { createRequestId } from './ids'
 
 export const PROTOCOL_VERSION = 1 as const
-export const CURRENT_EXTENSION_PHASE = 5 as const
+export const CURRENT_EXTENSION_PHASE = 6 as const
 
 const requestIdSchema = z.string().check(z.minLength(16), z.maxLength(128))
 const sessionIdSchema = z.string().check(z.minLength(16), z.maxLength(128))

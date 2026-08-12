@@ -1,7 +1,7 @@
 # Web Extension 重构主任务台账
 
 > 文档 ID：TASK-003  
-> 状态：Active / Phase 5 Preview Exit  
+> 状态：Active / Phase 6 Release Engineering Exit<br>
 > 负责人：Project Owner  
 > 最后更新：2026-08-11  
 > 规则：任务状态以 `progress.md` 为当前摘要，本页保留完整规划。
@@ -135,14 +135,14 @@
 
 | ID      | 任务                                | 优先级 | 估算 | 依赖                    | 验收摘要          | 状态     |
 | ------- | ----------------------------------- | ------ | ---- | ----------------------- | ----------------- | -------- |
-| EXT-120 | CI required checks 与缓存           | P0     | M    | EXT-003..005            | PR 门禁可阻断合并 | Proposed |
-| EXT-121 | Chrome/Firefox release profiles     | P0     | L    | EXT-028,EXT-011         | 产物可复现        | Proposed |
-| EXT-122 | hash/SBOM/license/provenance        | P0     | M    | EXT-121                 | artifact 完整     | Proposed |
-| EXT-123 | Store listing/privacy/security docs | P0     | L    | EXT-028,EXT-030         | 实现与声明一致    | Proposed |
-| EXT-124 | Beta opt-in/update/rollback         | P0     | L    | EXT-121                 | 回滚演练通过      | Proposed |
-| EXT-125 | release candidate regression        | P0     | L    | EXT-050,EXT-069,EXT-108 | 两轮候选全绿      | Proposed |
-| EXT-126 | Stable Go/No-Go review              | P0     | M    | EXT-120..125            | 审查记录批准      | Proposed |
-| EXT-127 | Post-release review                 | P1     | M    | EXT-126                 | 指标和缺陷复盘    | Proposed |
+| EXT-120 | CI required checks 与缓存           | P0     | M    | EXT-003..005            | PR/nightly/RC workflow 可验证；分支保护外部配置待确认 | Engineering verified / external enforcement pending |
+| EXT-121 | Chrome/Firefox release profiles     | P0     | L    | EXT-028,EXT-011         | 单一版本源、profile、manifest 映射和双端产物 | Verified |
+| EXT-122 | hash/SBOM/license/provenance        | P0     | M    | EXT-121                 | 9 文件 evidence bundle、inspection、复现 | Verified |
+| EXT-123 | Store listing/privacy/security docs | P0     | L    | EXT-028,EXT-030         | 文案/权限/隐私包完成；URL、截图、商店签字待外部 | Engineering complete / store sign-off pending |
+| EXT-124 | Beta opt-in/update/rollback         | P0     | L    | EXT-121                 | runbook、Schema/backup 演练；真实商店 rollback 待外部 | Engineering complete / drill pending |
+| EXT-125 | release candidate regression        | P0     | L    | EXT-050,EXT-069,EXT-108 | gate 编排和双次复现完成；两轮真实 Beta RC 待证据 | Automation verified / external evidence pending |
+| EXT-126 | Stable Go/No-Go review              | P0     | M    | EXT-120..125            | 记录已建立；当前 Stable `NO-GO` | Reviewed / NO-GO |
+| EXT-127 | Post-release review                 | P1     | M    | EXT-126                 | 模板和指标边界完成；真实发布后复盘待执行 | Template ready / post-release pending |
 
 ## EPIC-07：实验能力与后续决策（Phase 7）
 

@@ -24,7 +24,7 @@
 | RISK-012 | 下载/MediaSource 引发性能、合规或权限问题    | Critical | Medium | Critical | Security/Product     | Phase 7、默认关闭、独立 ADR                                                                                                                             | 高内存、商店警告、版权投诉                                   | 移除实验模块和权限                                      | Open                |
 | RISK-013 | 远程 helper/遥测造成隐私争议                 | High     | Medium | High     | Product/Security     | 首发不迁移；未来 opt-in ADR                                                                                                                             | 出现未声明外联或用户投诉                                     | 关闭远程能力、发布说明                                  | Open                |
 | RISK-014 | 双实现长期维护成本失控                       | Medium   | High   | High     | Project Owner        | 功能矩阵、明确稳定边界、Beta 后评估共享                                                                                                                 | 同一修复重复劳动显著上升                                     | 只抽取稳定 pure package，或维持独立范围                 | Open                |
-| RISK-015 | 构建产物不可复现/供应链风险                  | Critical | Low    | High     | Release Manager      | 精确版本、独立 lockfile、固定 Node/pnpm、Legacy hash；Phase 6 补 SBOM/license/provenance 和跨机复现                                                     | 相同提交产物 hash 无法解释                                   | 停止发布，审计依赖和构建环境                            | Mitigating          |
+| RISK-015 | 构建产物不可复现/供应链风险                  | Critical | Low    | High     | Release Manager      | 单一版本源、独立 lockfile、固定 Node/pnpm/WXT/action SHA、deterministic ZIP、双构建复现、SBOM/license/checksum/unsigned provenance、Legacy hash | 相同输入的 9 个规范文件 hash 不一致或依赖/许可证无法解释 | 停止发布，保全 bundle，审计依赖、构建器和 release scripts | Mitigated / Monitor |
 | RISK-016 | 性能开销使所有页面变慢                       | High     | Medium | High     | Performance Owner    | 无媒体快路径、observer 批处理、bundle/长任务预算                                                                                                        | p95/内存超 NFR，用户反馈卡顿                                 | 关闭高成本模块、按需加载                                | Open                |
 | RISK-017 | Headless 权限自动化掩盖原生确认框问题        | High     | Medium | High     | Quality/Security     | 生产 manifest 独立扫描；Chrome 临时 profile/拒绝副本与 Firefox 内部权限 harness 只验证状态机；DECISION-006 要求 Beta/商店前 headed 手工 smoke           | harness 通过但原生弹窗文案、焦点、接受/拒绝行为异常          | 阻断 Beta/商店提交，回退权限 UX 或只保留当前站点        | Mitigating          |
 | RISK-018 | top-frame Overlay 无法聚合 iframe-only media | High     | Medium | High     | UI/Runtime Owner     | top frame 单实例、iframe runtime 保留；ADR-0009 明示 Preview 限制；Phase 5 评估 frame registry/selection                                                | 页面只有 iframe 媒体时 Overlay 显示 empty、用户误判无媒体    | 隐藏 Overlay/引导 Popup，或实现受控 frame 聚合          | Open                |
@@ -33,6 +33,17 @@
 | RISK-021 | Overlay event/z-index 与宿主页面冲突         | Medium   | High   | High     | UI Owner             | closed root、host reset、event isolation、站点停用；Preview z-index 明示临时值                                                                          | capture-phase listener 抢事件、遮挡站点关键 UI、页面投诉     | 降低/配置 z-index、改变 placement、停用 Overlay         | Open                |
 | RISK-022 | 扩展 E2E 并行 profile 资源争抢产生假失败     | Medium   | High   | High     | Quality Owner        | Playwright `workers:1`；按 runner/job 并行；保存 trace 区分启动与断言失败                                                                               | 用例在 profile seed/close/worker start 阶段超时，串行通过    | 降为单 worker，拆 CI runner，不盲目增大 timeout         | Mitigated / Monitor |
 | RISK-023 | fixture 全绿被误写为真实站点支持             | High     | High   | High     | Product/Quality      | 支持矩阵强制 live smoke 字段；report 标注 sanitized-fixture-only；Exit Review 禁止证据外推                                                              | 发布说明出现“已支持”但无浏览器/OS/真实 URL 类别证据          | 撤回声明，阻断 Beta，补真实站点 smoke                   | Open                |
+| RISK-024 | 本地/CI 候选包被误当成已发布 Beta 或 Stable   | Critical | Medium | Critical | Release Manager      | 默认 Dev profile；RC workflow 标记 No Publish；test summary/manifest 写明 decision boundary；Stable 缺外部 gate 自动 NO-GO | 未签名 `.release` ZIP 被上传公开渠道、文档声称 Store Ready/Stable | 撤回产物与声明，轮换受影响渠道记录，重新做 Go/No-Go | Mitigating |
+| RISK-025 | unsigned provenance 被误解为可信签名/attestation | High | Medium | High | Security/Release | ADR-0014 与 artifact contract 明示 unsigned；builder/clean/commit/lockfile/digest 可核验；真实 OIDC/商店签名另存外部证据 | 仅凭 `provenance.json` 批准 Stable，或 builder identity 无法验证 | 阻断发布，要求受保护环境/商店签名与人工签字 | Open |
+| RISK-026 | 商店不支持真实降级导致事故恢复失败           | Critical | Medium | Critical | Release Manager / Data Owner | forward-compatible Schema、backup/corrupt restore、forward-fix runbook；Stable 前真实签名包演练 | 受影响版本无法下架/降级，旧版本不能读取新数据 | 停止推广，发布递增 forward-fix，提供权限/数据自救 | Open |
+| RISK-027 | 构建链 image-size 未发布修复的两个 High advisory | High | Medium | High | Security/Build Owner | `pnpm audit --audit-level high` 覆盖 dev/build 链；仅临时显式忽略 GHSA-w3rx-r6r6-pgpr 与 GHSA-5p2g-fcmc-qvqq（上游尚无可用修复版本），web-ext lint 仅处理仓库自有 PNG，保留锁文件与到期复核 | 出现可用上游修复、审计范围扩大或非 PNG 输入进入 lint | 立即升级/替换依赖并重跑全量 gate；Stable 前不得将该例外视为 High=0 | Accepted temporarily / expiry before Stable |
+
+### RISK-027 临时接受记录
+
+- 接受人：Security Owner 与 Build Owner；接受日期：2026-08-11。
+- 接受范围：仅 `web-ext` lint 的 dev/build 链，不进入扩展 runtime dependency closure，也不允许处理用户或远程提供的图片。
+- 用户影响：当前发布包运行时无直接暴露；若构建输入边界被扩大，恶意图片可能影响 CI/lint 可用性，因此必须立即撤销例外。
+- 到期版本：`0.1.0-rc.1` 候选冻结前；届时必须升级/替换、移除例外，或由 Security Owner 重新书面评审，且 Stable 不得续期。
 
 ## 风险处理规则
 
@@ -53,3 +64,5 @@
 | DECISION-006 | Headless 权限测试证据政策   | Resolved at Phase 3 Exit  | 隔离 harness 可作为权限状态机自动化证据，但不能替代原生确认框 UX；内部浏览器 API 禁止进入生产，Beta/商店前必须 headed/manual 复核            |
 | DECISION-007 | Overlay frame 聚合策略      | Phase 5 Start             | Preview 保持 top-frame-only；在引入 frame registry 前不宣称 iframe-only Overlay 支持                                                         |
 | DECISION-008 | Capture transport 上限/协议 | Before Beta               | 先以 4 MiB bounded base64 取证；Beta 前依据性能数据决定降限或专用二进制通道                                                                  |
+| DECISION-009 | 发布版本与 ZIP 权威          | Resolved at Phase 6 Exit  | ADR-0014：package.json 单一版本源；repository deterministic ZIP 为可复现权威；WXT 默认 ZIP 不作为 release artifact                         |
+| DECISION-010 | Provenance/发布自动化边界     | Resolved at Phase 6 Exit  | 当前只生成 unsigned SLSA-compatible metadata 与 no-publish RC；不 tag/push/sign/store upload，真实身份和签名留在受保护外部流程              |

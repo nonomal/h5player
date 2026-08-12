@@ -1,7 +1,7 @@
 # 功能需求追踪矩阵
 
 > 文档 ID：REQ-004  
-> 状态：Approved / Phase 4 Exit Update  
+> 状态：Approved / Phase 6 Release Engineering Update<br>
 > 负责人：Product Owner / Quality Owner  
 > 最后更新：2026-08-11  
 > 维护规则：任务进入 Ready 前确认映射；Verified 后把“证据”替换为具体测试/CI/评审链接。
@@ -92,8 +92,23 @@
 | NFR-TEST-*              | `test-strategy.md`                             | EXT-004/005/007/008；coverage gate    |
 | NFR-A11Y-* / NFR-I18N-* | `ui-component-architecture.md`                 | EXT-067/068；component/a11y gate      |
 | NFR-OBS-*               | `observability-and-support.md`                 | EXT-030/066；redaction/export gate    |
+| NFR-BUILD-* / NFR-REL-* | `release-artifact-and-evidence-contract.md`    | EXT-120..122/125；profiles、inspection、reproducibility |
+| NFR-PRIV-* / NFR-SEC-*  | `privacy-and-permission-disclosure.md`         | EXT-123/124/126；store/manual external gates |
 
-## 8. 证据更新规则
+## 8. Phase 6 发布需求追踪
+
+| 任务 | 工程实现与自动化证据 | 治理/人工证据 | 当前状态 |
+| ---- | -------------------- | ------------- | -------- |
+| EXT-120 | `.github/actions/setup-web-extension`、PR/nightly/RC workflows、`release-ci-policy.spec.ts` | required checks/branch protection 实际配置 | Engineering verified / external enforcement pending |
+| EXT-121 | `src/release/profile.ts`、`wxt.config.ts`、`release-profile.spec.ts` | 候选版本冻结与 Release Manager 确认 | Verified |
+| EXT-122 | `scripts/release/*`、archive/evidence/artifact/dependency tests、bundle verify/reproducibility | CI/商店签名 provenance（未来） | Verified for unsigned repository evidence |
+| EXT-123 | `store-listing-package.md`、`privacy-and-permission-disclosure.md`、artifact permission inspection | 公开隐私 URL、截图、账号与商店签字/回执 | Engineering complete / external pending |
+| EXT-124 | `beta-update-rollback-incident-runbook.md`、settings migration/backup/corrupt tests | 真实商店 update/rollback/forward-fix drill | Engineering complete / external drill pending |
+| EXT-125 | RC workflow、release gate schema、双次复现、RC record template | 两个连续真实 Beta RC 与观察窗口 | Automation verified / external pending |
+| EXT-126 | Stable template、`test-summary.json` NO-GO policy、Phase 6 Exit Review | 全角色签字和商店证据 | Reviewed / Stable NO-GO |
+| EXT-127 | post-release template、无遥测指标边界、Legacy 冻结判断项 | 首次真实发布后执行 | Template ready / execution pending |
+
+## 9. 证据更新规则
 
 - `Planned`：有任务和测试层级但尚无实现。
 - `Building`：任务 In Progress，填写 PR 链接。

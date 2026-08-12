@@ -1,7 +1,7 @@
 # 安全、隐私与供应链基线
 
 > 文档 ID：SEC-001  
-> 状态：Approved / Phase 4 Security Baseline  
+> 状态：Approved / Phase 6 Security and Supply-chain Baseline<br>
 > 负责人：Security Reviewer  
 > 最后更新：2026-08-11  
 > 关联：ADR-0002、ADR-0005、QA-002
@@ -92,6 +92,18 @@ byteLength 后下载；错误上下文不包含媒体源。当前通用消息响
 - source map 不随公开包暴露敏感源码；内部诊断包按权限保存。
 - 生产构建关闭开发 server、调试开关和未使用权限。
 
+Phase 6 执行基线：
+
+- package.json 为基础版本单一源；Node `24.13.0`、pnpm `11.21.0`、WXT `0.21.3` 和 GitHub Actions commit SHA 固定。
+- PR/nightly/RC workflow 只有 `contents: read`，冻结安装；RC 不执行 tag、push、商店 upload/sign。
+- 自有 ZIP writer/reader 拒绝路径穿越、隐藏/重复/前缀重叠 entry、symlink、source map、local range 重叠、header 漂移、
+  多磁盘、extra/comment/trailing metadata；所有普通文件 mode 固定为 `100644`。
+- artifact inspection 对 manifest 顶层 capability 采用 allowlist，并精确检查 required/optional API、hosts、CSP、action/options、
+  Firefox metadata、background 差异、static content scripts/WAR、入口和禁止代码；源码/构建扫描同步执行同一安全边界。
+- SPDX 2.3 覆盖运行时依赖闭包；许可证 allowlist 为 MIT、Apache-2.0、BSD-2-Clause、BSD-3-Clause、ISC，其他表达式阻断人工复核。
+- provenance 为 unsigned in-toto/SLSA-compatible metadata，只描述输入与 digest，不冒充 GitHub OIDC、维护者签名或商店签名。
+- 正式候选必须 clean worktree；本地 `--allow-dirty` 产物只能用于工程验证并明确记录 `sourceTreeClean: false`。
+
 ## 8. 威胁模型用例
 
 | 威胁                   | 影响            | 防护                                               | 验证             |
@@ -111,6 +123,11 @@ byteLength 后下载；错误上下文不包含媒体源。当前通用消息响
 ## 9. 安全发布门槛
 
 - Critical/High 漏洞为 0，或有 Security Reviewer 明确接受和短期缓解。
+- 当前构建链 `image-size@2.0.2` 的 GHSA-w3rx-r6r6-pgpr、GHSA-5p2g-fcmc-qvqq 尚无已发布修复版本；CI 必须审计完整
+  dev/build closure，只能按 RISK-027 精确忽略这两个 ID。该临时接受不等于 High=0，修复版本出现后立即到期，且 Stable
+  Go/No-Go 必须重新裁决。
 - 禁止模式扫描为 0 命中（测试 fixture 中的示例需有白名单路径且不进产物）。
 - 权限列表、商店描述、隐私政策和实际代码调用点一致。
 - 安全回归和升级/卸载数据处理已演练。
+- 候选 bundle byte reproducibility、checksum、SBOM/license/provenance 和 ZIP metadata 检查通过。
+- 真实商店签名、账号/环境保护、headed 权限 UX 和 rollback/forward-fix 仍是外部 Stable 门禁，仓库自动化不得伪造其状态。

@@ -3,16 +3,17 @@
 > 文档 ID：TASK-002  
 > 状态：Active  
 > 负责人：Project Owner / Quality Owner  
-> 最后更新：2026-08-11  
+> 最后更新：2026-08-12
 > 更新频率：每周或每个开发周期
 
 ## 当前阶段
 
-**Phase 5 Exit：站点 Adapter 与兼容性固定 fixture 已完成 Preview 范围验证**
+**Phase 6 Exit：发布工程基线 Conditional GO；Stable NO-GO**
 
-整体状态：🟢 `EXT-100`、`EXT-106`～`EXT-108` 已 Verified；`EXT-101`～`EXT-105` 为 fixture 范围 Verified。
-结论记录于 [Phase 5 Exit Review](../09-reviews/phase-5-exit-review-2026-08-11.md)：可进入 Phase 6 发布工程，但尚不具备
-Beta/Stable 资格，也不宣告 Tier 1 真实站点、Firefox ESR/最低版本、headed 权限 UX 或商店上架准备已完成。
+整体状态：🟢 release profiles、确定性双端 ZIP、9 文件 evidence bundle、PR/nightly/no-publish RC CI、商店/隐私材料和
+运维模板已落地；🟡 branch protection、真实商店演练和两轮 Beta RC 属于外部证据；🔴 Stable 保持 `NO-GO`。
+结论以 [Phase 6 Exit Review](../09-reviews/phase-6-exit-review-2026-08-11.md) 为准，不宣告真实 Beta、商店提交、Tier 1
+真实站点、完整浏览器版本矩阵或 Stable 发布已经完成。
 
 ## 已完成基线
 
@@ -87,27 +88,52 @@ Beta/Stable 资格，也不宣告 Tier 1 真实站点、Firefox ESR/最低版本
 - 10 个脱敏 fixture、compatibility contract、SHA-256 baseline 和 `test:compat:report` 已进入 `pnpm check`；报告同时冻结
   support level/owner/lastVerified，并对超过 183 天未复核的 adapter 失败。
 
-## 验证证据（Phase 5，2026-08-11 当前工作树）
+## Phase 6 已完成工程交付
+
+- `web-extension/package.json` 成为版本单一事实源；Dev/Alpha/Beta/RC/Stable 共用 TypeScript profile resolver，默认构建
+  为 Dev，浏览器 manifest 使用确定性四段数字版本。
+- 自有 ZIP32 writer 固定路径顺序、DOS timestamp、`100644` mode 和 CRC32；拒绝隐藏/危险/重复/前缀重叠路径、symlink、
+  source map、local range 重叠、header 漂移、多磁盘和额外 metadata。
+- release bundle 固定输出 Chrome/Firefox ZIP、checksums、release manifest、SPDX 2.3 SBOM、运行时许可证、测试摘要、
+  fixture-only 兼容报告和 unsigned SLSA-compatible provenance。
+- artifact inspection 以 allowlist 重新验证 manifest identity/capability、required/optional API、host/CSP、action/options、Firefox
+  metadata、background 差异、静态 content script/WAR、远程代码、入口、timestamp/mode/CRC；`release:verify` 检查目录闭包、
+  artifact browser 身份、兼容报告重建和全部 digest。
+- `release:reproducibility` 执行两个独立 WXT 双端构建并比较全部 9 个发布文件；正式候选要求 clean worktree 与显式
+  `SOURCE_DATE_EPOCH`。
+- `.github/workflows/` 分为 PR、nightly 和 workflow_dispatch RC，action 固定到 commit SHA、依赖冻结安装、最小
+  `contents: read`；RC 明确 no-publish，不 tag/push/sign/store upload。
+- ADR-0014、artifact contract、Chrome/Firefox listing、隐私/权限说明、Beta/update/rollback/incident runbook、RC/Stable/
+  post-release 模板已进入 `project/`。
+
+任务状态：EXT-121/122 工程实现 Verified；EXT-120/123/124 为工程完成但外部配置/签字/演练待完成；EXT-125 自动化完成但
+两轮真实 RC 待证据；EXT-126 已审查为 Stable `NO-GO`；EXT-127 模板完成、真实发布后执行。
+
+## 验证证据（Phase 6，2026-08-12 当前工作树）
 
 | 门禁                      | 结果                                                                                                        |
 | ------------------------- | ----------------------------------------------------------------------------------------------------------- |
 | Format / lint / typecheck | Passed                                                                                                      |
-| Unit                      | 37 files / 151 tests passed                                                                                 |
+| Release tests             | 10 files / 43 tests passed                                                                                  |
+| Unit                      | 44 files / 177 tests passed                                                                                 |
 | Component                 | 4 files / 19 tests passed                                                                                   |
-| Integration               | 9 files / 63 tests passed                                                                                   |
+| Integration               | 12 files / 80 tests passed                                                                                  |
 | Compatibility             | 3 files / 33 tests passed；10 site fixtures + SHA baseline/report                                           |
-| Coverage                  | 54 files / 269 tests；Statements 85.29%；Branches 77.11%；Functions 86.71%；Lines 88.81%                    |
-| Security                  | 静态扫描 150 files + 2 manifests；security tests 3 passed                                                   |
-| Dependency boundaries     | 136 modules / 432 dependencies；0 violations                                                                |
+| Coverage                  | 64 files / 312 tests；Statements 85.41%；Branches 77.57%；Functions 86.83%；Lines 88.88%                    |
+| Security                  | 静态扫描 152 files + 2 manifests；security tests 3 passed                                                   |
+| Dependency boundaries     | 138 modules / 433 dependencies；0 violations                                                                |
 | Chrome E2E                | 3 passed（固定 workers=1）；1 configured churn skipped                                                      |
 | Firefox E2E               | Firefox 153.0；optional origin + activeTab harness、动态注册、6 类媒体命令和撤权通过                        |
 | Firefox lint              | 0 errors；2 条 Vue/runtime 生成代码 `UNSAFE_VAR_ASSIGNMENT` warning，业务源码无对应 sink                    |
-| Churn smoke               | 5064 ms；65 cycles；1 worker restart；listeners 4→4；heap 4905068→6461124 bytes                             |
+| Churn smoke               | 5046 ms；84 cycles；1 worker restart；listeners 4→4；heap 4905048→6543988 bytes                             |
 | Legacy regression         | SHA-256 `91b5312d7cf150cd852d005b1e5d5f3d8ed2ed7cd8a481dfa1d561d48f7b3f27`；561788 bytes                    |
-| Production manifests      | required `storage/activeTab/scripting`；optional `<all_urls>`；`content_scripts: []`；无 required hosts/WAR |
+| Production manifests      | required `storage/activeTab/scripting`；optional API=0；optional host=`<all_urls>`；deny-default capability allowlist；无 required hosts/WAR |
 | Bundle budget             | Chrome/Firefox background 90813/90814 B、content 192180 B、page-main 93458 B raw；全部通过                  |
+| Release reproducibility   | `0.1.0-beta.1` / manifest `0.1.0.30001`；9 files 两次构建逐字节一致；verifier 通过；dirty 候选不作发布       |
+| Dependency audit          | 2 High / 2 ignored；仅限 RISK-027 精确临时接受，不代表 High=0，Stable 前到期                               |
+| Workflow / docs           | Ruby YAML parser、actionlint v1.7.7、CI policy tests；70 Markdown files / 85 relative links 全部通过        |
 
-Phase 2 的 30 分钟 churn 结果仍作为已批准历史证据保留；Phase 5 只重新执行 5 秒 smoke，没有伪称重跑 30 分钟。
+Phase 2 的 30 分钟 churn 结果仍作为已批准历史证据保留；Phase 6 只重新执行 5 秒 smoke，没有伪称重跑 30 分钟。
 Playwright 扩展生命周期套件固定单 worker；并行 persistent Chromium profiles 会争抢启动资源并产生假性 timeout。
 
 ## 权限自动化边界
@@ -132,14 +158,15 @@ Playwright 扩展生命周期套件固定单 worker；并行 persistent Chromium
    progress restore/complete、multi-tab advisory event 和 iframe-only media Overlay；这些不能由 unit/contract 结果外推。
 6. WXT 仍为 `0.x`；升级必须独立变更并重跑双浏览器 build/lint/security/E2E。
 
-## 下一步（Phase 6）
+## 下一步（真实 Beta 准入，不等于 Phase 7）
 
-1. 执行 Tier 1 真实站点 smoke，冻结浏览器/OS/扩展 SHA/URL 类别和失败 artifact；不得用 fixture 替代。
-2. 建立可复现 zip、hash、SBOM、license、provenance、Alpha/Beta/Stable profile 和商店材料。
-3. 补 Firefox ESR/最低版本、Chrome previous stable、Edge、headed 权限 smoke 和两个连续 RC。
-4. 继续执行 Legacy hash/size 回归；共享核心与油猴主线重构仍只允许在 Phase 7 单独立项评估。
+1. 在 GitHub 仓库配置并核验 required checks/branch protection，保存规则截图或 API 导出。
+2. 执行 Tier 1 真实站点 smoke、Firefox ESR/最低版本、Chrome previous stable、Edge 和 headed 权限 UX。
+3. 用真实商店测试渠道完成安装/升级/rollback 或 forward-fix 演练，归档签名包与审核/账号签字。
+4. 完成两个连续 Beta RC 及观察窗口；任何范围变化会重置连续候选计数。
+5. 只有 Stable Go/No-Go 全部通过后，才可进入 Phase 7 的实验能力与 Legacy 后续决策；否则 Legacy 继续冻结。
 
 ## 当前阻塞
 
-无代码硬阻塞。当前是“固定 fixture Preview 范围可进入 Phase 6、不可发布 Stable”的状态；残余限制已写入 Phase 5
-Exit Review、站点支持矩阵和质量门禁。
+无代码硬阻塞。外部阻塞为：仓库分支保护证据、真实浏览器/站点/权限矩阵、商店账号签字与签名包演练、两轮 Beta RC 和
+观察窗口。它们不阻止 Phase 6 工程基线完成，但全部阻止 Stable，且不能由本地候选包替代。

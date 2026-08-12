@@ -1,7 +1,7 @@
 # Web Extension 非功能需求
 
 > 文档 ID：REQ-002  
-> 状态：Approved as Planning Baseline  
+> 状态：Approved / Phase 6 Release Engineering Update<br>
 > 负责人：Architect / Quality Owner  
 > 最后更新：2026-08-10
 
@@ -82,3 +82,16 @@
 - P0 用户路径 E2E 覆盖率 100%，P1 不低于 90%。
 - Stable 发布时 Critical/High 已知安全漏洞为 0，P0/P1 未接受缺陷为 0。
 - 所有构建产物通过 manifest lint、禁止模式扫描、依赖/许可证检查和安装验证。
+
+## 10. 发布工程与证据
+
+- **NFR-REL-007**：`web-extension/package.json#version` 是版本单一事实源；manifest、artifact name、release manifest、SBOM 和
+  provenance 不得各自硬编码版本。
+- **NFR-REL-008**：相同 commit、package/profile、冻结 lockfile、工具链和显式 `SOURCE_DATE_EPOCH` 的两次候选构建，规范 9
+  文件 bundle 必须逐文件 SHA-256 一致；ZIP 必须拒绝危险路径、symlink、source map、重叠 entry、额外 metadata 和模式漂移。
+- **NFR-REL-009**：候选 evidence 至少包括双浏览器 ZIP、checksums、release manifest、SPDX 2.3 SBOM、第三方许可证、测试摘要、
+  兼容性报告和 provenance，并可由独立 verifier 重算 digest 和 manifest/权限/远程代码策略。
+- **NFR-REL-010**：PR/nightly/RC CI 使用冻结依赖、最小只读权限、固定 action commit SHA；RC 不自动 tag、push、签名或商店上传。
+- **NFR-REL-011**：真实站点、浏览器版本、headed 权限、商店签字、连续 Beta RC 与观察窗口必须有独立记录；fixture/local package
+  证据不得提升为 Stable 资格。
+- **NFR-REL-012**：无签名 provenance 必须明确标注 unsigned；Stable Go 必须额外获得受保护构建/商店签名、完整 gate 和人工审批。

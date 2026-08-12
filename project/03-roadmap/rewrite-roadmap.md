@@ -1,7 +1,7 @@
 # Web Extension 重构路线图
 
 > 文档 ID：ROADMAP-001  
-> 状态：Approved / Phase 5 Preview Exit  
+> 状态：Approved / Phase 6 Release Engineering Exit<br>
 > 负责人：Project Owner  
 > 最后更新：2026-08-11  
 > 估算方式：以退出条件为主，不以日期驱动；建议两周一个可演示增量。
@@ -29,7 +29,8 @@ Phase 0 基线与脚手架
 | Phase 3    | Completed for Preview | [Exit Review](../09-reviews/phase-3-exit-review-2026-08-11.md) 为 Conditional GO；可进入 Phase 4，不具备 Stable 资格 |
 | Phase 4    | Completed for Preview | [Exit Review](../09-reviews/phase-4-exit-review-2026-08-11.md) 为 Conditional GO；可进入 Phase 5，不具备 Stable 资格 |
 | Phase 5    | Completed for Preview | [Exit Review](../09-reviews/phase-5-exit-review-2026-08-11.md) 为 Conditional GO；fixture 范围可进入 Phase 6         |
-| Phase 6～7 | Planned               | 发布稳定化、实验与 Legacy 后续决策                                                                                   |
+| Phase 6    | Conditional GO        | [Exit Review](../09-reviews/phase-6-exit-review-2026-08-11.md)：发布工程基线完成；真实 Beta/Stable 外部证据未完成        |
+| Phase 7    | Planned               | 实验能力与是否共享/重构 Legacy 的独立决策                                                                               |
 
 ## Phase 0：基线冻结与工程脚手架
 
@@ -182,12 +183,24 @@ headed 权限确认框、商店发布或 Stable 资格。
 - Beta 反馈、缺陷分级、发布候选回归、性能/安全审计。
 - 发布、回滚和 incident runbook。
 
-退出条件：
+工程交付（2026-08-11）：
 
-- 两个连续 Beta 候选无 P0/P1 回归。
-- 所有质量门禁通过，发布包可复现并成功安装。
-- 权限提示、隐私政策、商店描述与实际实现一致。
-- Stable Go/No-Go 审查批准。
+- [x] EXT-120：PR/nightly/RC workflow、固定 action SHA、冻结安装、缓存、Legacy baseline、双浏览器和 no-publish RC lane。
+- [x] EXT-121：package.json 单一版本源、Dev/Alpha/Beta/RC/Stable profile、manifest 数字映射和默认 Dev 构建。
+- [x] EXT-122：确定性 ZIP、checksums、release manifest、SPDX SBOM、许可证、测试/兼容报告和 unsigned provenance。
+- [x] EXT-123：商店 listing、权限/隐私说明、截图计划与外部签字清单（实际 URL/账号/提交仍待外部完成）。
+- [x] EXT-124：Beta opt-in、更新、forward-fix/rollback、incident runbook 与本地数据演练边界。
+- [x] EXT-125：候选编排、gate schema、双次复现命令和 RC record 模板。
+- [x] EXT-126：Stable Go/No-Go 模板与本阶段基于证据的 `NO-GO` 结论。
+- [x] EXT-127：发布后复盘模板、指标边界和 Legacy 冻结决策输入。
+
+外部退出条件（未完成前不得 Stable）：
+
+- [ ] 两个连续真实 Beta 候选无 P0/P1 回归并完成观察窗口。
+- [ ] Chrome Stable/previous、Firefox Stable/ESR/minimum、Edge（若宣称）真实矩阵通过。
+- [ ] Tier 1 真实站点 smoke、headed 原生权限 UX、真实商店签字/提交和签名证据完成。
+- [ ] 真实商店安装/升级/回滚或 forward-fix 演练通过。
+- [ ] Stable Go/No-Go 记录批准。
 
 ## Phase 7：实验能力与 Legacy 后续决策
 
@@ -214,3 +227,5 @@ headed 权限确认框、商店发布或 Stable 资格。
 - Phase 3 的 Conditional GO 只授权继续 Phase 4 工程开发；任何 Beta/Stable 或 Tier 1 对外承诺仍必须满足 Phase 5/6 门禁。
 - Phase 4 的 Conditional GO 只授权继续 Phase 5 工程开发；不授权 Beta、Stable、Tier 1 支持、最低浏览器版本或商店发布声明。
 - Phase 5 的 Conditional GO 只授权继续 Phase 6 发布工程；固定 fixture 不得扩写为 Tier 1 真实生产站点支持。
+- Phase 6 的 Conditional GO 只确认 repository release-engineering baseline；不授权 Beta 分发、商店提交或 Stable 发布。
+- 只有 `phase-6-exit-review` 中所有外部门禁均有可回链记录，Stable 才能从 `NO-GO` 变为 `GO`。

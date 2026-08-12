@@ -1,7 +1,7 @@
 # 自动化质量门禁
 
 > 文档 ID：QA-002  
-> 状态：Approved / Phase 5 Executed  
+> 状态：Approved / Phase 6 Release Engineering Executed<br>
 > 负责人：Quality Owner  
 > 最后更新：2026-08-11
 
@@ -104,3 +104,28 @@ headed 权限 UX、zip 安装升级/回滚和 SBOM/provenance。
 - adapter diagnostics 必须 bounded、脱敏，并显示 selected/status/failureCount/disabledFeatures；Generic fallback 不能被站点异常破坏。
 - “真实站点 smoke 未执行”属于明确黄项，不得在发布说明中写成生产支持；Phase 6/Beta 前必须补齐并冻结环境证据。
 - kill switch 只能是随扩展发布的静态代码，不允许远程 selector、远程任意函数、页面注入规则或新增权限。
+
+## 8. Phase 6 发布工程强制门禁
+
+| 层级 | Repository 自动化 | 外部/人工证据 |
+| ---- | ----------------- | ------------- |
+| PR | Legacy baseline；`check`/coverage/build/budget/security；Firefox lint；双端 package + verify；Chrome/Firefox E2E | GitHub required-check/branch-protection 实际配置 |
+| Nightly | PR 基线 + production audit + 30 分钟 churn + 双次 release reproducibility | 必要时真实站点独立 smoke，不并入易 flaky 的 PR |
+| RC | 候选 SHA 重跑全部 gate；显式 channel/sequence/source date；9 文件 evidence；no-publish artifact | 浏览器版本矩阵、Tier 1 live、headed 权限、install/upgrade/rollback、store sign-off、Beta 窗口 |
+| Stable | 自动 gate 全部 `passed` 且两个连续真实候选 | Stable Go/No-Go 全角色签字、商店签名/提交和回退路径 |
+
+发布工具的 gate 输入只是一项证据摘要，不能自行证明 CI 或人工检查发生。以下规则不可豁免：
+
+- 正式候选工作树必须 clean；版本、commit、lockfile、toolchain、canonical source date 和 artifact hash 必须闭环；只有 Stable
+  profile + clean worktree + 全 gate passed 才可标记 `stableEligible`。
+- `release:verify` 必须确认 bundle 只有规范 9 文件，绑定 artifact file/browser/inspection，重建兼容报告并重新检查两端 ZIP；
+  `release:reproducibility` 必须逐文件 hash 一致。
+- 运行时依赖许可证不在 allowlist、SBOM/lockfile/digest 不一致、危险 ZIP metadata、权限/CSP/远程代码漂移立即失败。
+- dependency audit 必须覆盖 dev/build closure，禁止用 `--prod` 隐藏构建链风险；RISK-027 只允许精确 GHSA ID 的临时例外。
+- `compatibility-report.html` 必须与当前 adapter catalog/fixture SHA baseline 重建结果逐字一致；fixture-only 状态不能转换为 live
+  smoke `passed`。
+- unpacked E2E 与 archive inspection 不等于真实商店签名包安装/升级/降级；`artifact-install` 在外部演练前保持未完成。
+- Stable 只要缺少两个连续 Beta RC、目标版本矩阵、Tier 1 live、headed 权限、store sign-off 或观察窗口，结论即 `NO-GO`。
+
+Phase 6 repository baseline 的验证记录见 `phase-6-exit-review-2026-08-11.md`；该 Conditional GO 只允许进入真实 Beta
+取证，不允许把 RC workflow 产物上传 Stable 渠道。

@@ -1,7 +1,7 @@
 # Web Extension 权限清单
 
 > 文档 ID：SEC-002  
-> 状态：Approved for Phase 4 Exit  
+> 状态：Approved through Phase 6 Release Engineering<br>
 > 负责人：Security / Product Owner  
 > 最后更新：2026-08-11  
 > 关联：ADR-0005、EXT-028、DECISION-001
@@ -17,14 +17,18 @@
 
 ## 明确不申请
 
-当前 manifest 不含：`tabs`、`downloads`、`clipboardWrite`、`webRequest`、`webRequestBlocking`、`declarativeNetRequest`、`cookies`、远程网络域名或 externally connectable；也不含 `host_permissions`、静态真实站点 `content_scripts` 或 WAR。
+当前 manifest 不含：`tabs`、`downloads`、`clipboardWrite`、`webRequest`、`webRequestBlocking`、`declarativeNetRequest`、`cookies`、
+任何 `optional_permissions`、远程网络域名或 externally connectable；也不含 `host_permissions`、静态真实站点 `content_scripts`
+或 WAR。发布检查器对顶层 manifest capability 采用 allowlist，未登记的 devtools、override、sandbox、key 等字段同样阻断。
 
 Phase 4 截图和跨 Tab 没有扩大权限：截图由用户在 Overlay 触发，MAIN world 生成 bounded artifact，isolated content
 使用 Blob + 临时 `<a download>` 保存；不调用 `browser.downloads` 或剪贴板。跨 Tab 使用现有 tabs port 在 background
 向其他已授权 content runtime 发送 typed advisory event；manifest 仍不申请 `tabs`，Tab 枚举/消息能力由既有
 `activeTab`/host permission/scripting 架构和浏览器 API 实际授权约束，页面 payload 不能指定目标 tab。
 
-任何新增项必须在合入前补齐：代码调用点、威胁场景、替代方案、用户文案、Chrome/Firefox 差异、权限撤销行为、自动化测试和商店声明。页面消息不得传入任意权限名；background 只接受固定消息类型，并以真实 sender context 二次授权。
+任何 required/optional API、host 或 manifest capability 新增项必须在合入前补齐：代码调用点、威胁场景、替代方案、用户文案、
+Chrome/Firefox 差异、权限撤销行为、自动化测试、ADR 和商店声明。页面消息不得传入任意权限名；background 只接受固定消息类型，
+并以真实 sender context 二次授权。
 
 ## Host permission 决策
 

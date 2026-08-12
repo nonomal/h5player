@@ -22,3 +22,4 @@ ADR 用于记录跨模块、跨版本或会影响安全、隐私、兼容性的�
 | [ADR-0011](./ADR-0011-progress-identity-retention-and-privacy.md)  | 播放进度 Identity、保留期与隐私策略   | Accepted for Preview | 匿名 identity、TTL/容量、默认关闭、旧标题字段强制清理                            |
 | [ADR-0012](./ADR-0012-cross-tab-advisory-media-events.md)          | 跨 Tab Advisory Media Event 语义      | Accepted for Preview | 非权威、不保证送达、不自动暂停或仲裁                                             |
 | [ADR-0013](./ADR-0013-site-adapter-registry-and-fallback.md)       | 站点 Adapter Registry、故障隔离与回退 | Accepted for Preview | Generic-first 包装、静态匹配/kill switch、fixture 与真实 smoke 分离              |
+| [ADR-0014](./ADR-0014-release-profiles-deterministic-artifacts-and-provenance.md) | 发布 Profile、确定性产物与 Provenance | Accepted for Phase 6 | 单一版本源、确定性 ZIP、evidence schema、unsigned provenance、no-publish RC |

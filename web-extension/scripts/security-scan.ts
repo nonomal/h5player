@@ -1,9 +1,13 @@
 import { readdir, readFile } from 'node:fs/promises'
 import path from 'node:path'
+import { stableJson } from './release/stable-json'
 
 const sourceRoots = ['entrypoints', 'src']
-const outputRoots = ['.output/chrome-mv3', '.output/firefox-mv3']
-const roots = [...sourceRoots, ...outputRoots]
+const outputRoots = [
+  { browser: 'chrome', root: '.output/chrome-mv3' },
+  { browser: 'firefox', root: '.output/firefox-mv3' }
+] as const
+const roots = [...sourceRoots, ...outputRoots.map((output) => output.root)]
 const forbidden = [
   { label: 'eval', pattern: /\beval\s*\(/i },
   { label: 'Function constructor', pattern: /\b(?:new\s+)?Function\s*\(/ },
@@ -18,7 +22,23 @@ const sourceOnlyForbidden = [
 ]
 const allowedPermissions = new Set(['storage', 'activeTab', 'scripting'])
 const allowedOptionalHostPermissions = new Set(['<all_urls>'])
-const allowedFixtureMatches = new Set(['http://localhost/*', 'http://127.0.0.1/*'])
+const allowedManifestKeys = new Set([
+  'action',
+  'background',
+  'browser_specific_settings',
+  'content_scripts',
+  'content_security_policy',
+  'description',
+  'host_permissions',
+  'manifest_version',
+  'name',
+  'optional_host_permissions',
+  'optional_permissions',
+  'options_ui',
+  'permissions',
+  'version',
+  'web_accessible_resources'
+])
 
 async function collectFiles(directory: string): Promise<string[]> {
   try {
@@ -46,23 +66,33 @@ function stringArray(value: unknown): string[] | null {
   return Array.isArray(value) && value.every((entry) => typeof entry === 'string') ? value : null
 }
 
-function checkAllowedSet(
+function matchesJson(value: unknown, expected: unknown): boolean {
+  return value !== undefined && stableJson(value) === stableJson(expected)
+}
+
+function checkExactSet(
   values: string[] | null,
-  allowed: ReadonlySet<string>,
+  expected: ReadonlySet<string>,
   label: string,
   manifestPath: string,
   violations: string[]
 ): void {
-  if (!values) {
-    violations.push(`${label} is not a string array: ${manifestPath}`)
-    return
-  }
-  for (const value of values) {
-    if (!allowed.has(value)) violations.push(`${label} contains ${value}: ${manifestPath}`)
+  const uniqueValues = values === null ? null : new Set(values)
+  if (
+    values === null ||
+    values.length !== expected.size ||
+    uniqueValues?.size !== expected.size ||
+    [...expected].some((value) => !uniqueValues?.has(value))
+  ) {
+    violations.push(`${label} differs from the canonical release policy: ${manifestPath}`)
   }
 }
 
-async function inspectManifest(manifestPath: string, violations: string[]): Promise<boolean> {
+async function inspectManifest(
+  manifestPath: string,
+  browser: (typeof outputRoots)[number]['browser'],
+  violations: string[]
+): Promise<boolean> {
   let source: string
   try {
     source = await readFile(manifestPath, 'utf8')
@@ -85,53 +115,70 @@ async function inspectManifest(manifestPath: string, violations: string[]): Prom
     return true
   }
 
-  checkAllowedSet(
+  const unexpectedManifestKeys = Object.keys(manifest)
+    .filter((key) => !allowedManifestKeys.has(key))
+    .sort()
+  if (unexpectedManifestKeys.length > 0) {
+    violations.push(
+      `unapproved manifest capabilities (${unexpectedManifestKeys.join(', ')}): ${manifestPath}`
+    )
+  }
+
+  checkExactSet(
     stringArray(manifest['permissions']),
     allowedPermissions,
     'permissions',
     manifestPath,
     violations
   )
-  checkAllowedSet(
+  checkExactSet(
     stringArray(manifest['optional_host_permissions']),
     allowedOptionalHostPermissions,
     'optional_host_permissions',
     manifestPath,
     violations
   )
+  const optionalPermissionsValue = manifest['optional_permissions']
+  const optionalPermissions = stringArray(optionalPermissionsValue)
+  if (
+    optionalPermissionsValue !== undefined &&
+    (optionalPermissions === null || optionalPermissions.length !== 0)
+  ) {
+    violations.push(`unexpected optional_permissions: ${manifestPath}`)
+  }
   if (manifest['host_permissions'] !== undefined) {
     violations.push(`unexpected host_permissions: ${manifestPath}`)
   }
 
-  const contentScripts = Array.isArray(manifest['content_scripts'])
-    ? manifest['content_scripts']
-    : []
-  for (const entry of contentScripts) {
-    const matches = stringArray(asRecord(entry)?.['matches'])
-    checkAllowedSet(
-      matches,
-      allowedFixtureMatches,
-      'content script matches',
-      manifestPath,
-      violations
-    )
+  if (
+    !matchesJson(manifest['action'], { default_popup: 'popup.html', default_title: 'H5Player' })
+  ) {
+    violations.push(`unexpected extension action: ${manifestPath}`)
+  }
+  if (!matchesJson(manifest['options_ui'], { open_in_tab: true, page: 'options.html' })) {
+    violations.push(`unexpected options UI: ${manifestPath}`)
+  }
+  const expectedBackground =
+    browser === 'chrome' ? { service_worker: 'background.js' } : { scripts: ['background.js'] }
+  if (!matchesJson(manifest['background'], expectedBackground)) {
+    violations.push(`unexpected ${browser} background declaration: ${manifestPath}`)
+  }
+  if (
+    !matchesJson(manifest['browser_specific_settings'], {
+      gecko: {
+        data_collection_permissions: { required: ['none'] },
+        id: 'h5player-webext@example.invalid',
+        strict_min_version: '142.0'
+      }
+    })
+  ) {
+    violations.push(`unexpected Firefox release metadata: ${manifestPath}`)
   }
 
-  const accessibleResources = Array.isArray(manifest['web_accessible_resources'])
-    ? manifest['web_accessible_resources']
-    : []
-  for (const entry of accessibleResources) {
-    const record = asRecord(entry)
-    checkAllowedSet(
-      stringArray(record?.['matches']),
-      allowedFixtureMatches,
-      'web accessible resource matches',
-      manifestPath,
-      violations
-    )
-    const resources = stringArray(record?.['resources'])
-    if (!resources || resources.some((resource) => resource !== 'page-main.js')) {
-      violations.push(`unexpected web accessible resource: ${manifestPath}`)
+  for (const field of ['content_scripts', 'web_accessible_resources'] as const) {
+    const value = manifest[field]
+    if (value !== undefined && (!Array.isArray(value) || value.length !== 0)) {
+      violations.push(`production ${field} must be absent or empty: ${manifestPath}`)
     }
   }
 
@@ -163,8 +210,10 @@ for (const file of sourceFiles) {
 }
 
 let manifestsInspected = 0
-for (const root of outputRoots) {
-  if (await inspectManifest(path.join(root, 'manifest.json'), violations)) manifestsInspected += 1
+for (const output of outputRoots) {
+  if (await inspectManifest(path.join(output.root, 'manifest.json'), output.browser, violations)) {
+    manifestsInspected += 1
+  }
 }
 
 if (violations.length > 0) {

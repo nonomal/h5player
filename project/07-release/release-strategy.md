@@ -1,9 +1,9 @@
 # 版本、发布与回滚策略
 
 > 文档 ID：REL-001  
-> 状态：Approved as Planning Baseline  
+> 状态：Approved / Phase 6 Repository Baseline<br>
 > 负责人：Release Manager  
-> 最后更新：2026-08-10
+> 最后更新：2026-08-11
 
 ## 1. 版本边界
 
@@ -19,6 +19,7 @@
 | Dev    | 本地/CI      | 开发者        | 可清空，不保证升级  |
 | Alpha  | 内部功能验证 | 维护者/贡献者 | 同一 minor 尽量迁移 |
 | Beta   | 真实使用验证 | opt-in 用户   | 保证可升级/可回滚   |
+| RC     | 候选证据冻结 | 发布评审者    | 与目标渠道 Schema 一致 |
 | Stable | 公开分发     | 全部用户      | 严格迁移与回滚      |
 
 ## 3. 构建产物
@@ -34,9 +35,11 @@ sbom.spdx.json
 third-party-licenses.txt
 test-summary.json
 compatibility-report.html
+provenance.json
 ```
 
-`release-manifest.json` 包含提交 SHA、Node/Yarn、锁文件 hash、manifest profile、Schema 版本、浏览器矩阵、构建时间和 artifact hash。
+`release-manifest.json` 包含提交 SHA、Node/pnpm/WXT、锁文件 hash、manifest profile、Schema 版本、兼容证据边界、构建时间和
+artifact hash。完整契约见 [发布产物与证据契约](./release-artifact-and-evidence-contract.md)。
 
 ## 4. 自动化流水线
 
@@ -46,8 +49,11 @@ compatibility-report.html
 4. 解包检查 manifest、权限、CSP、资源和禁止模式。
 5. 安装产物做最终 smoke 与升级迁移。
 6. 生成 hash、SBOM、许可证和 provenance metadata。
-7. 创建草稿 Release；人工确认商店文案、隐私和截图。
-8. 分批提交商店/灰度；监控缺陷后扩大。
+7. RC workflow 只上传 no-publish evidence；人工确认商店文案、隐私、截图和签名环境。
+8. 获得独立 Go/No-Go 后才分批提交商店/灰度；监控缺陷后扩大。
+
+Phase 6 repository baseline 已实现 PR/nightly/RC 三层 workflow、固定 action SHA、冻结依赖、双端 deterministic bundle 和
+reproducibility。它没有创建 tag、GitHub Release、商店上传、签名或 rollout，也不自动把 gate 输入视为真实证据。
 
 ## 5. 灰度策略
 
@@ -94,3 +100,12 @@ compatibility-report.html
 ## 9. Changelog
 
 按 Added / Changed / Fixed / Security / Compatibility / Deprecated / Removed 分类；明确浏览器、站点、权限和数据迁移影响。不写“优化体验”等不可核验描述。
+
+## 10. 当前 Phase 6 决策
+
+- Release-engineering baseline：`Conditional GO`，允许进入真实 Beta 取证。
+- Stable：`NO-GO`。
+- 未完成：两个连续真实 Beta RC、Tier 1 live、Firefox ESR/最低版本、Chrome previous stable、Edge、headed 权限、真实商店
+  签字/签名包 update/rollback 和观察窗口。
+- Beta opt-in、rollback 和 incident 执行见 [运维手册](../08-operations/beta-update-rollback-incident-runbook.md)；商店材料见
+  [Listing 包](./store-listing-package.md) 与 [隐私/权限披露](./privacy-and-permission-disclosure.md)。

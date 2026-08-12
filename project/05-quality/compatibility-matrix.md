@@ -1,7 +1,7 @@
 # 浏览器与页面兼容性矩阵
 
 > 文档 ID：QA-003  
-> 状态：Approved for Phase 5 Preview  
+> 状态：Approved / Phase 6 Release Evidence Boundary<br>
 > 负责人：Quality Owner  
 > 最后更新：2026-08-11  
 > 说明：具体版本号在 Phase 0 按发布时最新稳定版本冻结。
@@ -107,6 +107,17 @@ Phase 4/5 当前证据补充：
   CORS blocked 截图、native→web fullscreen fallback、PiP unavailable、progress restore/complete、multi-tab advisory event
   和 iframe-only media Overlay 的专项浏览器矩阵仍待补。
 
+Phase 6 发布工程补充：
+
+- Chrome/Firefox 构建现在进入独立确定性 ZIP，并由 artifact inspection 检查 manifest identity、权限、CSP、远程代码、
+  background 目标差异、入口、timestamp、mode 和 source map。
+- `compatibility-report.html` 由固定 `SOURCE_DATE_EPOCH` 生成，schema 明确为 `sanitized-fixture-only`、
+  `liveSmoke: not-verified`；该 evidence 被纳入 release bundle 和 checksum。
+- PR/nightly/RC workflow 已建立双浏览器 lane；但本地/CI 自动化版本仍只有 bundled Chromium 与 Firefox 153.0 的现有证据。
+- Firefox manifest minimum `142.0` 只是配置，不是实际最低版本承诺；Firefox ESR/142、Chrome previous stable、Edge、
+  headed permission UX 和真实 Tier 1 站点仍未执行，Stable `NO-GO`。
+- 商店签名 ZIP/XPI 与仓库规范 ZIP 可能因平台重打包不同；提交时必须记录签名包 hash、平台版本和与源码 bundle 的映射。
+
 ## 6. 支持策略
 
 若浏览器或站点变更导致能力下降：
@@ -118,6 +129,6 @@ Phase 4/5 当前证据补充：
 
 ## 7. 当前支持声明
 
-Phase 5 退出结论为“固定 fixture Preview 范围可进入 Phase 6 工程开发”。当前承诺 Tier 0 通用
+Phase 6 退出结论为“发布工程基线可进入真实 Beta 取证，Stable NO-GO”。当前承诺 Tier 0 通用
 `HTMLMediaElement` 与列出的固定 adapter fixture 证据；不承诺 Tier 1（YouTube、Bilibili、Tencent Video、iQIYI、Youku）真实站点、
 Firefox ESR/最低版本、Chrome previous stable、Edge 或 Stable 商店发布。任何对外文案必须与此边界一致。

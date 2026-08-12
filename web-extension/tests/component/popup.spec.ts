@@ -52,7 +52,7 @@ function createApi(permission: 'granted' | 'missing' = 'granted'): RuntimeApiPor
   return {
     ping: vi.fn().mockResolvedValue({
       extensionVersion: '0.1.0',
-      phase: 5,
+      phase: 6,
       protocol: 1,
       settingsSchemaVersion: 2
     }),

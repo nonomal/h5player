@@ -1,9 +1,9 @@
 # 商店、权限与合规清单
 
 > 文档 ID：REL-002  
-> 状态：Approved as Planning Baseline  
+> 状态：Approved / Phase 6 Compliance Baseline<br>
 > 负责人：Release Manager / Security Reviewer  
-> 最后更新：2026-08-10
+> 最后更新：2026-08-11
 
 ## 1. 适用范围
 
@@ -15,12 +15,12 @@
 
 | 权限/能力      | 使用场景              | 最小替代方案         | 用户可见说明           | 测试/证据                  | 首发决策         |
 | -------------- | --------------------- | -------------------- | ---------------------- | -------------------------- | ---------------- |
-| `storage`      | 配置/迁移/诊断元数据  | 无                   | 保存本扩展设置         | repository/migration tests | Required         |
-| host access    | 页面媒体增强          | 用户主动授权当前站点 | 只在授权站点运行       | permission E2E             | Decision pending |
-| `activeTab`    | 当前 Tab 快速操作     | host permission      | 点击扩展后操作当前页   | popup E2E                  | Evaluate         |
-| clipboard      | 用户主动复制截图/诊断 | 手工复制             | 仅在点击操作时写剪贴板 | permission/error E2E       | Optional         |
-| downloads      | 实验下载              | 页面原生下载         | 用户主动触发实验能力   | security/perf review       | Deferred         |
-| webRequest/DNR | 特殊网络处理          | 页面/声明式替代      | 明确网络影响           | threat model/store review  | Default reject   |
+| `storage`      | 配置/迁移/诊断元数据/可选进度 | 无 | 保存本扩展本地设置 | repository/migration/privacy tests | Required |
+| `activeTab`    | 用户主动操作当前 Tab | 可选 host permission | 点击扩展后操作当前页 | popup/permission E2E | Required |
+| `scripting`    | 在已授权 origin 注册包内固定脚本 | 静态 content script（权限更宽） | 只启动扩展自带代码 | registration/revoke/security tests | Required |
+| optional `<all_urls>` | 当前 origin 或 all-sites opt-in | 只使用 activeTab/单 origin | 只在用户授权站点运行，可撤销 | Chrome/Firefox permission E2E；headed 待补 | Optional |
+| clipboard/downloads   | 当前版本不申请 | Blob 本地下载/手工复制 | N/A | manifest/security scan | Rejected for current release |
+| webRequest/DNR        | 当前版本无合法最小用途 | 页面/声明式替代 | N/A | threat model/manifest scan | Default reject |
 
 禁止用“未来可能需要”作为权限理由；每项权限都必须有当前版本调用点和移除条件。
 
@@ -67,3 +67,7 @@
 - [ ] Quality Owner 确认矩阵、E2E、性能和缺陷门禁。
 - [ ] Release Manager 确认产物、签名、SBOM、hash 和回滚包。
 - [ ] 支持负责人确认安装、诊断、Issue 和事故说明。
+
+Phase 6 已完成仓库内 [Listing 包](./store-listing-package.md)、[隐私与权限披露](./privacy-and-permission-disclosure.md)、
+[artifact contract](./release-artifact-and-evidence-contract.md) 和自动 manifest/remote-code inspection。公开隐私 URL、真实截图、
+headed 权限确认、商店账号/签名环境与提交回执尚未完成，因此以上签字保持未勾选，Stable 为 `NO-GO`。
