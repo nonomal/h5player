@@ -4,6 +4,8 @@
 
 > 后续覆盖说明（2026-08-20）：route-first 首键、腾讯换集 staged intent/旧 frame 响应恢复、Dailymotion 跨域首键与双端 bundle budget 的最新证据见 [Phase 6.5 路由首键、腾讯换集与 Bundle Budget 收口审查](./phase-6.5-route-first-hotkey-and-budget-review-2026-08-20.md)。该审查更新 targeted 工程证据，但不改变本文的 UX NO-GO、Phase 7 HOLD 和用户 Exit Review 门禁。
 
+> 后续覆盖说明（2026-08-22）：Observer/Timer/authority/heap/Long Task 增强诊断已完成连续 30 分钟复跑，UQA-005 更新为 PASS；详见 [Phase 6.5 长稳态 Churn 与 Legacy 构建隔离审查](./phase-6.5-churn-and-legacy-isolation-review-2026-08-22.md)。Phase 7/Stable HOLD 仍由 Firefox headed、真实站点/宿主 UI 风险和用户 Exit Review 决定。
+
 > 文档 ID：REVIEW-UX-002  
 > 状态：In Review / Engineering Implemented / UX NO-GO  
 > 负责人：Project Owner / Product Owner / UX Owner / Quality Owner  

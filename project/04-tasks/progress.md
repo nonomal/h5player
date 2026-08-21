@@ -3,7 +3,7 @@
 > 文档 ID：TASK-002  
 > 状态：Active  
 > 负责人：Project Owner / Quality Owner  
-> 最后更新：2026-08-20
+> 最后更新：2026-08-22
 > 更新频率：每周或每个开发周期
 
 ## 当前阶段
@@ -16,8 +16,8 @@ Phase 6 的 release profiles、确定性双端 ZIP、evidence bundle 和 CI 基�
 [扩展真实站点兼容性审查](../09-reviews/expanded-live-site-compatibility-review-2026-08-15.md)。2026-08-15 的 56 站历史快照记录为 10 个完整 video flow 通过、3 个仅
 media-discovery、9 个功能/交互失败、10 个外部阻断、24 个 no-media；Netflix 背景媒体归属已由 2026-08-19 覆盖性复测关闭，Dailymotion Host/Trigger 与首次快捷键失败已由
 2026-08-20 targeted run 覆盖为功能通过、几何 `probe-limited`。Tencent 宿主碰撞与 iQIYI/Youku/Niconico pointer、Huya/Vimeo Host/Trigger、
-Kuaishou/Douyin Live 实例误报、Twitch/Pornhub 遮挡、音频无标准媒体、Firefox UX、增强诊断后的完整 30 分钟 churn、广告/更多登录态和用户 Exit Review 尚未完成。
-既有 30 分钟 churn 与 fresh 增强诊断 smoke 共同取得部分稳定性证据，但还不能外推为长时资源验收，因此结论仍为 `ACCEPTANCE EVIDENCE PARTIAL / UX NO-GO / Phase 7 HOLD`。
+Kuaishou/Douyin Live 实例误报、Twitch/Pornhub 遮挡、音频无标准媒体、Firefox UX、广告/更多登录态和用户 Exit Review 尚未完成。
+既有 30 分钟 churn 与 fresh 增强诊断 30 分钟复跑均已取得稳定性证据；长时工程证据已通过，但仍不能外推为真实站点/Firefox UX 验收，因此结论为 `ENGINEERING EVIDENCE PASSED / UX NO-GO / Phase 7 HOLD`。
 
 2026-08-16 新增 P0：现有原生 setter 捕获只能保证扩展自身写入，不会阻止网站后续 setter、轮询、播放器初始化和自定义媒体实例夺回倍速/音量/进度控制。ADR-0017、EXT-145～147 已建立。
 
@@ -49,7 +49,9 @@ Kuaishou/Douyin Live 实例误报、Twitch/Pornhub 遮挡、音频无标准媒�
 
 2026-08-20 生命周期与预算收口：frame slot 改为精确 connected `sessionId` 所有权，覆盖 dormant/late ready report、frameId 复用、旧 session teardown、child-frame 导航、`PAGE_RUNTIME_UNAVAILABLE`、late iframe 和 MV3 worker restart；页面停用/UI 隐藏命令增加按 Tab 串行、revision 防乱序、remembered child frame 恢复与有界消息超时。恢复运行时会重新读取设置并等待媒体状态 hydration，避免 UI/媒体宿主迟迟不回挂。最终审查同时关闭 Tencent routed child media 跳过进度恢复/暂停保存的回归。详见 [iframe 生命周期与控制竞态审查](../09-reviews/iframe-lifecycle-control-race-fix-2026-08-20.md)。
 
-2026-08-20 route-first 与预算最终收口：跨域 routed media 在顶层缓存为空时可由第一次快捷键直接解析执行；setter 返回成功但最终倍速未命中时明确返回 `COMMAND_EXECUTION_FAILED`；腾讯换集后 staged playback intent 可跨旧 frame 响应与 authority 迁移恢复。fresh 全量门禁为 Unit `386`、Component `40`、Integration `152`、Compatibility `40`、Security `3`；Chrome/Firefox 构建和 budget 均通过，双端 `content.js` 为 `255921 / 256000` bytes，仅余 `79` bytes。headed Run `2026-08-20-phase65-budget-final` 中 Tencent 与 Dailymotion 均为 `outcome=passed`、`violations=[]`；腾讯换集、延迟快捷键、3 秒站点轮询稳定性和 reload 继承通过，Dailymotion 跨域实例首次快捷键、Popup 与 reload 继承通过。详见 [Phase 6.5 路由首键、腾讯换集与 Bundle Budget 收口审查](../09-reviews/phase-6.5-route-first-hotkey-and-budget-review-2026-08-20.md)。
+2026-08-20 route-first 与预算最终收口：跨域 routed media 在顶层缓存为空时可由第一次快捷键直接解析执行；setter 返回成功但最终倍速未命中时明确返回 `COMMAND_EXECUTION_FAILED`；腾讯换集后 staged playback intent 可跨旧 frame 响应与 authority 迁移恢复。fresh 全量门禁为 Unit `386`、Component `40`、Integration `152`、Compatibility `40`、Security `3`；Chrome/Firefox 构建和 budget 均通过，双端 `content.js` 为 `255921 / 256000` bytes，仅余 `79` bytes。headed Run `2026-08-20-phase65-budget-final` 中 Tencent 与 Dailymotion 均为 `outcome=passed`、`violations=[]`；腾讯换集、延迟快捷键、3 秒站点轮询稳定性和 reload 继承通过，Dailymotion 跨域实例首次快捷键、Popup `1.5x` 和 reload 继承通过。详见 [Phase 6.5 路由首键、腾讯换集与 Bundle Budget 收口审查](../09-reviews/phase-6.5-route-first-hotkey-and-budget-review-2026-08-20.md)。
+
+2026-08-22 长稳态与 Legacy 校验隔离收口：增强诊断 churn 连续运行 `1,801,716ms`，完成 `903` cycles、`19` 次 worker restart（populated `10`、empty `9`），listeners 峰值 `5`、hosts 峰值 `3` 后回归基线，observer/timer/authority diagnostics 每轮回零，Long Task `0`；UQA-005 更新为 `PASS`。同时 `test:legacy` 改为冻结提交 detached worktree 构建，成功/失败/源漂移回归均证明主工作树 `dist/h5player.user.js` 不被改写，冻结 SHA-256 `91b5312d...` / `561788` bytes 保持一致。详见 [Phase 6.5 长稳态 Churn 与 Legacy 构建隔离审查](../09-reviews/phase-6.5-churn-and-legacy-isolation-review-2026-08-22.md)。
 
 ## Phase 6.5 已实现能力
 
@@ -73,24 +75,24 @@ Kuaishou/Douyin Live 实例误报、Twitch/Pornhub 遮挡、音频无标准媒�
 
 ## Phase 6.5 任务状态
 
-| 范围         | 当前状态                                                | 结论                                                                                                                                                                                                    |
-| ------------ | ------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| EXT-128～135 | In Review / engineering implemented, acceptance partial | 核心实现、unit/component/integration 和部分 Chromium E2E 已具备；不得标 Verified                                                                                                                        |
-| EXT-136      | In Review / component evidence partial                  | 键盘、touch pointer、i18n、aria-live 有证据；headed accessibility/宿主共存待补                                                                                                                          |
-| EXT-137      | In Review / engineering automation verified             | fresh `pnpm check` 为 Unit `386`、Component `40`、Integration `152`、Compatibility `40`、Security `3`；双端 build/budget 通过且 content 仅余 `79` bytes；既有 30 分钟 churn 为 6587 cycles/131 restarts，增强诊断 30 分钟复跑与 Firefox headed UX 待补 |
-| EXT-138      | In Review / broad Chromium live evidence partial        | 56 站历史报告已建立；Netflix/Tier 1 已有 2026-08-19 覆盖性复测，2026-08-20 Tencent/Dailymotion targeted smoke 通过；其它关键 UI/实例失败、Dailymotion closed-root 几何和 Firefox headed 仍待关闭                        |
-| EXT-139      | HOLD / Exit Review pending                              | 用户签字和 Phase 7 解冻结论未获得                                                                                                                                                                       |
-| EXT-145/146  | In Review / engineering implemented                     | MAIN world 仲裁、typed protocol、binding/迁移、停用/撤权/reload teardown 与 hostile fixture 已通过                                                                                                      |
-| EXT-147      | In Review / Tencent acceptance fix verified             | 换集后 staged intent、旧 frame 响应过时恢复、authority 迁移、首次/延迟快捷键、3 秒站点轮询稳定性与 reload 继承均通过；广告/更多登录态/可重复 AB active fake-video 仍待补                                          |
-| EXT-148      | Verified / lifecycle error containment                  | BFCache port error、context invalidation、旧 UI 清理与重载恢复已由错误面板 real-extension E2E 验证                                                                                                      |
-| EXT-149/150  | Verified / Legacy command parity                        | 主要快捷键、媒体/视觉命令、逐帧/下一集、截图和本站进度恢复切换已由 unit/integration 覆盖                                                                                                                |
-| EXT-151      | Verified for fixture / conditional live                 | Netflix 原生 UI 优先、captured setter 倍速回退和前景实例归属已由 fixture + headed live 验证；账号/DRM/AB 仍按边界声明                                                                                   |
-| EXT-152      | Verified / page-state ordering                          | 临时停用/UI 隐藏竞态已由集成测试和 20 次 Chrome 重复 E2E 验证                                                                                                                                           |
-| EXT-153      | In Review / experimental parity implemented             | Legacy 实验下载/MSE 核心语义、资源预算、失败终态、清理和 trusted hotkey 已由 unit/integration 覆盖                                                                                                      |
-| EXT-154      | In Review / boundary implemented, acceptance pending    | manager 不挂载 `window`；isolated content 执行最终 sink；同 realm 伪造与 hostile/live-site 证据仍需保留为残余风险                                                                                       |
-| EXT-155      | In Review / engineering implemented                     | 音频增益 1×～6×、global/site 策略和 capability 门控已实现；建图/增益失败原子回滚并动态降级 capability；真实音频链路/headed 体验待补                                                                     |
-| EXT-156      | In Review / engineering implemented, acceptance pending | 长按 3×、释放恢复、pointerup/异步播放状态保护、控制栏排除和时长校验已实现；autoplay 仅由顶层 adapter 声明式站点按钮执行，目前 Bilibili 启用；基础 headed 单击/播放保持已通过，登录态/触控/广告/换集待补 |
-| EXT-157      | In Review / engineering implemented                     | PiP owner lease、heartbeat/grace、generation、精确 frame 路由和 allowlist 已实现；headed/跨浏览器/重启待补                                                                                              |
+| 范围         | 当前状态                                                | 结论                                                                                                                                                                                                                                                                          |
+| ------------ | ------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| EXT-128～135 | In Review / engineering implemented, acceptance partial | 核心实现、unit/component/integration 和部分 Chromium E2E 已具备；不得标 Verified                                                                                                                                                                                              |
+| EXT-136      | In Review / component evidence partial                  | 键盘、touch pointer、i18n、aria-live 有证据；headed accessibility/宿主共存待补                                                                                                                                                                                                |
+| EXT-137      | In Review / engineering evidence passed                 | fresh `pnpm check` 为 Unit `386`、Component `40`、Integration `152`、Compatibility `40`、Security `3`；双端 build/budget 通过且 content 仅余 `79` bytes；增强诊断 30 分钟 churn 为 903 cycles/19 restarts/listeners `5→5`/Long Task `0`；Firefox headed UX 与外部站点验收待补 |
+| EXT-138      | In Review / broad Chromium live evidence partial        | 56 站历史报告已建立；Netflix/Tier 1 已有 2026-08-19 覆盖性复测，2026-08-20 Tencent/Dailymotion targeted smoke 通过；其它关键 UI/实例失败、Dailymotion closed-root 几何和 Firefox headed 仍待关闭                                                                              |
+| EXT-139      | HOLD / Exit Review pending                              | 用户签字和 Phase 7 解冻结论未获得                                                                                                                                                                                                                                             |
+| EXT-145/146  | In Review / engineering implemented                     | MAIN world 仲裁、typed protocol、binding/迁移、停用/撤权/reload teardown 与 hostile fixture 已通过                                                                                                                                                                            |
+| EXT-147      | In Review / Tencent acceptance fix verified             | 换集后 staged intent、旧 frame 响应过时恢复、authority 迁移、首次/延迟快捷键、3 秒站点轮询稳定性与 reload 继承均通过；广告/更多登录态/可重复 AB active fake-video 仍待补                                                                                                      |
+| EXT-148      | Verified / lifecycle error containment                  | BFCache port error、context invalidation、旧 UI 清理与重载恢复已由错误面板 real-extension E2E 验证                                                                                                                                                                            |
+| EXT-149/150  | Verified / Legacy command parity                        | 主要快捷键、媒体/视觉命令、逐帧/下一集、截图和本站进度恢复切换已由 unit/integration 覆盖                                                                                                                                                                                      |
+| EXT-151      | Verified for fixture / conditional live                 | Netflix 原生 UI 优先、captured setter 倍速回退和前景实例归属已由 fixture + headed live 验证；账号/DRM/AB 仍按边界声明                                                                                                                                                         |
+| EXT-152      | Verified / page-state ordering                          | 临时停用/UI 隐藏竞态已由集成测试和 20 次 Chrome 重复 E2E 验证                                                                                                                                                                                                                 |
+| EXT-153      | In Review / experimental parity implemented             | Legacy 实验下载/MSE 核心语义、资源预算、失败终态、清理和 trusted hotkey 已由 unit/integration 覆盖                                                                                                                                                                            |
+| EXT-154      | In Review / boundary implemented, acceptance pending    | manager 不挂载 `window`；isolated content 执行最终 sink；同 realm 伪造与 hostile/live-site 证据仍需保留为残余风险                                                                                                                                                             |
+| EXT-155      | In Review / engineering implemented                     | 音频增益 1×～6×、global/site 策略和 capability 门控已实现；建图/增益失败原子回滚并动态降级 capability；真实音频链路/headed 体验待补                                                                                                                                           |
+| EXT-156      | In Review / engineering implemented, acceptance pending | 长按 3×、释放恢复、pointerup/异步播放状态保护、控制栏排除和时长校验已实现；autoplay 仅由顶层 adapter 声明式站点按钮执行，目前 Bilibili 启用；基础 headed 单击/播放保持已通过，登录态/触控/广告/换集待补                                                                       |
+| EXT-157      | In Review / engineering implemented                     | PiP owner lease、heartbeat/grace、generation、精确 frame 路由和 allowlist 已实现；headed/跨浏览器/重启待补                                                                                                                                                                    |
 
 ## 已完成基线
 
@@ -191,24 +193,24 @@ Kuaishou/Douyin Live 实例误报、Twitch/Pornhub 遮挡、音频无标准媒�
 以下结果用于证明当前实现可进入审查，不代表 UX-ACC 已全部 Verified。最终数字以本轮 fresh 全量门禁输出和
 [Phase 6.5 路由首键、腾讯换集与 Bundle Budget 收口审查](../09-reviews/phase-6.5-route-first-hotkey-and-budget-review-2026-08-20.md) 为准。
 
-| 门禁                      | 当前结果/边界                                                                                                                                                                                                                 |
-| ------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Format / lint / typecheck | Passed；Phase 6.5 新增 TS/Vue/runtime 边界纳入静态门禁                                                                                                                                                                        |
-| Unit                      | 71 files / 386 tests passed；实验下载/取消、音频增益/CORS 门控、长按释放状态保护、autoplay 状态观察/重复 toggle 保护、PiP lease、anchor、feedback、policy/lifecycle/eligibility、前景筛选、connected frame ownership、routed selection、Tencent typed bridge 与安全拒绝路径纳入 |
-| Component                 | 40 tests passed；quick controls、透明 hitbox、feedback presenter、Popup/Options scope、暂停强制收起和前景 Overlay 归属回归纳入                                                                                                |
+| 门禁                      | 当前结果/边界                                                                                                                                                                                                                                                                                     |
+| ------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Format / lint / typecheck | Passed；Phase 6.5 新增 TS/Vue/runtime 边界纳入静态门禁                                                                                                                                                                                                                                            |
+| Unit                      | 71 files / 386 tests passed；实验下载/取消、音频增益/CORS 门控、长按释放状态保护、autoplay 状态观察/重复 toggle 保护、PiP lease、anchor、feedback、policy/lifecycle/eligibility、前景筛选、connected frame ownership、routed selection、Tencent typed bridge 与安全拒绝路径纳入                   |
+| Component                 | 40 tests passed；quick controls、透明 hitbox、feedback presenter、Popup/Options scope、暂停强制收起和前景 Overlay 归属回归纳入                                                                                                                                                                    |
 | Integration               | 固定 Node `24.13.0` 下 13 files / 152 tests passed；stale ready report 拒绝、route-first hotkey、routed Tencent 进度恢复/暂停保存与换集 intent 恢复、停用恢复 hydration、top-session reset、global/site 下载门禁与 release-bundle 9/9 通过；dependency boundary 为 180 modules / 589 dependencies |
-| Compatibility             | 3 files / 40 tests；10 site fixtures + SHA baseline/report，仍不等于 live smoke                                                                                                                                               |
-| Chromium real-extension   | fresh build 后完整套件 9 passed / 14 项按环境跳过；hostile polling、BFCache/context invalidation、iframe ownership、anchor、audio fallback 等核心场景通过                                                                     |
-| Lifecycle repeat          | BFCache/context reload、iframe-only owner、late same/cross-origin frame 状态继承各重复 3 次，共 `9/9` 通过；worker 重启以执行上下文 generation 判断，不依赖 target ID 必须变化 |
-| Churn                     | 既有 `1801096ms`：6587 cycles、131 次 worker restart；fresh 增强 smoke：3 cycles、2 restarts、listeners 峰值 `5`、hosts 峰值 `3` 后回零、observer/timer/authority binding 每轮回到基线、Long Task `0`。增强诊断 30 分钟复跑仍待执行 |
-| Bundle budget             | Chrome/Firefox background、content、page-main 全部通过；双端 content 为 `255921 / 256000` bytes，仅余 `79` bytes，后续新增能力必须先做拆分、复用或删除，禁止提高预算 |
-| Tier 1 live smoke         | 最终 Run `2026-08-19-tier1-foreground-fix-final`：5 个 strict smoke passed；YouTube/Bilibili 无 warning，Tencent/Youku collision 与 iQIYI no-scroll warning 保留；快捷键、Popup、reload 继承均通过                            |
-| Tier 2 live smoke         | Netflix 最终 Run `2026-08-19-netflix-foreground-owner-final`：passed、无 violation/warning，只有 opacity `1` 的前景实例拥有 UI；AcFun/Sohu/TED/Ixigua 仍沿用既有条件/阻断证据                                                 |
-| Ixigua external evidence  | Run `2026-08-15T00-05-00-000Z`；公开桌面/移动入口 HTTP 200 但无 `<video>`，页面出现“打开 App 看完整内容”；strict `no-media` 负向证据                                                                                          |
-| Expanded live catalog     | 56 站历史批次全部有报告；Qilu full-flow 通过；Dailymotion 最新 targeted run 已覆盖历史 Host/Trigger 功能失败，但 closed ShadowRoot 几何仍为 `probe-limited`；Huya/Kuaishou/Vimeo/Twitch/Douyin Live 等保留失败证据，登录、403、迁移、App-only 和无标准音频仍单独分类 |
-| Firefox UX                | Firefox 153 fresh 核心权限生命周期与 seek/rate/volume/mute/pause/play E2E 通过；manifest lint 为 `0 errors / 2 existing warnings`；页面定位、feedback、快捷键、frame teardown 的 headed visual 仍未执行 |
-| Review bundle             | `.release/phase-6.5-advanced-parity-2026-08-19` 的 9 文件 `release:verify` 通过；manifest `0.1.7.10000`；工作树为 dirty，仅供本地审查/加载测试，不是发布候选                                                                  |
-| Legacy regression         | Legacy 源码、根构建链和固定版本 pin 未修改；冻结产物 SHA-256 `91b5312d7cf150cd852d005b1e5d5f3d8ed2ed7cd8a481dfa1d561d48f7b3f27`，`561788` bytes                                                                               |
+| Compatibility             | 3 files / 40 tests；10 site fixtures + SHA baseline/report，仍不等于 live smoke                                                                                                                                                                                                                   |
+| Chromium real-extension   | fresh build 后完整套件 9 passed / 14 项按环境跳过；hostile polling、BFCache/context invalidation、iframe ownership、anchor、audio fallback 等核心场景通过                                                                                                                                         |
+| Lifecycle repeat          | BFCache/context reload、iframe-only owner、late same/cross-origin frame 状态继承各重复 3 次，共 `9/9` 通过；worker 重启以执行上下文 generation 判断，不依赖 target ID 必须变化                                                                                                                    |
+| Churn                     | 增强诊断 `1801716ms`：903 cycles、19 次 worker restart（10 populated / 9 empty）；listeners 峰值 `5`、hosts 峰值 `3` 后回零、observer/timer/authority binding 每轮回到基线、Long Task `0`；UQA-005 `PASS`                                                                                         |
+| Bundle budget             | Chrome/Firefox background、content、page-main 全部通过；双端 content 为 `255921 / 256000` bytes，仅余 `79` bytes，后续新增能力必须先做拆分、复用或删除，禁止提高预算                                                                                                                              |
+| Tier 1 live smoke         | 最终 Run `2026-08-19-tier1-foreground-fix-final`：5 个 strict smoke passed；YouTube/Bilibili 无 warning，Tencent/Youku collision 与 iQIYI no-scroll warning 保留；快捷键、Popup、reload 继承均通过                                                                                                |
+| Tier 2 live smoke         | Netflix 最终 Run `2026-08-19-netflix-foreground-owner-final`：passed、无 violation/warning，只有 opacity `1` 的前景实例拥有 UI；AcFun/Sohu/TED/Ixigua 仍沿用既有条件/阻断证据                                                                                                                     |
+| Ixigua external evidence  | Run `2026-08-15T00-05-00-000Z`；公开桌面/移动入口 HTTP 200 但无 `<video>`，页面出现“打开 App 看完整内容”；strict `no-media` 负向证据                                                                                                                                                              |
+| Expanded live catalog     | 56 站历史批次全部有报告；Qilu full-flow 通过；Dailymotion 最新 targeted run 已覆盖历史 Host/Trigger 功能失败，但 closed ShadowRoot 几何仍为 `probe-limited`；Huya/Kuaishou/Vimeo/Twitch/Douyin Live 等保留失败证据，登录、403、迁移、App-only 和无标准音频仍单独分类                              |
+| Firefox UX                | Firefox 153 fresh 核心权限生命周期与 seek/rate/volume/mute/pause/play E2E 通过；manifest lint 为 `0 errors / 2 existing warnings`；页面定位、feedback、快捷键、frame teardown 的 headed visual 仍未执行                                                                                           |
+| Review bundle             | `.release/phase-6.5-advanced-parity-2026-08-19` 的 9 文件 `release:verify` 通过；manifest `0.1.7.10000`；工作树为 dirty，仅供本地审查/加载测试，不是发布候选                                                                                                                                      |
+| Legacy regression         | Legacy 源码、根构建链和固定版本 pin 未修改；冻结提交 detached worktree 校验通过，主工作树不被改写；冻结产物 SHA-256 `91b5312d7cf150cd852d005b1e5d5f3d8ed2ed7cd8a481dfa1d561d48f7b3f27`，`561788` bytes                                                                                            |
 
 本机默认 Node 为 `24.18.1`，而发布 evidence contract 精确固定 `24.13.0`。本轮使用隔离的 Node `24.13.0` 二进制重跑完整
 `pnpm check`，因此 release fixture 与全量门禁均已取得有效证据；仓库 pin 仍不得放宽。
@@ -228,7 +230,7 @@ Kuaishou/Douyin Live 实例误报、Twitch/Pornhub 遮挡、音频无标准媒�
 
 1. per-media anchor、quick controls、feedback 和 playback policy/lifecycle 已实现；Tencent reload/WASM 真实 pointer 与 Netflix 前景/背景归属已补齐，但 iQIYI/Youku/Niconico 的真实 pointer、Tencent/Sohu/Qilu 宿主碰撞仍未达标，不能因机器 violations 为空而升级为 UX 通过。
 2. native fullscreen、200% zoom、深浅主题、reduced-motion、字幕和站点原生控件共存尚未完成 Chromium/Firefox headed 审查。
-3. Phase 6.5 既有 30 分钟 churn 已执行：6587 cycles、131 次 worker restart；fresh smoke 已增加并通过 host/pending mount/feedback timer、anchor/discovery observer、presentation timer、authority binding、分段 heap 与 Long Task 诊断。但增强诊断尚未连续运行 30 分钟，因此 UX-ACC-002/015/019 仍只能判为部分证据。
+3. Phase 6.5 增强诊断 30 分钟 churn 已通过：903 cycles、19 次 worker restart；host/pending mount/feedback timer、anchor/discovery observer、presentation timer、authority binding、分段 heap 与 Long Task 诊断均取得长稳态结果。UX-ACC-002/015/019 的工程稳定性证据已补齐，但 headed 几何、宿主碰撞和真实站点边界仍只能判为部分证据。
 4. 扩展到 56 站后，Huya/Vimeo 仍缺 Host/Trigger，Kuaishou/Douyin Live 存在非内容媒体 Host，Twitch/Pornhub 面板遮挡，
    Douyin reload 生命周期失败；Dailymotion 功能链已通过最新 targeted run，但 closed ShadowRoot 内部几何仍只能间接取证。广告、更多登录态、站点反向改倍速和多轮反馈安全区仍未完整覆盖。
 5. Ixigua 当前公开入口为 App-only/no-media；Douyu/TikTok 只有不可选媒体标签；多个历史首页和 QQ Music MV 列表没有播放器；README 音频页
@@ -251,12 +253,12 @@ Kuaishou/Douyin Live 实例误报、Twitch/Pornhub 遮挡、音频无标准媒�
 3. 为 Sohu/Qilu/TED 补充 danmaku/controls/advertising 安全区和 reload 外跳策略；外部阻断继续保留，不做伪兼容。
 4. 维护可复现的 Ixigua、QQ Music MV 和标准 `<audio>` 内容样本；样本不可得时保持 `未验证`，不扩大支持声明。
 5. 在 Firefox headed 完成页面定位、feedback、快捷键、iframe teardown/worker restart 核心 UX。
-6. 使用现有 typed internal diagnostics 重跑完整 30 分钟 churn，冻结 host/pending mount/feedback timer、discovery/anchor observer、presentation timer、authority binding、分段 heap 趋势与 Long Task 结果；fresh short smoke 只证明诊断链和回零断言可用。
+6. [x] 使用现有 typed internal diagnostics 完成完整 30 分钟 churn，冻结 host/pending mount/feedback timer、discovery/anchor observer、presentation timer、authority binding、分段 heap 趋势与 Long Task 结果；后续只在实现变更后回归。
 7. 扩展关键站点到换集、广告、登录态、站点 reset、native fullscreen、200% zoom、theme 与 reduced-motion，并保留真实 pointer 证据。
 8. 更新 UX-ACC-001..015 与 EXT-139；只有用户确认 `UX GO/CONDITIONAL GO` 后才重新评估 Phase 7。Legacy 继续冻结。
 
 ## 当前阻塞
 
 当前无 Phase 6.5 核心代码硬阻塞。主动阻塞是 UX/外部验收证据：Host/Trigger 缺失、非内容媒体 Host、pointer/宿主浮层、面板遮挡、
-feedback 安全区、音频/具体内容样本、Firefox headed、完整 churn 资源诊断、原生权限/商店体验和用户 Exit Review。仓库分支保护、签名包演练、两轮 Beta RC 和观察窗口仍是独立的 Phase 6
+feedback 安全区、音频/具体内容样本、Firefox headed、原生权限/商店体验和用户 Exit Review。仓库分支保护、签名包演练、两轮 Beta RC 和观察窗口仍是独立的 Phase 6
 外部门禁；所有这些都不能由本地 fixture、unit/component 或 unsigned candidate 替代。
