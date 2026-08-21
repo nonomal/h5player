@@ -65,11 +65,14 @@ function runtimeState(mediaState: MediaPageState | null = pageState()): ContentR
     mediaReady: true,
     siteEnabled: true,
     temporaryDisabled: false,
+    pageUiHidden: false,
+    hiddenMediaCount: 0,
     settings: {
       enabled: true,
       ui: { overlayEnabled: true, theme: 'system', locale: 'zh-CN' },
       hotkeys: { enabled: true, scope: 'page', bindings: {} },
       media: { defaultPlaybackRate: 1, defaultVolume: 1, restoreProgress: false },
+      download: { enabled: true },
       policies: {
         protectPlaybackRate: true,
         protectCurrentTime: false,
@@ -78,7 +81,8 @@ function runtimeState(mediaState: MediaPageState | null = pageState()): ContentR
       },
       diagnostics: { localLogLevel: 'error', retainProgressDays: 30 }
     },
-    mediaState
+    mediaState,
+    playbackPolicies: {}
   }
 }
 
@@ -313,7 +317,7 @@ describe('content overlay controller', () => {
     expect(controller.currentModel().statusDetail).toMatch(/桥接|bridge/i)
   })
 
-  it('handles retry, stale events, and preview download intent', async () => {
+  it('handles retry, stale events, and experimental download intent', async () => {
     const getMediaState = vi.fn().mockResolvedValue(pageState())
     const { controller } = harness(undefined, { getMediaState })
     await controller.handle({
@@ -334,7 +338,41 @@ describe('content overlay controller', () => {
     await controller.handle(
       createOverlayEvent({ type: 'download.request', mediaId: 'media-0-1', source: 'control' })
     )
-    expect(controller.currentModel().notice?.message).toMatch(/Preview|实验/)
+    expect(execute).not.toHaveBeenCalled()
+
+    const downloadMedia = snapshot({
+      capabilities: createMediaCapabilities({
+        playback: true,
+        seek: true,
+        playbackRate: true,
+        volume: true,
+        mute: true,
+        visual: true,
+        fullscreen: true,
+        fullscreenNative: true,
+        fullscreenWeb: true,
+        pictureInPicture: true,
+        capture: true,
+        downloadExperimental: true
+      })
+    })
+    const downloadExecute = vi
+      .fn<ExecuteMediaCommand>()
+      .mockResolvedValue(success('media.download', downloadMedia))
+    const downloadHarness = harness(downloadExecute, {
+      runtime: {
+        ...runtimeState(pageState(downloadMedia)),
+        settings: {
+          ...runtimeState().settings,
+          policies: { ...runtimeState().settings.policies, allowExperimental: true }
+        }
+      }
+    })
+    await downloadHarness.controller.handle(
+      createOverlayEvent({ type: 'download.request', mediaId: 'media-0-1', source: 'control' })
+    )
+    expect(downloadExecute).toHaveBeenCalledWith({ type: 'media.download', mediaId: 'media-0-1' })
+    expect(downloadHarness.controller.currentModel().notice?.message).toMatch(/下载|download/i)
   })
 
   it('maps every supported overlay media intent and clamps visual zoom', async () => {

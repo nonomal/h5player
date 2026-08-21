@@ -219,6 +219,7 @@ export class FakeActiveTabPort implements ActiveTabPort {
 export class FakeContentScriptRegistrationPort implements ContentScriptRegistrationPort {
   readonly reconciled: (readonly string[])[] = []
   readonly bootstrapped: number[] = []
+  readonly experimentalMainInjected: Array<{ tabId: number; frameId: number }> = []
   readonly tornDown: number[] = []
   failReconcile = false
 
@@ -230,6 +231,11 @@ export class FakeContentScriptRegistrationPort implements ContentScriptRegistrat
 
   bootstrap(tabId: number): Promise<void> {
     this.bootstrapped.push(tabId)
+    return Promise.resolve()
+  }
+
+  injectExperimentalMain(tabId: number, frameId: number): Promise<void> {
+    this.experimentalMainInjected.push({ tabId, frameId })
     return Promise.resolve()
   }
 

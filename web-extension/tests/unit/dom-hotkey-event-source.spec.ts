@@ -28,7 +28,8 @@ describe('DomHotkeyEventSource', () => {
     expect(listener.mock.calls[0]?.[0]).toMatchObject({
       code: 'Space',
       editableTarget: true,
-      playerFocused: false
+      playerFocused: false,
+      trusted: false
     })
     expect(keyboard.defaultPrevented).toBe(true)
 

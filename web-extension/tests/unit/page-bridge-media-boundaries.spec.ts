@@ -214,6 +214,10 @@ describe('PageBridge media lifecycle', () => {
       onMedia: (request) => {
         if (request.type === 'media.context') {
           respond(request, 'media.context-ready', {})
+        } else if (request.type === 'media.configure-authority') {
+          respond(request, 'media.authority-configured', { policy: request.payload.policy })
+        } else if (request.type === 'media.configure-experimental') {
+          respond(request, 'media.experimental-configured', { policy: request.payload.policy })
         } else if (request.type === 'media.get-state') {
           respond(request, 'media.state', { state: currentState })
           respond(request, 'media.state', { state: currentState })
@@ -221,6 +225,12 @@ describe('PageBridge media lifecycle', () => {
           respond(request, 'media.command-result', {
             result: commandSuccess(command, mediaSnapshot(), true),
             state: currentState
+          })
+        } else if (request.type === 'media.execute-page-action') {
+          respond(request, 'media.page-action-result', {
+            declared: true,
+            handled: true,
+            adapterId: 'tencent-video'
           })
         }
       }
@@ -235,8 +245,16 @@ describe('PageBridge media lifecycle', () => {
     expect(injection).toHaveBeenCalledTimes(1)
 
     await expect(harness.bridge.start()).resolves.toBe(true)
-    expect(await harness.bridge.configure(0)).toBe(true)
+    expect(await harness.bridge.configure(0, 'https://v.qq.com')).toBe(true)
     expect(await harness.bridge.configure(1)).toBe(true)
+    await expect(
+      harness.bridge.configureAuthority({
+        playbackRate: true,
+        volume: true,
+        currentTime: false
+      })
+    ).resolves.toBe(true)
+    await expect(harness.bridge.configureExperimental({ mediaDownload: true })).resolves.toBe(true)
     await expect(harness.bridge.getMediaState()).resolves.toEqual(currentState)
     harness.scheduler.fireLastCleared()
     emitMessage(
@@ -252,6 +270,11 @@ describe('PageBridge media lifecycle', () => {
       result: { ok: true, value: { commandType: 'media.play', changed: true } },
       state: currentState
     })
+    await expect(harness.bridge.executePageAction('next')).resolves.toEqual({
+      declared: true,
+      handled: true,
+      adapterId: 'tencent-video'
+    })
     harness.bridge.ping()
     const teardown = harness.bridge.teardown()
     teardown()
@@ -259,9 +282,16 @@ describe('PageBridge media lifecycle', () => {
 
     expect(harness.postedMedia.map((message) => message.type)).toEqual([
       'media.context',
+      'media.configure-authority',
+      'media.configure-experimental',
       'media.get-state',
-      'media.execute'
+      'media.execute',
+      'media.execute-page-action'
     ])
+    expect(harness.postedMedia[0]?.payload).toEqual({
+      frameId: 0,
+      siteOrigin: 'https://v.qq.com'
+    })
     expect(harness.post.mock.calls.some(([, target]) => target === session.origin)).toBe(true)
   })
 
@@ -269,12 +299,25 @@ describe('PageBridge media lifecycle', () => {
     const unavailable = createHarness()
     activeBridges.push(unavailable.bridge)
     expect(await unavailable.bridge.configure(0)).toBe(false)
+    await expect(
+      unavailable.bridge.configureAuthority({
+        playbackRate: true,
+        volume: false,
+        currentTime: false
+      })
+    ).rejects.toMatchObject({ code: 'PAGE_RUNTIME_UNAVAILABLE' })
+    await expect(
+      unavailable.bridge.configureExperimental({ mediaDownload: true })
+    ).rejects.toMatchObject({ code: 'PAGE_RUNTIME_UNAVAILABLE' })
     await expect(unavailable.bridge.getMediaState()).rejects.toMatchObject({
       code: 'PAGE_RUNTIME_UNAVAILABLE'
     })
     await expect(
       unavailable.bridge.executeMediaCommand({ type: 'media.play', mediaId: 'media-1' })
     ).rejects.toMatchObject({ code: 'PAGE_RUNTIME_UNAVAILABLE' })
+    await expect(unavailable.bridge.executePageAction('next')).rejects.toMatchObject({
+      code: 'PAGE_RUNTIME_UNAVAILABLE'
+    })
     unavailable.bridge.ping()
     unavailable.bridge.stop()
     unavailable.bridge.stop()

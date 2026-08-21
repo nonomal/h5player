@@ -269,7 +269,7 @@ describe('progress repository', () => {
     const result = await repository.import(
       JSON.stringify({
         format: 'h5player.web-extension.settings',
-        formatVersion: 2,
+        formatVersion: 3,
         exportedAt: '2026-08-11T00:00:00.000Z',
         data
       }),
@@ -302,7 +302,7 @@ describe('progress repository', () => {
     const imported = await repository.import(
       JSON.stringify({
         format: 'h5player.web-extension.settings',
-        formatVersion: 2,
+        formatVersion: 3,
         exportedAt: '2026-08-11T00:00:00.000Z',
         data
       }),

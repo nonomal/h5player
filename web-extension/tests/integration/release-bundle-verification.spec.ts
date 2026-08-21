@@ -29,7 +29,7 @@ import { readWebExtensionPackage } from '../../scripts/release/package-metadata'
 import { stableJson } from '../../scripts/release/stable-json'
 import { verifyReleaseBundle } from '../../scripts/release/verify-bundle'
 
-const SOURCE_DATE_EPOCH = 1_786_406_400
+const SOURCE_DATE_EPOCH = 1_787_011_200
 const SOURCE_DATE_ISO = new Date(SOURCE_DATE_EPOCH * 1_000).toISOString()
 const COMMIT_SHA = 'a'.repeat(40)
 

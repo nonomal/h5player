@@ -26,7 +26,7 @@ function definition(
     fixture: `${id}.html`,
     lastVerified: '2026-08-11',
     matches: [{ hostname }],
-    features: ['playback', 'fullscreen-native', 'fullscreen-web'],
+    features: ['playback', 'seek', 'playback-rate', 'fullscreen-native', 'fullscreen-web'],
     selectors
   }
 }
@@ -201,6 +201,77 @@ describe('MediaAdapterRegistry', () => {
     controller.teardown()
   })
 
+  it('executes a bounded top-level next action through the selected adapter', () => {
+    const nextButton = document.createElement('button')
+    nextButton.className = 'site-next'
+    document.body.append(nextButton)
+    const clicked = vi.fn()
+    nextButton.addEventListener('click', clicked)
+    const registry = new MediaAdapterRegistry({
+      definitions: [
+        {
+          ...definition('page-action', 'example.com'),
+          features: ['next'],
+          selectors: { next: ['.site-next'] }
+        }
+      ],
+      fallback: new FakeAdapter(),
+      url: () => 'https://example.com/watch'
+    })
+
+    expect(registry.executePageAction('next', document)).toEqual({
+      declared: true,
+      handled: true,
+      adapterId: 'page-action'
+    })
+    expect(clicked).toHaveBeenCalledOnce()
+
+    nextButton.remove()
+    expect(registry.executePageAction('next', document)).toEqual({
+      declared: true,
+      handled: false,
+      adapterId: 'page-action'
+    })
+  })
+
+  it('executes autoplay only for an explicitly declared adapter page-start action', () => {
+    const startButton = document.createElement('button')
+    startButton.className = 'site-start'
+    document.body.append(startButton)
+    const clicked = vi.fn()
+    startButton.addEventListener('click', clicked)
+    const registry = new MediaAdapterRegistry({
+      definitions: [
+        {
+          ...definition('page-start', 'example.com'),
+          features: ['playback', 'autoplay'],
+          selectors: { play: ['.site-start'], autoplay: ['.site-start'] }
+        }
+      ],
+      fallback: new FakeAdapter(),
+      url: () => 'https://example.com/watch'
+    })
+
+    expect(registry.executePageAction('autoplay', document)).toEqual({
+      declared: true,
+      handled: true,
+      adapterId: 'page-start'
+    })
+    expect(clicked).toHaveBeenCalledOnce()
+
+    const genericPlaybackOnly = new MediaAdapterRegistry({
+      definitions: [definition('playback-only', 'example.com', 100, { play: ['.site-start'] })],
+      fallback: new FakeAdapter(),
+      url: () => 'https://example.com/watch'
+    })
+    expect(genericPlaybackOnly.executePageAction('autoplay', document)).toEqual({
+      declared: false,
+      handled: false,
+      adapterId: 'playback-only'
+    })
+    expect(clicked).toHaveBeenCalledOnce()
+  })
+
   it('matches subdomains only when the rule opts in explicitly', () => {
     const defaultRegistry = new MediaAdapterRegistry({
       definitions: [definition('exact-only', 'example.com')],
@@ -308,6 +379,99 @@ describe('MediaAdapterRegistry', () => {
     expect(() => controller.teardown()).not.toThrow()
     expect(onDetach).toHaveBeenCalledOnce()
     expect(fallback.controllers[0]?.teardown).toHaveBeenCalledOnce()
+  })
+
+  it('uses playback-rate hooks without manufacturing success after a rejected site bridge', async () => {
+    const handledFallback = new FakeAdapter()
+    const handledHook = vi.fn(() => true)
+    const handledRegistry = new MediaAdapterRegistry({
+      definitions: [definition('handled', 'example.com')],
+      fallback: handledFallback,
+      hooks: { handled: { setPlaybackRate: handledHook } },
+      url: () => 'https://example.com/'
+    })
+    const handled = handledRegistry.createController(video(), context())
+
+    await expect(handled.setPlaybackRate(1.5)).resolves.toBeUndefined()
+    expect(handledHook).toHaveBeenCalledOnce()
+    expect(handledFallback.controllers[0]?.setPlaybackRate).not.toHaveBeenCalled()
+    handled.teardown()
+
+    const declinedFallback = new FakeAdapter()
+    const declinedHook = vi.fn(() => false)
+    const declinedRegistry = new MediaAdapterRegistry({
+      definitions: [definition('declined', 'example.com')],
+      fallback: declinedFallback,
+      hooks: { declined: { setPlaybackRate: declinedHook } },
+      url: () => 'https://example.com/'
+    })
+    const declined = declinedRegistry.createController(video(), context())
+
+    await expect(declined.setPlaybackRate(1.75)).resolves.toBeUndefined()
+    expect(declinedFallback.controllers[0]?.setPlaybackRate).toHaveBeenCalledWith(1.75)
+    declined.teardown()
+
+    const rejectedFallback = new FakeAdapter()
+    const rejectedHook = vi.fn(() => Promise.reject(new Error('Tencent bridge rejected')))
+    const rejectedRegistry = new MediaAdapterRegistry({
+      definitions: [definition('rejected', 'example.com')],
+      fallback: rejectedFallback,
+      hooks: { rejected: { setPlaybackRate: rejectedHook } },
+      url: () => 'https://example.com/'
+    })
+    const rejected = rejectedRegistry.createController(video(), context())
+
+    await expect(rejected.setPlaybackRate(2)).rejects.toThrow('Tencent bridge rejected')
+    expect(rejectedFallback.controllers[0]?.setPlaybackRate).not.toHaveBeenCalled()
+    expect(rejectedRegistry.getDiagnostics()[0]).toMatchObject({
+      id: 'rejected',
+      status: 'degraded',
+      failureCount: 1,
+      lastFailureStage: 'action'
+    })
+    rejected.teardown()
+  })
+
+  it('uses seek hooks without falling through after a rejected site-native action', async () => {
+    const handledFallback = new FakeAdapter()
+    const handledHook = vi.fn(() => true)
+    const handledRegistry = new MediaAdapterRegistry({
+      definitions: [definition('handled', 'example.com')],
+      fallback: handledFallback,
+      hooks: { handled: { seekTo: handledHook } },
+      url: () => 'https://example.com/'
+    })
+    const handled = handledRegistry.createController(video(), context())
+
+    await expect(handled.seekTo(20)).resolves.toBeUndefined()
+    expect(handledHook).toHaveBeenCalledOnce()
+    expect(handledFallback.controllers[0]?.seekTo).not.toHaveBeenCalled()
+    handled.teardown()
+
+    const rejectedFallback = new FakeAdapter()
+    const rejectedRegistry = new MediaAdapterRegistry({
+      definitions: [definition('rejected', 'example.com')],
+      fallback: rejectedFallback,
+      hooks: {
+        rejected: {
+          seekTo: () => {
+            throw new Error('Native seek unavailable')
+          }
+        }
+      },
+      url: () => 'https://example.com/'
+    })
+    const rejected = rejectedRegistry.createController(video(), context())
+
+    await expect(rejected.seekTo(30)).rejects.toThrow('Native seek unavailable')
+    expect(rejectedFallback.controllers[0]?.seekTo).not.toHaveBeenCalled()
+    expect(rejectedRegistry.getDiagnostics()[0]).toMatchObject({
+      id: 'rejected',
+      status: 'degraded',
+      failureCount: 1,
+      lastFailureStage: 'action'
+    })
+    rejected.teardown()
   })
 
   it('rematches an existing media controller after SPA URL changes', () => {

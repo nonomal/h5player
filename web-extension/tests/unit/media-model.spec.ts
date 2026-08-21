@@ -70,6 +70,7 @@ describe('media domain model', () => {
       fullscreen: false,
       pictureInPicture: false,
       capture: false,
+      next: false,
       downloadExperimental: false
     })
     expect(createMediaCapabilities({ playback: true, seek: true })).toEqual({

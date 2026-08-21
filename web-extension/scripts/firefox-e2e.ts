@@ -501,6 +501,20 @@ async function clickPopupButton(
   targetTabId: number,
   label: string
 ): Promise<void> {
+  await waitFor(
+    async () =>
+      driver.executeScript<Readonly<{ found: boolean; disabled: boolean }> | null>(
+        `const button = Array.from(document.querySelectorAll('button')).find(
+          (candidate) => candidate.textContent?.trim() === arguments[0]
+        );
+        return button instanceof HTMLButtonElement
+          ? { found: true, disabled: button.disabled }
+          : { found: false, disabled: true };`,
+        label
+      ),
+    (state) => state?.found === true && !state.disabled,
+    `Firefox popup button ${label} enabled`
+  )
   const rawResult = await driver.executeAsyncScript<unknown>(
     function (tabId: number, buttonLabel: string, done: (value: ScriptResult) => void): void {
       type ExtensionBrowser = Readonly<{
@@ -762,6 +776,12 @@ try {
   )
 
   await session.switchTo().window(popupHandle)
+  await session.close()
+  await session.switchTo().window(targetHandle)
+  popupHandle = await openTrustedBackgroundTab(session, popupUrl)
+  await delay(POPUP_BACKGROUND_INITIALIZATION_MS)
+  await session.switchTo().window(popupHandle)
+  await waitForPopupText(session, '[data-testid="phase-status"]', '媒体控制已就绪')
   await clickPopupButton(session, targetTabId, '撤销当前站点权限')
   await waitForPopupText(session, '[data-testid="phase-status"]', '需要先授予当前站点权限')
   const accessState = await getExtensionAccessState(session)

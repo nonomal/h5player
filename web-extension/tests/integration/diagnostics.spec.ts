@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { DiagnosticsService } from '../../src/application/diagnostics'
 import { SettingsService } from '../../src/application/settings/settings-service'
-import { SiteAccessService } from '../../src/application/site'
+import { FrameRuntimeRegistry, SiteAccessService } from '../../src/application/site'
 import { StructuredLogger } from '../../src/infrastructure/logging/structured-logger'
 import { SettingsRepository } from '../../src/infrastructure/storage/settings-repository'
 import { createTabSuccess, parseTabRequest } from '../../src/shared/tab-protocol'
@@ -60,7 +60,8 @@ describe('DiagnosticsService', () => {
       settings,
       tabs,
       permissions,
-      new FakeContentScriptRegistrationPort()
+      new FakeContentScriptRegistrationPort(),
+      new FrameRuntimeRegistry({ now: () => clock.now() })
     )
     const logger = new StructuredLogger('background', clock)
     logger.log({
@@ -89,7 +90,7 @@ describe('DiagnosticsService', () => {
 
     expect(response.summary).toMatchObject({
       phase: 6,
-      settingsSchemaVersion: 2,
+      settingsSchemaVersion: 3,
       site: { hostname: 'example.com', mediaCount: 2, activeMedia: true },
       settings: { revision: 1, siteRuleCount: 1 },
       adapters: ['bilibili'],

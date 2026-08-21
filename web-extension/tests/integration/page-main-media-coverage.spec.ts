@@ -9,9 +9,11 @@ import { createBridgeMessage, parseBridgeMessage } from '../../src/shared/protoc
 
 const runtimeFakes = vi.hoisted(() => ({
   construct: vi.fn<(currentWindow: Window, currentDocument: Document, frameId: number) => void>(),
+  cancelDownload: vi.fn<(frameId: number, mediaId: string) => boolean>(),
   execute: vi.fn<(frameId: number, command: unknown) => Promise<unknown>>(),
   failConstructionFor: new Set<number>(),
   getState: vi.fn<(frameId: number) => unknown>(),
+  refresh: vi.fn<(frameId: number) => void>(),
   teardown: vi.fn<(frameId: number) => void>()
 }))
 
@@ -34,6 +36,18 @@ vi.mock('../../src/runtime/page-main/media-page-runtime', () => ({
 
     execute(command: unknown): Promise<unknown> {
       return runtimeFakes.execute(this.frameId, command)
+    }
+
+    cancelDownload(mediaId: string): boolean {
+      return runtimeFakes.cancelDownload(this.frameId, mediaId)
+    }
+
+    refresh(): void {
+      runtimeFakes.refresh(this.frameId)
+    }
+
+    subscribeDownloadEvents(): () => void {
+      return () => undefined
     }
 
     teardown(): void {
@@ -129,6 +143,7 @@ beforeEach(() => {
   vi.clearAllMocks()
   runtimeFakes.getState.mockImplementation((frameId) => pageState(frameId))
   runtimeFakes.execute.mockImplementation((frameId) => Promise.resolve(commandResponse(frameId)))
+  runtimeFakes.cancelDownload.mockReturnValue(true)
   delete document.documentElement.dataset['h5playerWebextMain']
 })
 
@@ -194,10 +209,19 @@ describe('page-main media runtime coverage', () => {
     dispatchMessage(
       createBridgeMessage('bridge.ping', 'content', SESSION_ID, NONCE, requestId('ping-after-noop'))
     )
+    dispatchMessage(
+      createBridgeMessage(
+        'bridge.ping',
+        'content',
+        SECOND_SESSION_ID,
+        SECOND_NONCE,
+        requestId('replacement-session-ping')
+      )
+    )
 
     expect(bridgeResponses(posted).map((message) => message.type)).toEqual([
       'bridge.ready',
-      'bridge.pong',
+      'bridge.ready',
       'bridge.pong'
     ])
 
@@ -222,6 +246,25 @@ describe('page-main media runtime coverage', () => {
     })
     startRuntime()
     initializeSession()
+
+    const authorityPolicy = { playbackRate: true, volume: true, currentTime: false } as const
+    const authorityRequest = createPageMediaRequest(
+      'media.configure-authority',
+      SESSION_ID,
+      NONCE,
+      { policy: authorityPolicy },
+      requestId('configure-authority')
+    )
+    dispatchMessage(authorityRequest)
+    const experimentalPolicy = { mediaDownload: true } as const
+    const experimentalRequest = createPageMediaRequest(
+      'media.configure-experimental',
+      SESSION_ID,
+      NONCE,
+      { policy: experimentalPolicy },
+      requestId('configure-experimental')
+    )
+    dispatchMessage(experimentalRequest)
 
     const countBeforeInvalidMedia = posted.length
     dispatchMessage({ invalid: true })
@@ -288,6 +331,15 @@ describe('page-main media runtime coverage', () => {
       )
     )
 
+    const cancelRequest = createPageMediaRequest(
+      'media.cancel-download',
+      SESSION_ID,
+      NONCE,
+      { mediaId: 'media-1-1' },
+      requestId('cancel-download')
+    )
+    dispatchMessage(cancelRequest)
+
     const stateId = requestId('state-success')
     dispatchMessage(createPageMediaRequest('media.get-state', SESSION_ID, NONCE, {}, stateId))
     runtimeFakes.getState.mockImplementationOnce(() => {
@@ -316,6 +368,25 @@ describe('page-main media runtime coverage', () => {
     )
 
     const responses = mediaResponses(posted)
+    expect(
+      responses.find((message) => message.requestId === authorityRequest.requestId)
+    ).toMatchObject({
+      type: 'media.authority-configured',
+      payload: { policy: authorityPolicy }
+    })
+    expect(
+      responses.find((message) => message.requestId === experimentalRequest.requestId)
+    ).toMatchObject({
+      type: 'media.experimental-configured',
+      payload: { policy: experimentalPolicy }
+    })
+    expect(
+      responses.find((message) => message.requestId === cancelRequest.requestId)
+    ).toMatchObject({
+      type: 'media.download-cancelled',
+      payload: { cancelled: true }
+    })
+    expect(runtimeFakes.cancelDownload).toHaveBeenCalledWith(1, 'media-1-1')
     expect(responses.find((message) => message.requestId === stateBeforeContextId)).toMatchObject({
       type: 'media.error',
       payload: { requestType: 'media.get-state', code: 'RUNTIME_UNAVAILABLE' }

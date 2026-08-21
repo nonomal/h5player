@@ -36,6 +36,7 @@ describe('settings domain', () => {
     const result = mergeSettings(current, {
       global: {
         enabled: false,
+        download: { enabled: false },
         media: { defaultPlaybackRate: 2 },
         hotkeys: {
           bindings: { Space: { commandId: 'media.toggle-play', disabled: false } }
@@ -53,6 +54,7 @@ describe('settings domain', () => {
       'global.enabled',
       'global.hotkeys.bindings.Space',
       'global.media.defaultPlaybackRate',
+      'global.download.enabled',
       'sites.https://example.com'
     ])
     expect(current.global.enabled).toBe(true)
@@ -101,9 +103,11 @@ describe('settings domain', () => {
     })
 
     const settings = createDefaultSettings()
+    settings.global.download.enabled = false
     settings.global.media.defaultPlaybackRate = 1.25
     settings.sites['https://example.com'] = {
       enabled: false,
+      download: { enabled: true },
       media: { defaultPlaybackRate: 2 }
     }
     const resolved = resolveSettings(settings, 'https://example.com/watch', {
@@ -111,5 +115,6 @@ describe('settings domain', () => {
     })
     expect(resolved.enabled).toBe(true)
     expect(resolved.media.defaultPlaybackRate).toBe(3)
+    expect(resolved.download.enabled).toBe(true)
   })
 })

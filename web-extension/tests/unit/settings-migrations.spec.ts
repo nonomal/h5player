@@ -16,6 +16,13 @@ describe('settings migrations', () => {
       global: {
         ...data.global,
         enabled: false,
+        policies: {
+          ...data.global.policies,
+          allowAcousticGain: undefined,
+          allowMouseLongPress: undefined,
+          mouseLongPressMs: undefined,
+          allowAutoplay: undefined
+        },
         hotkeys: {
           ...data.global.hotkeys,
           bindings: {
@@ -40,8 +47,79 @@ describe('settings migrations', () => {
     if (result.kind === 'migrated') {
       expect(result.value.revision).toBe(5)
       expect(result.value.data.global.enabled).toBe(false)
+      expect(result.value.data.global.policies).toMatchObject({
+        allowAcousticGain: false,
+        allowMouseLongPress: false,
+        mouseLongPressMs: 600,
+        allowAutoplay: false
+      })
       expect(result.value.data.global.hotkeys.bindings).toEqual({
         Space: { commandId: 'media.toggle-play', disabled: false }
+      })
+    }
+  })
+
+  it('adds the enabled download default while migrating schema v2', () => {
+    const data = createDefaultSettings()
+    const legacyGlobal = Object.fromEntries(
+      Object.entries(data.global).filter(([key]) => key !== 'download')
+    )
+    const result = classifyPersistedSettings(
+      {
+        schema: 'h5player.web-extension',
+        schemaVersion: 2,
+        revision: 7,
+        updatedAt: 50,
+        data: { ...data, global: legacyGlobal }
+      },
+      100
+    )
+    expect(result.kind).toBe('migrated')
+    if (result.kind === 'migrated') {
+      expect(result.value.data.global.download.enabled).toBe(true)
+    }
+  })
+
+  it('keeps absent site policy fields inheriting the normalized global defaults', () => {
+    const data = createDefaultSettings()
+    const legacyPolicies = Object.fromEntries(
+      Object.entries(data.global.policies).filter(
+        ([key]) =>
+          ![
+            'allowAcousticGain',
+            'allowMouseLongPress',
+            'mouseLongPressMs',
+            'allowAutoplay'
+          ].includes(key)
+      )
+    )
+    const legacyGlobal = Object.fromEntries(
+      Object.entries({ ...data.global, policies: legacyPolicies }).filter(
+        ([key]) => key !== 'download'
+      )
+    )
+    const result = classifyPersistedSettings(
+      {
+        schema: 'h5player.web-extension',
+        schemaVersion: 2,
+        revision: 1,
+        updatedAt: 50,
+        data: {
+          ...data,
+          global: legacyGlobal,
+          sites: {
+            'https://example.com': { enabled: true, media: { defaultPlaybackRate: 1.25 } }
+          }
+        }
+      },
+      100
+    )
+    expect(result.kind).toBe('migrated')
+    if (result.kind === 'migrated') {
+      expect(result.value.data.global.policies.allowAutoplay).toBe(false)
+      expect(result.value.data.sites['https://example.com']).toEqual({
+        enabled: true,
+        media: { defaultPlaybackRate: 1.25 }
       })
     }
   })
@@ -70,9 +148,9 @@ describe('settings migrations', () => {
     expect(classifyPersistedSettings({ schemaVersion: 1, data: 'broken' }, 100).kind).toBe(
       'corrupt'
     )
-    expect(classifyPersistedSettings({ schemaVersion: 3, data: {} }, 100)).toEqual({
+    expect(classifyPersistedSettings({ schemaVersion: 4, data: {} }, 100)).toEqual({
       kind: 'future',
-      schemaVersion: 3
+      schemaVersion: 4
     })
   })
 })

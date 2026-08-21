@@ -15,11 +15,13 @@ describe('settings sync whitelist', () => {
       disabled: false
     }
     settings.policies.allowExperimental = true
+    settings.download.enabled = false
     settings.diagnostics.localLogLevel = 'debug'
 
     const projected = pickSyncSettings(settings)
     expect(projected.hotkeys.bindings).toEqual({})
     expect(projected.policies.allowExperimental).toBe(false)
+    expect(projected.download.enabled).toBe(false)
     expect(JSON.stringify(projected)).not.toContain('diagnostics')
 
     const patch = createSyncPatch(settings)

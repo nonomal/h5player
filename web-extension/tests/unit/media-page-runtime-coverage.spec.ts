@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { MediaAdapterRegistry } from '../../src/adapters/registry'
 import type { DomMediaDiscoveryOptions, MediaDiscoveryUpdate } from '../../src/infrastructure/dom'
+import type { MediaControlAuthority } from '../../src/runtime/page-main/media-control-authority'
 import { MediaPageRuntime } from '../../src/runtime/page-main/media-page-runtime'
 
 const fakes = vi.hoisted(() => {
@@ -118,6 +119,27 @@ function createRuntime(now: () => number = () => 100): MediaPageRuntime {
   return runtime
 }
 
+function authorityFake() {
+  const release = vi.fn()
+  const install = vi.fn(() => true)
+  const attach = vi.fn(() => release)
+  const recordCommand = vi.fn()
+  return {
+    authority: {
+      install,
+      attach,
+      attachCustomPlaybackRate: vi.fn(() => release),
+      writeCustomPlaybackRate: vi.fn(() => true),
+      recordCommand,
+      teardown: vi.fn()
+    } as unknown as MediaControlAuthority,
+    attach,
+    install,
+    recordCommand,
+    release
+  }
+}
+
 beforeEach(() => {
   vi.clearAllMocks()
   fakes.setInitialUpdate(discoveryUpdate())
@@ -178,6 +200,33 @@ describe('MediaPageRuntime lifecycle coverage', () => {
     fakes.commandExecute.mockRejectedValueOnce(new Error('registry unavailable'))
     await expect(runtime.execute(command)).rejects.toThrow('registry unavailable')
     expect(fakes.discovery.refresh).toHaveBeenCalledTimes(2)
+  })
+
+  it('binds discovered media to authority and records only successful control intent', async () => {
+    const { authority, install, recordCommand, release } = authorityFake()
+    const runtime = new MediaPageRuntime(window, document, 7, () => 100, authority)
+    runtimes.push(runtime)
+    expect(install).toHaveBeenCalledOnce()
+    const discoveryOptions = fakes.createDiscovery.mock.calls.at(-1)?.[0]
+    const element = document.createElement('video')
+    const releaseBinding = discoveryOptions?.bindMediaAuthority?.(element, 'media-0-1')
+    expect(releaseBinding).toBeTypeOf('function')
+
+    const command = { type: 'media.set-rate' as const, mediaId: 'media-0-1', value: 1.5 }
+    fakes.commandExecute.mockResolvedValueOnce({
+      ok: true,
+      value: {
+        commandType: command.type,
+        mediaId: command.mediaId,
+        changed: true,
+        snapshot: mediaSnapshot()
+      }
+    })
+    await runtime.execute(command)
+    expect(recordCommand).toHaveBeenCalledWith(command, mediaSnapshot())
+
+    releaseBinding?.()
+    expect(release).toHaveBeenCalled()
   })
 
   it('tears down exactly once and rejects use after disposal', async () => {

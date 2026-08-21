@@ -1,14 +1,117 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { GenericAdapter } from '../../src/adapters/generic'
-import { DomMediaDiscoveryService, type MediaDiscoveryUpdate } from '../../src/infrastructure/dom'
+import type {
+  MediaAdapter,
+  MediaControllerContext,
+  MediaControllerListener,
+  ObservableMediaController
+} from '../../src/domain/adapter'
+import { createMediaCapabilities, type MediaSnapshot } from '../../src/domain/media'
+import {
+  DomMediaDiscoveryService,
+  MEDIA_PRESENTATION_REFRESH_INTERVAL_MS,
+  type MediaDiscoveryUpdate
+} from '../../src/infrastructure/dom'
 
 const services: DomMediaDiscoveryService[] = []
 
-function createService(): DomMediaDiscoveryService {
+class PresentationController implements ObservableMediaController {
+  readonly capabilities = createMediaCapabilities({ playback: true, playbackRate: true })
+  private readonly listeners = new Set<MediaControllerListener>()
+
+  constructor(
+    private readonly element: HTMLMediaElement,
+    private readonly context: MediaControllerContext,
+    private readonly opacityFor: (element: HTMLMediaElement) => number
+  ) {}
+
+  get mediaId() {
+    return this.context.mediaId
+  }
+
+  getSnapshot(): MediaSnapshot {
+    return {
+      id: this.mediaId,
+      frameId: this.context.frameId,
+      kind: 'video',
+      state: 'paused',
+      metrics: {
+        width: Number(this.element.getAttribute('width') ?? 0),
+        height: Number(this.element.getAttribute('height') ?? 0),
+        duration: 120,
+        currentTime: 0,
+        volume: 1,
+        playbackRate: 1,
+        muted: false,
+        opacity: this.opacityFor(this.element),
+        visible: true
+      },
+      capabilities: this.capabilities,
+      adapterId: 'presentation-test',
+      updatedAt: this.context.now()
+    }
+  }
+
+  play(): Promise<void> {
+    return Promise.resolve()
+  }
+
+  pause(): Promise<void> {
+    return Promise.resolve()
+  }
+
+  seekTo(): Promise<void> {
+    return Promise.resolve()
+  }
+
+  setPlaybackRate(): Promise<void> {
+    return Promise.resolve()
+  }
+
+  setVolume(): Promise<void> {
+    return Promise.resolve()
+  }
+
+  setMuted(): Promise<void> {
+    return Promise.resolve()
+  }
+
+  subscribe(listener: MediaControllerListener): () => void {
+    this.listeners.add(listener)
+    return () => this.listeners.delete(listener)
+  }
+
+  teardown(): void {
+    this.listeners.clear()
+  }
+}
+
+class PresentationAdapter implements MediaAdapter<HTMLMediaElement> {
+  readonly id = 'presentation-test'
+  readonly priority = 0
+
+  constructor(private readonly opacityFor: (element: HTMLMediaElement) => number) {}
+
+  supports(target: unknown): target is HTMLMediaElement {
+    return target instanceof HTMLMediaElement
+  }
+
+  createController(
+    target: HTMLMediaElement,
+    context: MediaControllerContext
+  ): ObservableMediaController {
+    return new PresentationController(target, context, this.opacityFor)
+  }
+}
+
+function createService(
+  bindMediaAuthority?: (element: HTMLMediaElement, mediaId: string) => () => void
+): DomMediaDiscoveryService {
   const service = new DomMediaDiscoveryService({
     root: document,
     adapter: new GenericAdapter(),
-    now: Date.now
+    now: Date.now,
+    ...(bindMediaAuthority === undefined ? {} : { bindMediaAuthority })
   })
   services.push(service)
   return service
@@ -21,6 +124,7 @@ async function waitForCurrent(service: DomMediaDiscoveryService, count: number):
 afterEach(() => {
   for (const service of services.splice(0)) service.teardown()
   document.body.replaceChildren()
+  vi.useRealTimers()
   vi.restoreAllMocks()
 })
 
@@ -115,6 +219,38 @@ describe('DOM media discovery lifecycle', () => {
     await vi.waitFor(() => expect(service.active()?.id).toBe(smallId))
   })
 
+  it('rechecks silent CSS presentation changes and moves active ownership to foreground media', async () => {
+    vi.useFakeTimers()
+    const preview = document.createElement('video')
+    preview.setAttribute('width', '1280')
+    preview.setAttribute('height', '720')
+    const foreground = document.createElement('video')
+    foreground.setAttribute('width', '960')
+    foreground.setAttribute('height', '540')
+    document.body.append(preview, foreground)
+
+    let previewOpacity = 1
+    const service = new DomMediaDiscoveryService({
+      root: document,
+      adapter: new PresentationAdapter((element) => (element === preview ? previewOpacity : 1)),
+      now: Date.now
+    })
+    services.push(service)
+    service.start()
+
+    const previewId = service.current()[0]?.id
+    const foregroundId = service.current()[1]?.id
+    expect(service.active()?.id).toBe(previewId)
+
+    // CSS/Web Animations may update computed opacity without any DOM mutation.
+    previewOpacity = 0.25
+    await vi.advanceTimersByTimeAsync(MEDIA_PRESENTATION_REFRESH_INTERVAL_MS)
+
+    expect(service.current().find((media) => media.id === previewId)?.metrics.opacity).toBe(0.25)
+    expect(service.active()?.id).toBe(foregroundId)
+    vi.useRealTimers()
+  })
+
   it('tears down observers, controllers, listeners, and queued lifecycle work explicitly', async () => {
     const service = createService()
     const updates: MediaDiscoveryUpdate[] = []
@@ -136,5 +272,23 @@ describe('DOM media discovery lifecycle', () => {
 
     expect(updates).toHaveLength(updateCount)
     expect(service.current()).toEqual([])
+  })
+
+  it('owns the authority binding for each discovered media lifecycle', async () => {
+    const release = vi.fn()
+    const bind = vi.fn(() => release)
+    const service = createService(bind)
+    service.start()
+    const video = document.createElement('video')
+    video.setAttribute('width', '640')
+    video.setAttribute('height', '360')
+    document.body.append(video)
+
+    await waitForCurrent(service, 1)
+    expect(bind).toHaveBeenCalledWith(video, service.current()[0]?.id)
+
+    video.remove()
+    await waitForCurrent(service, 0)
+    expect(release).toHaveBeenCalledOnce()
   })
 })

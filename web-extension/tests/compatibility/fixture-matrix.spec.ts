@@ -5,6 +5,9 @@ import { describe, expect, it } from 'vitest'
 const fixtures = [
   'basic.html',
   'multi-player.html',
+  'media-anchor.html',
+  'media-obscured.html',
+  'audio-only.html',
   'spa.html',
   'shadow-dom.html',
   'iframe.html',

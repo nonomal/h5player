@@ -19,7 +19,7 @@ describe('runtime API client', () => {
               extensionVersion: '0.1.0',
               phase: 6,
               protocol: 1,
-              settingsSchemaVersion: 2
+              settingsSchemaVersion: 3
             })
           )
         case 'settings.get':
@@ -43,6 +43,10 @@ describe('runtime API client', () => {
           )
         case 'site.set-temporary-disabled':
           return Promise.resolve(createRuntimeSuccess(request, { disabled: true }))
+        case 'site.set-page-ui-hidden':
+          return Promise.resolve(
+            createRuntimeSuccess(request, { hidden: true, hiddenMediaCount: 2 })
+          )
         case 'site.reconcile':
           return Promise.resolve(
             createRuntimeSuccess(request, { registeredOrigins: 1, bootstrapped: true })
@@ -56,7 +60,7 @@ describe('runtime API client', () => {
                 build: 'test',
                 phase: 6,
                 protocolVersion: 1,
-                settingsSchemaVersion: 2,
+                settingsSchemaVersion: 3,
                 browser: { name: 'Chromium', version: '140', platform: 'mac/arm64' },
                 permissions: {
                   required: ['activeTab', 'scripting', 'storage'],
@@ -92,7 +96,7 @@ describe('runtime API client', () => {
       new RuntimeRequestClient('options', transport, systemScheduler)
     )
 
-    await expect(api.ping()).resolves.toMatchObject({ phase: 6, settingsSchemaVersion: 2 })
+    await expect(api.ping()).resolves.toMatchObject({ phase: 6, settingsSchemaVersion: 3 })
     await expect(api.getSettings()).resolves.toMatchObject({ settings: { revision: 4 } })
     await expect(api.updateSettings({ global: { enabled: false } }, 4)).resolves.toMatchObject({
       changedPaths: ['global.enabled']
@@ -105,6 +109,10 @@ describe('runtime API client', () => {
     await expect(api.resetSettings('sites')).resolves.toMatchObject({ rebased: false })
     await expect(api.getSiteContext()).resolves.toMatchObject({ reason: 'no-active-tab' })
     await expect(api.setTemporarySiteDisabled(true)).resolves.toEqual({ disabled: true })
+    await expect(api.setPageUiHidden(true)).resolves.toEqual({
+      hidden: true,
+      hiddenMediaCount: 2
+    })
     await expect(api.reconcileSiteAccess(true)).resolves.toEqual({
       registeredOrigins: 1,
       bootstrapped: true
@@ -122,8 +130,10 @@ describe('runtime API client', () => {
       'settings.reset',
       'site.get-context',
       'site.set-temporary-disabled',
+      'site.set-page-ui-hidden',
       'site.reconcile',
       'diagnostics.get'
     ])
+    expect(parseRuntimeRequest(transport.sent[9])?.payload).toEqual({ hidden: true })
   })
 })

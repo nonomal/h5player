@@ -9,6 +9,7 @@ import type {
 } from '../../src/application/settings/contracts'
 import type {
   SiteContextResponse,
+  SitePageUiVisibilityResponse,
   SiteReconcileResponse,
   SiteTemporaryDisableResponse
 } from '../../src/application/site'
@@ -18,6 +19,7 @@ import {
   persistedSettingsV2Schema,
   settingsImportFileSchema,
   settingsBackupSchema,
+  SETTINGS_SCHEMA_VERSION,
   type PersistedSettingsV2,
   type SettingsBackup,
   type SettingsData,
@@ -56,7 +58,7 @@ export class FakeRuntimeApi implements RuntimeApiPort {
       extensionVersion: '0.1.0',
       phase: 6,
       protocol: 1,
-      settingsSchemaVersion: 2
+      settingsSchemaVersion: SETTINGS_SCHEMA_VERSION
     })
   }
 
@@ -105,7 +107,7 @@ export class FakeRuntimeApi implements RuntimeApiPort {
     return Promise.resolve(
       JSON.stringify({
         format: 'h5player.web-extension.settings',
-        formatVersion: 2,
+        formatVersion: 3,
         exportedAt: '2026-08-10T00:00:00.000Z',
         data: this.settings.data
       })
@@ -115,7 +117,12 @@ export class FakeRuntimeApi implements RuntimeApiPort {
   importSettings(content: string, expectedRevision?: number): Promise<SettingsMutationResponse> {
     const parsedJson = JSON.parse(content) as unknown
     const imported = settingsImportFileSchema.parse(parsedJson)
-    const data = imported.formatVersion === 2 ? imported.data : migrateSettingsDataV1(imported.data)
+    const data =
+      imported.formatVersion === 3
+        ? imported.data
+        : imported.formatVersion === 2
+          ? { ...imported.data, global: { ...imported.data.global, download: { enabled: true } } }
+          : migrateSettingsDataV1(imported.data)
     this.backup('import')
     const rebased = expectedRevision !== undefined && expectedRevision !== this.settings.revision
     this.settings = {
@@ -183,6 +190,15 @@ export class FakeRuntimeApi implements RuntimeApiPort {
       reason: disabled ? 'temporarily-disabled' : this.siteContext.reason
     }
     return Promise.resolve({ disabled })
+  }
+
+  setPageUiHidden(hidden: boolean): Promise<SitePageUiVisibilityResponse> {
+    this.siteContext = {
+      ...this.siteContext,
+      pageUiHidden: hidden,
+      hiddenMediaCount: hidden ? (this.siteContext.mediaCount ?? 0) : 0
+    }
+    return Promise.resolve({ hidden, hiddenMediaCount: this.siteContext.hiddenMediaCount ?? 0 })
   }
 
   reconcileSiteAccess(bootstrapCurrentTab: boolean): Promise<SiteReconcileResponse> {

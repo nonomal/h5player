@@ -22,6 +22,31 @@ async function renderOptions() {
   return { api, changes, router, ...rendered }
 }
 
+async function renderSiteOptions() {
+  const api = new FakeRuntimeApi()
+  api.settings.data.global.media.defaultPlaybackRate = 1.25
+  api.settings.data.global.policies.protectPlaybackRate = true
+  api.settings.data.sites['https://example.com'] = {
+    enabled: false,
+    media: { defaultPlaybackRate: 2, defaultVolume: 0.5 },
+    policies: { protectPlaybackRate: false, protectCurrentTime: true }
+  }
+  const application = new OptionsApplication(
+    api,
+    new FakeActiveTabPort(),
+    new FakeSettingsChangeSourcePort()
+  )
+  const router = createOptionsRouter()
+  await router.push('/sites')
+  const rendered = render(OptionsApp, {
+    props: { application },
+    global: { plugins: [router] }
+  })
+  await router.isReady()
+  await screen.findByRole('heading', { name: '站点规则' })
+  return { api, router, ...rendered }
+}
+
 describe('OptionsApp', () => {
   it('renders the settings shell, navigates by keyboard-accessible links, and passes axe', async () => {
     const { container } = await renderOptions()
@@ -64,5 +89,36 @@ describe('OptionsApp', () => {
     const dialog = await screen.findByRole('dialog')
     await fireEvent.click(within(dialog).getByRole('button', { name: '导入' }))
     expect(await screen.findByText('导入前备份')).toBeTruthy()
+  })
+
+  it('validates site rate input and restores rate and protection inheritance independently', async () => {
+    const { api } = await renderSiteOptions()
+    const rateInput = screen.getByRole('spinbutton', { name: '本站默认倍速' })
+
+    await fireEvent.update(rateInput, '20')
+    await fireEvent.change(rateInput)
+    expect(rateInput.getAttribute('aria-invalid')).toBe('true')
+    expect(screen.getByRole('alert').textContent).toContain('0.1×–16×')
+    expect(api.updateCalls).toHaveLength(0)
+
+    await fireEvent.click(screen.getByRole('button', { name: '恢复全局倍速' }))
+    expect(api.settings.data.sites['https://example.com']).toEqual({
+      enabled: false,
+      media: { defaultVolume: 0.5 },
+      policies: { protectPlaybackRate: false, protectCurrentTime: true }
+    })
+    expect(await screen.findByText(/当前继承全局；/)).toBeTruthy()
+    expect(screen.getByRole('spinbutton', { name: '本站默认倍速' })).toHaveProperty('value', '1.25')
+
+    await fireEvent.click(screen.getByRole('button', { name: '恢复全局保护' }))
+    expect(api.settings.data.sites['https://example.com']).toEqual({
+      enabled: false,
+      media: { defaultVolume: 0.5 },
+      policies: { protectCurrentTime: true }
+    })
+    expect(await screen.findByText('当前继承全局保护开关')).toBeTruthy()
+    expect(screen.getByRole<HTMLInputElement>('checkbox', { name: '保护本站倍速' }).checked).toBe(
+      true
+    )
   })
 })

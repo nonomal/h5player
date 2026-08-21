@@ -113,7 +113,7 @@ describe('settings repository', () => {
     const imported = await repository.import(
       JSON.stringify({
         format: 'h5player.web-extension.settings',
-        formatVersion: 2,
+        formatVersion: 3,
         exportedAt: '2026-08-10T00:00:00.000Z',
         data
       }),
@@ -133,7 +133,7 @@ describe('settings repository', () => {
     const exported = await repository.export()
     expect(exported.ok && JSON.parse(exported.value)).toMatchObject({
       format: 'h5player.web-extension.settings',
-      formatVersion: 2
+      formatVersion: 3
     })
 
     storage.failReads = true

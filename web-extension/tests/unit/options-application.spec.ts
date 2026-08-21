@@ -16,7 +16,7 @@ describe('OptionsApplication', () => {
     const { api, application } = createApplication()
     const snapshot = await application.load()
     expect(snapshot.ping.phase).toBe(6)
-    expect(snapshot.settings.settings.schemaVersion).toBe(2)
+    expect(snapshot.settings.settings.schemaVersion).toBe(3)
 
     const updated = await application.update({ global: { enabled: false } })
     expect(updated.settings.settings.data.global.enabled).toBe(false)
@@ -57,7 +57,7 @@ describe('OptionsApplication', () => {
     const { application } = createApplication()
     const valid = await application.exportSettings()
     expect(application.previewImport(valid)).toEqual({
-      formatVersion: 2,
+      formatVersion: 3,
       exportedAt: '2026-08-10T00:00:00.000Z',
       siteRuleCount: 0,
       progressCount: 0,
@@ -99,5 +99,105 @@ describe('OptionsApplication', () => {
 
     const restored = await application.restoreBackup(reset.settings.latestBackup?.backupId ?? '')
     expect(restored.settings.latestBackup?.reason).toBe('rollback')
+  })
+
+  it('writes site playback fields without replacing sibling overrides', async () => {
+    const { api, application } = createApplication()
+    api.settings.data.sites['https://example.com'] = {
+      enabled: false,
+      media: { defaultVolume: 0.5 },
+      policies: { protectCurrentTime: true }
+    }
+    await application.load()
+
+    await application.setSitePlaybackRate('https://example.com', 1.75)
+    expect(api.updateCalls.at(-1)).toMatchObject({
+      expectedRevision: 0,
+      patch: {
+        sites: {
+          'https://example.com': {
+            enabled: false,
+            media: { defaultVolume: 0.5, defaultPlaybackRate: 1.75 },
+            policies: { protectCurrentTime: true }
+          }
+        }
+      }
+    })
+
+    await application.setSitePlaybackProtection('https://example.com', false)
+    expect(api.updateCalls.at(-1)?.patch).toEqual({
+      sites: {
+        'https://example.com': {
+          enabled: false,
+          media: { defaultVolume: 0.5, defaultPlaybackRate: 1.75 },
+          policies: { protectCurrentTime: true, protectPlaybackRate: false }
+        }
+      }
+    })
+  })
+
+  it('restores individual site playback fields to global inheritance without changing enabled', async () => {
+    const { api, application } = createApplication()
+    api.settings.data.sites['https://example.com'] = {
+      enabled: false,
+      media: { defaultPlaybackRate: 2, defaultVolume: 0.5 },
+      policies: { protectPlaybackRate: false, protectCurrentTime: true }
+    }
+    await application.load()
+
+    const rateRestored = await application.restoreSitePlaybackRate('https://example.com')
+    expect(rateRestored.settings.settings.data.sites['https://example.com']).toEqual({
+      enabled: false,
+      media: { defaultVolume: 0.5 },
+      policies: { protectPlaybackRate: false, protectCurrentTime: true }
+    })
+
+    const protectionRestored =
+      await application.restoreSitePlaybackProtection('https://example.com')
+    expect(protectionRestored.settings.settings.data.sites['https://example.com']).toEqual({
+      enabled: false,
+      media: { defaultVolume: 0.5 },
+      policies: { protectCurrentTime: true }
+    })
+  })
+
+  it('writes and restores individual site experimental policies without replacing siblings', async () => {
+    const { api, application } = createApplication()
+    api.settings.data.sites['https://example.com'] = {
+      enabled: false,
+      download: { enabled: false },
+      policies: { protectCurrentTime: true }
+    }
+    await application.load()
+
+    await application.setSiteExperimentalPolicy('https://example.com', {
+      allowAcousticGain: true,
+      allowMouseLongPress: true,
+      mouseLongPressMs: 900,
+      allowAutoplay: true
+    })
+    expect(api.updateCalls.at(-1)?.patch).toEqual({
+      sites: {
+        'https://example.com': {
+          enabled: false,
+          download: { enabled: false },
+          policies: {
+            protectCurrentTime: true,
+            allowAcousticGain: true,
+            allowMouseLongPress: true,
+            mouseLongPressMs: 900,
+            allowAutoplay: true
+          }
+        }
+      }
+    })
+
+    await application.restoreSiteExperimentalPolicy('https://example.com', 'mouseLongPressMs')
+    expect(api.settings.data.sites['https://example.com']?.policies).toEqual({
+      protectCurrentTime: true,
+      allowAcousticGain: true,
+      allowMouseLongPress: true,
+      allowAutoplay: true
+    })
   })
 })

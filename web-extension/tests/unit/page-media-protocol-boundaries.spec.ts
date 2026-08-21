@@ -59,15 +59,43 @@ describe('page media protocol boundaries', () => {
       'media.context',
       sessionId,
       nonce,
-      { frameId: 0 },
+      { frameId: 0, siteOrigin: 'https://v.qq.com' },
       requestId
     )
     const getState = createPageMediaRequest('media.get-state', sessionId, nonce, {})
+    const configureAuthority = createPageMediaRequest(
+      'media.configure-authority',
+      sessionId,
+      nonce,
+      { policy: { playbackRate: true, volume: true, currentTime: false } },
+      requestId
+    )
+    const configureExperimental = createPageMediaRequest(
+      'media.configure-experimental',
+      sessionId,
+      nonce,
+      { policy: { mediaDownload: true } },
+      requestId
+    )
     const execute = createPageMediaRequest(
       'media.execute',
       sessionId,
       nonce,
       { command },
+      requestId
+    )
+    const executePageAction = createPageMediaRequest(
+      'media.execute-page-action',
+      sessionId,
+      nonce,
+      { action: 'next' },
+      requestId
+    )
+    const executeAutoplay = createPageMediaRequest(
+      'media.execute-page-action',
+      sessionId,
+      nonce,
+      { action: 'autoplay' },
       requestId
     )
     const ready = createPageMediaResponse(
@@ -76,6 +104,20 @@ describe('page media protocol boundaries', () => {
       nonce,
       {},
       context.requestId
+    )
+    const authorityConfigured = createPageMediaResponse(
+      'media.authority-configured',
+      sessionId,
+      nonce,
+      { policy: configureAuthority.payload.policy },
+      configureAuthority.requestId
+    )
+    const experimentalConfigured = createPageMediaResponse(
+      'media.experimental-configured',
+      sessionId,
+      nonce,
+      { policy: configureExperimental.payload.policy },
+      configureExperimental.requestId
     )
     const stateResponse = createPageMediaResponse(
       'media.state',
@@ -94,6 +136,13 @@ describe('page media protocol boundaries', () => {
       },
       execute.requestId
     )
+    const pageActionResponse = createPageMediaResponse(
+      'media.page-action-result',
+      sessionId,
+      nonce,
+      { declared: true, handled: true, adapterId: 'tencent-video' },
+      executePageAction.requestId
+    )
     const error = createPageMediaResponse(
       'media.error',
       sessionId,
@@ -109,11 +158,18 @@ describe('page media protocol boundaries', () => {
 
     for (const message of [
       context,
+      configureAuthority,
+      configureExperimental,
       getState,
       execute,
+      executePageAction,
+      executeAutoplay,
       ready,
+      authorityConfigured,
+      experimentalConfigured,
       stateResponse,
       commandResponse,
+      pageActionResponse,
       error,
       direct
     ]) {
@@ -122,7 +178,10 @@ describe('page media protocol boundaries', () => {
     expect(getState.requestId.length).toBeGreaterThanOrEqual(16)
     expect(direct.requestId.length).toBeGreaterThanOrEqual(16)
     expect(ready.requestId).toBe(context.requestId)
+    expect(authorityConfigured.requestId).toBe(configureAuthority.requestId)
+    expect(experimentalConfigured.requestId).toBe(configureExperimental.requestId)
     expect(commandResponse.requestId).toBe(execute.requestId)
+    expect(pageActionResponse.requestId).toBe(executePageAction.requestId)
   })
 
   it('rejects wrong direction, malformed identity fields, extras, and invalid payloads', () => {
@@ -152,7 +211,50 @@ describe('page media protocol boundaries', () => {
       { ...valid, nonce: 'a'.repeat(63) },
       { ...valid, extra: true },
       { ...valid, payload: { frameId: -1 } },
+      { ...valid, payload: { frameId: 0, siteOrigin: '' } },
       { ...valid, payload: { frameId: 0, extra: true } },
+      {
+        ...createPageMediaRequest(
+          'media.configure-authority',
+          sessionId,
+          nonce,
+          { policy: { playbackRate: true, volume: true, currentTime: false } },
+          requestId
+        ),
+        payload: { policy: { playbackRate: true, volume: true } }
+      },
+      {
+        ...createPageMediaRequest(
+          'media.configure-authority',
+          sessionId,
+          nonce,
+          { policy: { playbackRate: true, volume: true, currentTime: false } },
+          requestId
+        ),
+        payload: {
+          policy: { playbackRate: true, volume: true, currentTime: false, extra: true }
+        }
+      },
+      {
+        ...createPageMediaRequest(
+          'media.configure-experimental',
+          sessionId,
+          nonce,
+          { policy: { mediaDownload: true } },
+          requestId
+        ),
+        payload: { policy: { mediaDownload: 'yes' } }
+      },
+      {
+        ...createPageMediaRequest(
+          'media.configure-experimental',
+          sessionId,
+          nonce,
+          { policy: { mediaDownload: true } },
+          requestId
+        ),
+        payload: { policy: { mediaDownload: true, extra: true } }
+      },
       {
         ...validStateMessage,
         payload: { state: { ...validState, activeMediaId: null } }
@@ -166,6 +268,16 @@ describe('page media protocol boundaries', () => {
           requestId
         ),
         payload: { command: { type: 'media.play', mediaId: 'media-1', extra: true } }
+      },
+      {
+        ...createPageMediaRequest(
+          'media.execute-page-action',
+          sessionId,
+          nonce,
+          { action: 'next' },
+          requestId
+        ),
+        payload: { action: 'arbitrary' }
       },
       {
         ...createPageMediaResponse(

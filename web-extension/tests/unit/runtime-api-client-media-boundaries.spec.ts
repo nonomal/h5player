@@ -76,11 +76,25 @@ describe('RuntimeApiClient media boundaries', () => {
       result: { ok: true, value: { commandType: 'media.seek', changed: true } },
       state: { revision: 3 }
     })
+    await expect(
+      api.executeMediaCommand(
+        { type: 'media.adjust-rate', mediaId: 'media-1', delta: 0.1 },
+        { playbackRateScope: 'media' }
+      )
+    ).resolves.toMatchObject({ result: { ok: true } })
 
     const requests = transport.sent.map(parseRuntimeRequest)
-    expect(requests.map((request) => request?.type)).toEqual(['media.get-state', 'media.execute'])
+    expect(requests.map((request) => request?.type)).toEqual([
+      'media.get-state',
+      'media.execute',
+      'media.execute'
+    ])
     expect(requests[0]?.payload).toEqual({})
     expect(requests[1]?.payload).toEqual({ command })
+    expect(requests[2]?.payload).toEqual({
+      command: { type: 'media.adjust-rate', mediaId: 'media-1', delta: 0.1 },
+      playbackRateScope: 'media'
+    })
   })
 
   it('uses the media response schemas and propagates cancellation options', async () => {
