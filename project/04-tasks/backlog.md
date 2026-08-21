@@ -1,9 +1,9 @@
 # Web Extension 重构主任务台账
 
 > 文档 ID：TASK-003  
-> 状态：Active / Phase 6 Release Engineering Exit<br>
+> 状态：Active / Phase 6.5 Implementation Review / Phase 7 HOLD<br>
 > 负责人：Project Owner  
-> 最后更新：2026-08-11  
+> 最后更新：2026-08-20
 > 规则：任务状态以 `progress.md` 为当前摘要，本页保留完整规划。
 
 优先级：P0 稳定版阻塞；P1 稳定版目标；P2 后续/实验。估算：S（≤1 日）、M（2～3 日）、L（4～7 日）、XL（需拆分）。
@@ -129,27 +129,88 @@
 - Tier 1 五站、Tier 2 五站均有脱敏 fixture；catalog 记录 owner/version/tier/support/lastVerified/features/matches。
 - attach/detach/action/selector failure injection、SPA rematch、version/feature disable 和 typed diagnostics 通过。
 - `test:compat:report` 校验 catalog、fixture、Tier、version、support level、owner、lastVerified、SHA-256 baseline 与 183 天复核时效；
-  真实站点 smoke 仍为未验证。
+  Phase 5 退出时真实站点 smoke 尚未验证；Phase 6.5 fresh evidence 见 EXT-138 与 live smoke 审查。
 
 ## EPIC-06：Beta 与 Stable 发布（Phase 6）
 
-| ID      | 任务                                | 优先级 | 估算 | 依赖                    | 验收摘要          | 状态     |
-| ------- | ----------------------------------- | ------ | ---- | ----------------------- | ----------------- | -------- |
+| ID      | 任务                                | 优先级 | 估算 | 依赖                    | 验收摘要                                              | 状态                                                |
+| ------- | ----------------------------------- | ------ | ---- | ----------------------- | ----------------------------------------------------- | --------------------------------------------------- |
 | EXT-120 | CI required checks 与缓存           | P0     | M    | EXT-003..005            | PR/nightly/RC workflow 可验证；分支保护外部配置待确认 | Engineering verified / external enforcement pending |
-| EXT-121 | Chrome/Firefox release profiles     | P0     | L    | EXT-028,EXT-011         | 单一版本源、profile、manifest 映射和双端产物 | Verified |
-| EXT-122 | hash/SBOM/license/provenance        | P0     | M    | EXT-121                 | 9 文件 evidence bundle、inspection、复现 | Verified |
-| EXT-123 | Store listing/privacy/security docs | P0     | L    | EXT-028,EXT-030         | 文案/权限/隐私包完成；URL、截图、商店签字待外部 | Engineering complete / store sign-off pending |
-| EXT-124 | Beta opt-in/update/rollback         | P0     | L    | EXT-121                 | runbook、Schema/backup 演练；真实商店 rollback 待外部 | Engineering complete / drill pending |
-| EXT-125 | release candidate regression        | P0     | L    | EXT-050,EXT-069,EXT-108 | gate 编排和双次复现完成；两轮真实 Beta RC 待证据 | Automation verified / external evidence pending |
-| EXT-126 | Stable Go/No-Go review              | P0     | M    | EXT-120..125            | 记录已建立；当前 Stable `NO-GO` | Reviewed / NO-GO |
-| EXT-127 | Post-release review                 | P1     | M    | EXT-126                 | 模板和指标边界完成；真实发布后复盘待执行 | Template ready / post-release pending |
+| EXT-121 | Chrome/Firefox release profiles     | P0     | L    | EXT-028,EXT-011         | 单一版本源、profile、manifest 映射和双端产物          | Verified                                            |
+| EXT-122 | hash/SBOM/license/provenance        | P0     | M    | EXT-121                 | 9 文件 evidence bundle、inspection、复现              | Verified                                            |
+| EXT-123 | Store listing/privacy/security docs | P0     | L    | EXT-028,EXT-030         | 文案/权限/隐私包完成；URL、截图、商店签字待外部       | Engineering complete / store sign-off pending       |
+| EXT-124 | Beta opt-in/update/rollback         | P0     | L    | EXT-121                 | runbook、Schema/backup 演练；真实商店 rollback 待外部 | Engineering complete / drill pending                |
+| EXT-125 | release candidate regression        | P0     | L    | EXT-050,EXT-069,EXT-108 | gate 编排和双次复现完成；两轮真实 Beta RC 待证据      | Automation verified / external evidence pending     |
+| EXT-126 | Stable Go/No-Go review              | P0     | M    | EXT-120..125            | 记录已建立；当前 Stable `NO-GO`                       | Reviewed / NO-GO                                    |
+| EXT-127 | Post-release review                 | P1     | M    | EXT-126                 | 模板和指标边界完成；真实发布后复盘待执行              | Template ready / post-release pending               |
+
+## EPIC-06.5：体验补齐与交付级媒体 UI（Phase 6.5）
+
+本 Epic 由 2026-08-12 用户实测触发，需求、架构和主要工程切片已进入实现审查。当前状态表示“代码与自动化已有证据，但交付级
+验收尚未闭环”，不能把 `In Review` 等同于 `Verified`。Phase 7、Stable 与 Legacy 重构决策均继续冻结。
+
+| ID      | 任务                                            | 优先级 | 估算 | 依赖                             | 当前实现/证据摘要                                                                                                                                                                                                                    | 状态                                                      |
+| ------- | ----------------------------------------------- | ------ | ---- | -------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------- |
+| EXT-128 | MediaAnchorRegistry 与 per-media host 生命周期  | P0     | L    | EXT-041,EXT-042,ADR-0009/0015    | registry、open ShadowRoot、唯一 host、scroll/resize/replacement/removal E2E；30 分钟 churn/完整 fullscreen 证据待补                                                                                                                  | In Review / engineering implemented, acceptance partial   |
+| EXT-129 | 低干扰 MediaQuickControls 与显隐/避让策略       | P0     | L    | EXT-128,EXT-082                  | per-media closed-root controls、播放折叠、暂停强制收起、trigger hover/focus/click/touch 和隐藏路径已有 component/E2E；headed 遮挡/字幕/原生控件待补                                                                                  | In Review / engineering implemented, acceptance partial   |
+| EXT-130 | typed MediaFeedbackEvent 与 per-media presenter | P0     | M    | EXT-044,EXT-128                  | 最终值、error redaction、replace/expiry、aria-live、audio/page fallback 已有 unit/component/E2E；headed 安全区与时延待补                                                                                                             | In Review / engineering implemented, acceptance partial   |
+| EXT-131 | PlaybackPolicyResolver 与作用域/写回模型        | P0     | L    | EXT-024..026,EXT-064,ADR-0016    | global/site/page/media 优先级、source、保护、站点持久化与临时 scope isolation 已有 unit/integration/component                                                                                                                        | In Review / engineering implemented, acceptance partial   |
+| EXT-132 | PlaybackLifecycleCoordinator                    | P0     | L    | EXT-041,EXT-046,EXT-131,ADR-0016 | 新媒体、重播、source/duration generation、reset 保护、有界重试、teardown/race 单测已落地；真实换集/live smoke 待补                                                                                                                   | In Review / engineering implemented, acceptance partial   |
+| EXT-133 | 快捷键、Overlay、Popup command/feedback 统一    | P0     | M    | EXT-060,EXT-061,EXT-129,130      | content command 统一产出 typed feedback；editable E2E、Overlay/Popup scope contract 已覆盖；跨入口 headed 最终值证据待补                                                                                                             | In Review / engineering implemented, acceptance partial   |
+| EXT-134 | Popup/Options 倍速作用域、来源与保护状态        | P0     | M    | EXT-062,EXT-131                  | Popup 展示 effective source/protection 与 scope；Options 提供 global/site rate 和继承恢复；可用性实测待补                                                                                                                            | In Review / engineering implemented, acceptance partial   |
+| EXT-135 | 多媒体、音频、Shadow DOM 与 frame 降级          | P0     | L    | EXT-128..132,EXT-042             | eligibility 排除隐藏/微小/背景媒体，audio fallback、iframe-only registry 与同/跨源状态继承已有 E2E；真实站点/人工降级证据待补                                                                                                        | In Review / engineering implemented, acceptance partial   |
+| EXT-136 | 触控、键盘、a11y、i18n 与宿主 UI 共存           | P1     | M    | EXT-129,EXT-130,EXT-067/068      | component 覆盖 click/touch、Escape/Tab、zh-CN/en-US、aria-live；200% zoom、reduced-motion、Firefox headed 与宿主控件共存待补                                                                                                         | In Review / component evidence partial                    |
+| EXT-137 | 自动化 fixture、real-extension E2E 与 churn     | P0     | XL   | EXT-128..135,EXT-005/008         | fresh `pnpm check`：Unit 386、Component 40、Integration 152、Compatibility 40、Security 3；route-first/Tencent stale-frame 回归、双端 build/budget 通过，content 余量 79 bytes；30 分钟增强 churn 与 Firefox 核心 UX 待补                                                                 | In Review / engineering automation verified, exit pending |
+| EXT-138 | Headed 视觉、焦点、触控和 Tier 1/2 live smoke   | P0     | L    | EXT-129..137,EXT-101..104        | 2026-08-19 Tier 1 五站与 Netflix 前景 owner 通过；2026-08-20 Tencent/Dailymotion targeted smoke 通过，Dailymotion closed-root 几何仍 `probe-limited`；其它真实 pointer/宿主共存、Sohu/TED 碰撞、Ixigua no-media、Firefox 与场景扩展仍待补 | In Review / external UX evidence partial                  |
+| EXT-139 | Phase 6.5 产品/UX/架构/质量 Exit Review         | P0     | M    | EXT-128..138                     | 已建立实现审查记录；UX-ACC、剩余风险、用户签字和 Phase 7 解冻条件尚未通过                                                                                                                                                            | HOLD / Exit Review pending                                |
+| EXT-145 | MAIN world MediaControlAuthority                | P0     | L    | EXT-041,046,132,ADR-0017         | per-instance binding；rate/volume/muted 持续保护；currentTime 短租约；custom accessor；descriptor-safe teardown；bounded diagnostics；hostile fixture/unit 已通过                                                                    | In Review / engineering implemented                       |
+| EXT-146 | Authority typed protocol 与 runtime 接入        | P0     | L    | EXT-145,ADR-0002/0006            | content 下发 resolved protect policy；page-main attach/detach/command commit；routed frame 生命周期；停用/撤权/reload fail-closed；跨 frame 迁移集成已通过                                                                           | In Review / engineering implemented                       |
+| EXT-147 | Hostile reset 与腾讯切片/换集稳定性验收         | P0     | L    | EXT-137/138,EXT-145/146          | setter/轮询与延迟 reset fixture、route-first 首键、切片/reload staged intent 继承、旧 frame 过时响应恢复、登录态 720P native/fake 跨帧仲裁、3 秒稳定采样与快捷键证据已通过；广告、更多登录态和可重复 active fake-video 样本待补 | In Review / Tencent acceptance evidence passed            |
+| EXT-148 | MV3 context/BFCache 错误收敛与重载清理          | P0     | M    | EXT-137,EXT-146                  | content/background 消费 disconnect lastError；精确 invalidation rejection boundary；250ms fail-closed probe；BFCache/错误面板/unpacked reload E2E；`0.1.2.10000` 双端构建通过                                                        | Verified                                                  |
+| EXT-149 | Legacy 快捷键与媒体命令能力对齐                 | P0     | L    | EXT-044,EXT-060,EXT-080..084     | 播放/进度/音量/倍速、全屏/PiP、截图、变换/滤镜、30 FPS 逐帧、下一集、`Z` 记忆和数字键叠加均有 typed command 与回归测试                                                                                                               | Verified                                                  |
+| EXT-150 | 本站进度恢复快捷切换与反馈                      | P0     | M    | EXT-084,EXT-130,EXT-133          | `Shift+R` 通过受限 background 协议原子修改当前站点，开启后立即恢复当前媒体，成功/失败均反馈                                                                                                                                          | Verified                                                  |
+| EXT-151 | Legacy 站点原生控制语义补齐                     | P1     | M    | EXT-100..108,EXT-149             | adapter 独立 seek/rate capability；Netflix rate 原生菜单优先、缺失时 captured setter 回退，seek 无控件显式降级；fixture/baseline 与 headed 前景 owner 通过                                                                           | Verified for fixture / conditional live                   |
+| EXT-152 | 页级状态 mutation 顺序与 iframe 一致性          | P0     | M    | EXT-064,EXT-135,EXT-148          | hidden/temporary 目标状态在 top-frame 请求前进入 tab cache，失败回滚；20 次 Chrome 重复回归无状态回放                                                                                                                                | Verified                                                  |
+| EXT-153 | Legacy 实验下载与 MSE 捕获能力对齐              | P1     | L    | EXT-149,FR-MEDIA-004             | `Shift+D`、global/site `download.enabled`、同源/短跨域直链、MSE 分轨、queued endOfStream、错误终态、预算、取消/清理、trusted hotkey、非阻塞确认和文件名编辑已实现                                                                    | In Review / engineering implemented                       |
+| EXT-154 | 实验捕获授权与最终下载 sink 安全拆分            | P0     | L    | EXT-153,ADR-0002,SEC-001         | 实验管理器不挂载到 `window`；MAIN 仅负责 bounded capture/prepare；isolated content 按真实设置和用户 intent 执行最终 anchor/fetch sink；hostile-page 与 live-site 证据待补                                                            | In Review / boundary implemented, acceptance pending      |
+| EXT-155 | 音频增益可选模块                                | P2     | M    | EXT-129,EXT-149                  | Web Audio 延迟建图、1×～6×、global/site 策略与 capability 门控已实现；建图/增益失败会释放图、回滚 `1×`、移除 capability 并拒绝命令；站点音频链路、跨域媒体和 headed 体验待补                                                         | In Review / engineering implemented, acceptance pending   |
+| EXT-156 | 鼠标长按临时加速与 autoplay coordinator         | P2     | M    | EXT-129,EXT-132                  | 左键长按临时 3×/释放恢复、pointerup/异步 play-pause 状态保护、控制栏排除与时长校验已实现；autoplay 已改为顶层可见媒体 + adapter 声明式站点按钮，目前仅 Bilibili 启用；基础 headed 按钮单击/播放保持已通过，登录态/触控/广告/换集待补 | In Review / engineering implemented, acceptance pending   |
+| EXT-157 | PiP 跨 Tab 控制权与远程快捷键                   | P2     | L    | EXT-081,EXT-149                  | background owner lease、heartbeat/grace、generation、精确 tab/frame 路由和远程命令 allowlist 已实现；headed PiP、跨浏览器与重启场景待补                                                                                              | In Review / engineering implemented, acceptance pending   |
+
+### Phase 6.5 当前实现证据（更新至 2026-08-20）
+
+- Anchor/UI：`media-anchor-registry.ts`、`MediaQuickControls.vue`、`media-anchor-registry.spec.ts`、
+  `media-quick-controls.spec.ts` 与 Chromium anchor/obscured E2E。
+- Feedback：`application/feedback/*`、`MediaFeedbackPresenter.vue`、unit/component tests 与 audio-only page fallback E2E。
+- Policy/Lifecycle：`domain/playback/*`、`PlaybackLifecycleCoordinator`、policy/lifecycle/eligibility unit 与 content/background contract tests。
+- Control authority：ADR-0017 冻结的 per-instance MAIN world 仲裁、持续 rate/volume、短租约 currentTime、typed configure/commit 与 fail-closed teardown 已实现；EXT-145～147 进入审查和扩展站点取证。
+- Runtime lifecycle：EXT-148 已验证 BFCache message-port 断连不会产生 unchecked `runtime.lastError`，扩展 context 失效不会留下旧 UI 或未处理 Promise rejection，新 unpacked 实例可重新注册并恢复。
+- Legacy parity：EXT-149～151 已把 Legacy 的主要键盘命令面、逐帧/下一集/视觉细节、截图 artifact、本站进度恢复切换和 Netflix 原生控制语义迁入 typed domain；rate 原生菜单缺失时回退 captured setter，seek 无控件显式降级；不复制 Legacy 全局副作用。
+- Frame/runtime：`FrameRuntimeRegistry`、iframe-only ownership、late same/cross-origin state inheritance、settings fail-closed
+  reconnect 自愈、按 tab/有效媒体 report 恢复与 worker-restart 重复回归。
+- Route-first/runtime：顶层媒体缓存为空但 child frame 已可路由时，第一次快捷键直接异步解析并执行；命令 setter 假成功而最终 snapshot 未命中时显式失败；腾讯旧 frame 响应过时后可在新实例恢复 staged intent。
+- State ordering：EXT-152 修复 top frame mutation 上报与后台旧缓存回包之间的竞态；临时停用和页面 UI 隐藏均先登记目标状态，请求失败恢复旧值。
+- Experimental parity：EXT-153 已实现 Legacy 实验总开关直接覆盖的下载/MSE 能力及 global/site 独立下载开关；默认关闭时不安装 Hook，关闭/切源/错误/超时可回收。EXT-154 的实验端口与最终 sink 边界已落地，剩余为 hostile-page、真实站点和 headed 下载验收。
+- Advanced parity：EXT-155～157 的音频增益、鼠标长按/autoplay 与 PiP 跨 Tab lease 已进入工程实现；在 live/headed 证据补齐前保持 `Acceptance pending`，不升级为 Stable。
+- 高级能力差距审查（2026-08-19）确认并修正：autoplay 已由通用 `media.play` 收窄为 adapter 声明的站点按钮动作，未声明站点不执行且 iframe 禁用；音频增益建图失败已动态降级 capability；Legacy `allowCrossOriginControl` 的 Web 替代为 host/frame 授权和精确 frame owner，不隐式扩大权限。
+- 当前缺口：Tencent 宿主避让与登录态/广告态/换集共存、iQIYI/Youku 真实 pointer/浮层共存、Sohu/TED 安全区与 reload 外跳、Ixigua 可复现 Web 播放器、Firefox headed UX、native fullscreen、200%/theme/reduced-motion/字幕与原生控件共存、30 分钟 churn、换集/广告/登录态和用户 Exit Review。Netflix active/background 筛选已由 2026-08-19 前景 owner run 关闭。
+
+### Phase 6.5 fresh live evidence
+
+- Tier 1 Run `2026-08-14T23-25-32-569Z`：YouTube、Bilibili、Tencent Video、iQIYI、Youku；5 个 report outcome=`passed`。Tencent 专项 Run `2026-08-16-tencent-shadow-anchor-hitbox-10004` 已证明初始与 reload/WASM 顶层透明边缘 hover、真实播放表面锚定和双模式倍速控制；Run `2026-08-16-tencent-stale-frame-fix` 进一步证明切片后新实例继承 `1.5x`、快捷键到 `2x` 后抵抗站点轮询、反馈归属正确、reload 后继续继承 `1.5x`，`outcome=passed`、`violations=[]`。原生控件/字幕/弹幕 collision warning 仍保留，iQIYI/Youku 结论不变。
+- Tier 2 Run `2026-08-14T23-50-00-000Z`：Netflix、AcFun、Sohu Video、TED；Playwright `4 passed`，report 为 3 个 `passed` + TED `blocked`，不能按进程绿灯覆盖 report outcome。
+- 覆盖性 Run `2026-08-19-netflix-foreground-owner-final`：Netflix 背景 opacity `0.25` 实例无 Host/Trigger，前景 opacity `1` 实例独占 UI，快捷键/Popup/reload 继承通过，`warnings=[]`、`violations=[]`。Run `2026-08-19-tier1-foreground-fix-final` 的五个 Tier 1 strict smoke 全部通过并保留站点 warning。
+- Targeted Run `2026-08-20-phase65-budget-final`：Tencent 与 Dailymotion 均为 `outcome=passed`、`violations=[]`。Tencent 换集后继承 `1.5x`、首次/延迟快捷键、3 秒轮询稳定性与 reload 继承通过；Dailymotion 跨域实例首次快捷键、Popup `1.5x` 和 reload 继承通过，closed ShadowRoot 只保留 `probe-limited` 几何 warning。
+- Ixigua Run `2026-08-15T00-05-00-000Z`：公开桌面/移动入口 HTTP 200 但无 `<video>`，strict `no-media` 失败和 App-only 截图已归档；不计兼容通过。
 
 ## EPIC-07：实验能力与后续决策（Phase 7）
 
-| ID      | 任务                                 | 优先级 | 估算 | 依赖    | 验收摘要         | 状态     |
-| ------- | ------------------------------------ | ------ | ---- | ------- | ---------------- | -------- |
-| EXT-140 | 下载/MediaSource threat & perf spike | P2     | L    | EXT-126 | 明确可行/否决    | Proposed |
-| EXT-141 | 声音增益可选模块                     | P2     | M    | EXT-126 | 权限/性能审查    | Proposed |
-| EXT-142 | 声明式自定义规则 Schema              | P2     | L    | EXT-126 | 不执行任意代码   | Proposed |
-| EXT-143 | 共享核心成本收益评估                 | P2     | M    | EXT-127 | 数据化 ADR       | Proposed |
-| EXT-144 | 油猴脚本后续项目决策                 | P2     | S    | EXT-143 | 新章程或明确关闭 | Proposed |
+| ID      | 任务                                 | 优先级 | 估算 | 依赖            | 验收摘要                                                       | 状态                                |
+| ------- | ------------------------------------ | ------ | ---- | --------------- | -------------------------------------------------------------- | ----------------------------------- |
+| EXT-140 | 下载/MediaSource threat & perf spike | P2     | L    | EXT-126,EXT-139 | 工程 spike 已由 EXT-153 提前完成；正式授权/sink 架构转 EXT-154 | Superseded by EXT-153/154           |
+| EXT-141 | 声音增益可选模块                     | P2     | M    | EXT-126,EXT-139 | 工程实现已完成；权限/性能与真实站点审查待补                    | In Review / engineering implemented |
+| EXT-142 | 声明式自定义规则 Schema              | P2     | L    | EXT-126,EXT-139 | 不执行任意代码                                                 | Proposed                            |
+| EXT-143 | 共享核心成本收益评估                 | P2     | M    | EXT-127,EXT-139 | 数据化 ADR                                                     | Proposed                            |
+| EXT-144 | 油猴脚本后续项目决策                 | P2     | S    | EXT-143         | 新章程或明确关闭                                               | Proposed                            |
+
+EXT-140 已由 EXT-153/154 吸收；EXT-142～144 保持正式任务状态 `Proposed`，而 EXT-141 与 EXT-155～157 已提前完成工程实现。整个 Phase 7 当前为 `HOLD`；EXT-139 和用户明确解冻前不得进入 `Ready`。

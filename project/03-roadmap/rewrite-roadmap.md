@@ -1,9 +1,9 @@
 # Web Extension 重构路线图
 
 > 文档 ID：ROADMAP-001  
-> 状态：Approved / Phase 6 Release Engineering Exit<br>
+> 状态：In Review / Phase 6.5 Implementation Review<br>
 > 负责人：Project Owner  
-> 最后更新：2026-08-11  
+> 最后更新：2026-08-14
 > 估算方式：以退出条件为主，不以日期驱动；建议两周一个可演示增量。
 
 ## 总体路径
@@ -16,21 +16,23 @@ Phase 0 基线与脚手架
         -> Phase 4 画面、UI、截图、进度
           -> Phase 5 站点适配与兼容矩阵
             -> Phase 6 Beta、发布工程与稳定化
-              -> Phase 7 实验能力与是否共享核心的决策
+              -> Phase 6.5 体验补齐与交付级 UI
+                -> Phase 7 实验能力与是否共享核心的决策
 ```
 
 ## 当前阶段状态
 
-| 阶段       | 状态                  | 结论                                                                                                                 |
-| ---------- | --------------------- | -------------------------------------------------------------------------------------------------------------------- |
-| Phase 0    | Completed             | 独立工程基线与 Legacy 隔离已批准                                                                                     |
-| Phase 1    | Completed             | typed protocol、storage、security boundary 已批准                                                                    |
-| Phase 2    | Completed             | Tier 0 媒体核心与双浏览器真实扩展证据已批准                                                                          |
-| Phase 3    | Completed for Preview | [Exit Review](../09-reviews/phase-3-exit-review-2026-08-11.md) 为 Conditional GO；可进入 Phase 4，不具备 Stable 资格 |
-| Phase 4    | Completed for Preview | [Exit Review](../09-reviews/phase-4-exit-review-2026-08-11.md) 为 Conditional GO；可进入 Phase 5，不具备 Stable 资格 |
-| Phase 5    | Completed for Preview | [Exit Review](../09-reviews/phase-5-exit-review-2026-08-11.md) 为 Conditional GO；fixture 范围可进入 Phase 6         |
-| Phase 6    | Conditional GO        | [Exit Review](../09-reviews/phase-6-exit-review-2026-08-11.md)：发布工程基线完成；真实 Beta/Stable 外部证据未完成        |
-| Phase 7    | Planned               | 实验能力与是否共享/重构 Legacy 的独立决策                                                                               |
+| 阶段      | 状态                             | 结论                                                                                                                                      |
+| --------- | -------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
+| Phase 0   | Completed                        | 独立工程基线与 Legacy 隔离已批准                                                                                                          |
+| Phase 1   | Completed                        | typed protocol、storage、security boundary 已批准                                                                                         |
+| Phase 2   | Completed                        | Tier 0 媒体核心与双浏览器真实扩展证据已批准                                                                                               |
+| Phase 3   | Completed for Preview            | [Exit Review](../09-reviews/phase-3-exit-review-2026-08-11.md) 为 Conditional GO；可进入 Phase 4，不具备 Stable 资格                      |
+| Phase 4   | Completed for Preview            | [Exit Review](../09-reviews/phase-4-exit-review-2026-08-11.md) 为 Conditional GO；可进入 Phase 5，不具备 Stable 资格                      |
+| Phase 5   | Completed for Preview            | [Exit Review](../09-reviews/phase-5-exit-review-2026-08-11.md) 为 Conditional GO；fixture 范围可进入 Phase 6                              |
+| Phase 6   | Conditional GO                   | [Exit Review](../09-reviews/phase-6-exit-review-2026-08-11.md)：发布工程基线完成；真实 Beta/Stable 外部证据未完成                         |
+| Phase 6.5 | Implementation Review / UX NO-GO | [实现审查](../09-reviews/phase-6.5-implementation-review-2026-08-14.md)：核心代码与部分自动化已落地；headed/live/churn/用户 Exit 仍未闭环 |
+| Phase 7   | HOLD                             | 实验能力与是否共享/重构 Legacy 的独立决策；依赖 Phase 6.5 Exit 和用户确认解除冻结                                                         |
 
 ## Phase 0：基线冻结与工程脚手架
 
@@ -202,6 +204,40 @@ headed 权限确认框、商店发布或 Stable 资格。
 - [ ] 真实商店安装/升级/回滚或 forward-fix 演练通过。
 - [ ] Stable Go/No-Go 记录批准。
 
+## Phase 6.5：体验补齐与交付级媒体 UI（实现审查中）
+
+目标：吸收 Legacy 已验证的低干扰、高反馈、少重复操作体验，在不复制旧实现的前提下，把 Web Extension 从“功能可用的技术 Preview”提升为可进入真实 Beta 验证的交付级产品。
+
+当前状态：需求、架构和主要工程切片已实现并进入审查；在 headed/live/churn 和用户 Exit Review 完成前，不得把阶段标为
+Completed、不得解除 Phase 7，也不得以 fixture 自动化替代交付级体验证据。
+
+范围：
+
+- 以稳定 `mediaId` 为中心建立 per-media anchor registry，页面 quick controls 跟随视频而不是跟随视口。
+- 将默认大面板拆为低干扰 quick controls、二级 advanced menu 和独立 per-media feedback presenter。
+- 建立 global/site/page/media 四层倍速作用域、用户意图写回和策略来源展示。
+- 建立新媒体、重播、SPA 换集、`src` 变化和网站反向改值的 lifecycle coordinator。
+- 统一快捷键、页面 UI、Popup 的 command result 与最终值反馈。
+- 补齐多媒体、音频、Shadow DOM、iframe、触控、键盘、缩放和宿主控件避让。
+- 建立 headed 视觉回归、真实扩展 E2E、30 分钟 churn 和 Tier 1 live smoke 证据。
+
+明确非范围：
+
+- 不修改 Legacy `src/h5player/`、`src/libs/`、根构建链或发行行为。
+- 不进入媒体下载、MediaSource、声音增益、声明式自定义规则或共享核心抽取。
+- 不把 Phase 4 全局 Overlay 继续扩展为更大的页面控制台。
+- 不用修改宿主 CSP、inline style、closed Shadow DOM 或无限轮询解决定位/倍速保护问题。
+
+退出条件：
+
+- [ ] `REQ-UX-001/002`、`ARCH-UX-001`、`QUAL-UX-001` 经用户审核并进入 Approved 或带明确条件的可执行状态。
+- [ ] `UX-ACC-001..015` 的 P0 全部 Verified，P1 无未接受的交付阻塞项。
+- [ ] 默认页面不存在视口级大面板；控件和反馈与正确媒体绑定，滚动/resize/fullscreen/SPA 后归属正确。
+- [ ] 用户设置一次倍速后，新媒体、重播、换集和 `src` 变化无需重复设置；网站反向改值有界处理且可解释。
+- [ ] 快捷键、页面控件和 Popup 产生一致的最终值反馈；输入框、焦点、触控和多媒体目标无 P0 回归。
+- [ ] Chromium/Firefox real-extension E2E、headed 视觉/焦点/遮挡、30 分钟 churn 和 Tier 1 live smoke 证据完成。
+- [ ] EXT-128～139 全部 Verified，Phase 6.5 Exit Review 获用户确认；随后才可重新评估 Phase 7。
+
 ## Phase 7：实验能力与 Legacy 后续决策
 
 目标：把高风险能力置于成熟基础之上，并决定是否影响油猴主线。
@@ -218,6 +254,8 @@ headed 权限确认框、商店发布或 Stable 资格。
 - 扩展稳定运行数据足以评估共享核心收益与成本。
 - 关于“是否重构油猴脚本”的新项目章程被明确批准或否决。
 
+进入条件：Phase 6.5 Exit Review 已通过、`UX NO-GO` 已解除，并由用户明确批准重新启动 Phase 7；Phase 6 发布工程的历史 Conditional GO 不能单独满足此条件。
+
 ## 阶段控制规则
 
 - 不允许为了追赶站点数量跳过 Phase 1 的消息、存储和权限边界。
@@ -228,4 +266,5 @@ headed 权限确认框、商店发布或 Stable 资格。
 - Phase 4 的 Conditional GO 只授权继续 Phase 5 工程开发；不授权 Beta、Stable、Tier 1 支持、最低浏览器版本或商店发布声明。
 - Phase 5 的 Conditional GO 只授权继续 Phase 6 发布工程；固定 fixture 不得扩写为 Tier 1 真实生产站点支持。
 - Phase 6 的 Conditional GO 只确认 repository release-engineering baseline；不授权 Beta 分发、商店提交或 Stable 发布。
-- 只有 `phase-6-exit-review` 中所有外部门禁均有可回链记录，Stable 才能从 `NO-GO` 变为 `GO`。
+- Phase 6.5 是用户实测触发的强制体验补齐阶段；完成前不得启动 EXT-140～144，也不得抽取或改写 Legacy 共享核心。
+- 只有 Phase 6 外部门禁和 Phase 6.5 UX 门禁均有可回链记录，Stable 才能从 `NO-GO` 变为 `GO`。
