@@ -1,9 +1,9 @@
 # Web Extension 非功能需求
 
 > 文档 ID：REQ-002  
-> 状态：Approved / Phase 6 Release Engineering Update<br>
+> 状态：In Review / Phase 6.5 UX Amendment<br>
 > 负责人：Architect / Quality Owner  
-> 最后更新：2026-08-10
+> 最后更新：2026-08-12
 
 ## 1. 可维护性与类型安全
 
@@ -25,6 +25,8 @@
 - **NFR-PERF-004**：content、MAIN world 与 background 初始脚本分别设置 gzip 预算；初始建议上限为 250KB、200KB、150KB，UI 与实验模块按需加载。
 - **NFR-PERF-005**：连续 30 分钟 SPA/多媒体压力测试后，媒体会话、监听器和 DOM 节点数量回到可解释范围，无单调增长。
 - **NFR-PERF-006**：service worker 可随时休眠和重启，不能依赖常驻内存作为唯一状态源。
+- **NFR-PERF-007（Phase 6.5 In Review）**：媒体发现到页面 quick controls 可交互 p95 ≤150ms；命令成功到媒体级反馈首次可见 p95 ≤100ms，测量方法和浏览器基线必须归档。
+- **NFR-PERF-008（Phase 6.5 In Review）**：反馈默认可见 1.5～2.0 秒；连续同类操作不得形成提示堆叠；页面 UI 默认覆盖媒体主体目标 ≤20%，超出时必须收缩或降级并留有截图证据。
 
 ## 3. 可靠性
 
@@ -34,6 +36,10 @@
 - **NFR-REL-004**：Schema 迁移失败时保留原始备份并回到上一个可读版本或安全默认值。
 - **NFR-REL-005**：关键用户操作失败必须返回结构化错误，并在 UI 中提供可行动说明。
 - **NFR-REL-006**：浏览器更新或页面 API 缺失时按能力降级，不通过未捕获异常停止整个扩展。
+- **NFR-UXREL-001（Phase 6.5 In Review）**：同一 `mediaId` 最多一个 UI host 和一个反馈 presenter；媒体移除、页面停用、权限撤销和 frame 销毁后 host/listener/observer/timer 无残留。
+- **NFR-UXREL-002（Phase 6.5 In Review）**：策略应用按 lifecycle generation 幂等去重；website reset 的重试有界，不使用无限 interval 维持倍速保护。
+- **NFR-UXREL-003（Phase 6.5 In Progress）**：媒体控制权仲裁必须在 `document_start` 的 MAIN world 安装，getter 行为透明，冲突 setter 不抛出未捕获异常；扩展 teardown 只恢复自己仍持有的 descriptor，不覆盖网站在运行期间合法替换的 descriptor。
+- **NFR-UXREL-004（Phase 6.5 In Progress）**：控制保护不得依赖短周期常驻轮询。setter 仲裁是第一道防线，媒体事件/状态观察和有界恢复是第二道防线；单站异常可按属性或 adapter 关闭，不能拖垮 Generic Core。
 
 ## 4. 安全与隐私
 
@@ -65,6 +71,7 @@
 - **NFR-A11Y-001**：popup/options/overlay 可用键盘完整操作，焦点顺序可预测且有可见焦点。
 - **NFR-A11Y-002**：交互控件具有名称、状态和错误提示；颜色不是唯一信息载体。
 - **NFR-A11Y-003**：文本与背景达到 WCAG 2.1 AA 对比度目标。
+- **NFR-A11Y-004（Phase 6.5 In Review）**：媒体级控件和反馈在键盘焦点、触控、200% 缩放、reduced-motion、深色/浅色和 zh-CN/en-US 长文本下不遮挡、不截断且语义可读。
 - **NFR-I18N-001**：UI 不直接硬编码面向用户的文本；至少完整支持 `zh-CN` 和 `en-US`。
 - **NFR-I18N-002**：快捷键名称、数字、日期和复数规则通过国际化层格式化。
 

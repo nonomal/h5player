@@ -1,9 +1,9 @@
 # UI 组件化架构与设计规范
 
 > 文档 ID：ARCH-004  
-> 状态：Approved / Phase 4 Overlay Implemented Baseline  
+> 状态：In Review / Phase 6.5 Overlay UX Reassessment
 > 负责人：UI Owner / Architect  
-> 最后更新：2026-08-10  
+> 最后更新：2026-08-12
 > 适用：Popup、Options、页面 Overlay 及共享组件
 
 ## 1. 组件化目标
@@ -121,7 +121,7 @@ type Loadable<T> =
 - bundle 增量和依赖影响符合预算；
 - teardown、错误和权限拒绝状态有测试。
 
-## 12. Phase 4 Overlay 实现记录
+## 12. Phase 4 Overlay 实现记录（技术 Preview，UX 未达标）
 
 - `MediaOverlay.vue` 只消费版本化 `OverlayViewModel`，发出 `OverlayEvent`；`ContentOverlayController` 负责 typed
   command、busy、notice、fallback 和 capture download 协调。
@@ -133,3 +133,12 @@ type Loadable<T> =
 - event isolation 主要阻止 ShadowRoot 内事件向页面冒泡；页面 capture-phase listener 仍可能先观察事件，closed root
   也不是安全沙箱。
 - download 按钮在 Preview 明确 disabled；截图按钮只在 capability 存在时启用。
+
+## 13. Phase 6.5 Overlay 修正边界（In Review）
+
+- Phase 4 的 `document.documentElement` anchor 和 fixed 大面板只作为技术 Preview 历史记录，不再是交付目标。
+- 默认页面 UI 改为 `mediaId` 级 host：视频优先局部容器/媒体右上角，空间不足按受控 placement fallback；audio/no-anchor 使用紧凑反馈或 Popup 入口。
+- `MediaQuickControls` 只负责高频命令和显隐状态；`MediaFeedbackPresenter` 负责短时最终值/错误反馈；二者不得共用一个全局 panel controller。
+- 页面 UI 必须支持折叠、hover、focus、pause、touch、hidden、reduced-motion 和 host teardown；播放中不能持续遮挡媒体主体。
+- Popup/Options 可展示策略来源、保护状态和当前实际值，但不能替代页面反馈；快捷键、Overlay、Popup 使用同一 application command/feedback contract。
+- iframe-only、fullscreen、PiP、字幕/原生控件避让需有明确支持或降级状态，不能把 top-frame empty 伪装为正确 media placement。

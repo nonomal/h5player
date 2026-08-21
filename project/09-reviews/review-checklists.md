@@ -1,8 +1,8 @@
 # 项目审查清单
 
 > 文档 ID：REVIEW-002  
-> 状态：Approved  
-> 最后更新：2026-08-10
+> 状态：Approved Baseline / Phase 6.5 UX Supplement In Review
+> 最后更新：2026-08-12
 
 ## 1. 需求审查
 
@@ -46,6 +46,16 @@
 - [ ] 键盘、焦点、ARIA、对比度和缩放通过。
 - [ ] 文案国际化，无不可信 innerHTML。
 - [ ] 页面 overlay 样式隔离且可销毁。
+
+### 5.1 Phase 6.5 媒体体验专项
+
+- [ ] 页面控件和反馈先绑定稳定 `mediaId`/anchor，不以 `document.documentElement` fixed panel 作为默认交付形态。
+- [ ] 播放中默认折叠/低可见；hover/focus/pause/touch/hidden 的状态和延迟收起可测试。
+- [ ] 快捷键、Overlay、Popup 使用同一命令结果和反馈事件，展示最终值而非“已发送”。
+- [ ] global/site/page/media 倍速作用域、来源、写回和“仅当前媒体”行为已由产品确认。
+- [ ] 新媒体、重播、SPA 换集、`src` 变化和 website reset 的策略应用幂等、有界、可诊断。
+- [ ] 多媒体、广告/背景音频、audio、iframe/no-anchor、字幕/原生控件有支持或明确降级。
+- [ ] headed 视觉、焦点、触控、30 分钟 churn 和 Tier 1 live smoke 均有冻结环境与 artifact。
 
 ## 6. 站点适配器审查
 

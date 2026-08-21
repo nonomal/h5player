@@ -1,9 +1,9 @@
 # 任务工作流与完成定义
 
 > 文档 ID：TASK-001  
-> 状态：Approved  
+> 状态：Approved Baseline / Phase 6.5 UX Amendment In Review
 > 负责人：Project Owner / Quality Owner  
-> 最后更新：2026-08-10
+> 最后更新：2026-08-12
 
 ## 1. 任务状态
 
@@ -29,6 +29,8 @@
 - 依赖、风险和涉及文件边界；
 - 需要的测试层级；
 - 若修改权限、Schema、公共接口或架构，ADR 已存在或被列为前置任务。
+
+Phase 6.5 特别规则：EXT-128～139 在 `REQ-UX-001/002`、`ARCH-UX-001`、`ADR-0015/0016`、`QUAL-UX-001` 经用户审核前一律保持 `Proposed`；不得以已有 Preview 实现或局部单测作为进入 `Ready` 的替代条件。
 
 ## 3. Definition of Done
 

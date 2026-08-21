@@ -1,9 +1,9 @@
 # 自动化测试策略
 
 > 文档 ID：QA-001  
-> 状态：Approved / Phase 5 Executed Baseline  
+> 状态：In Review / Phase 6.5 UX Test Amendment
 > 负责人：Quality Owner  
-> 最后更新：2026-08-11
+> 最后更新：2026-08-12
 
 ## 1. 测试目标
 
@@ -37,6 +37,8 @@
 - URL/origin 规范化与诊断脱敏。
 - visual transform/filter/atomic reset、fullscreen/PiP capability 和 capture error mapping。
 - progress identity/TTL/capacity/privacy/completion policy 与 cross-tab advisory event。
+- playback policy scope/source/priority、user intent writeback、actual rate separation、bounded lifecycle replay。
+- feedback event merge/replace/expiry、media anchor placement/fallback、visibility state、no-anchor/audio degradation。
 
 当前仓库强制门禁以 `vitest.config.ts` 为事实源：statements ≥80%、lines ≥80%、functions ≥80%、branches ≥75%。
 核心 domain/application 的 lines ≥85%、branches ≥80%，以及配置/消息/迁移关键分支 ≥95% 仍是 Stable 收敛目标；在改为
@@ -50,6 +52,9 @@
 - 键盘导航、焦点、ARIA、禁用态和空状态。
 - 多语言文本不会溢出或丢失参数。
 - UI 不直接依赖浏览器 API；使用 fake application facade。
+- MediaQuickControls 的 collapsed/expanded/hidden、hover/focus/pause/touch/reduced-motion 状态。
+- MediaFeedbackPresenter 的最终值、aria-live、错误、合并/过期、无 anchor 和音频降级。
+- 200% 缩放、中文/英文长文本、深色/浅色和宿主 CSS 污染 fixture。
 
 ### 2.4 集成测试
 
@@ -60,6 +65,8 @@
 - storage repository 与 migration/backup。
 - 多 Tab 订阅、并发更新、worker 重启模拟。
 - media discovery、adapter setup/teardown 和 command execution。
+- discovery → anchor registry → policy resolver → lifecycle coordinator → command result → feedback presenter 全链路。
+- 多媒体 active media 切换、媒体删除/复用、权限撤销和站点停用时的 UI/策略/反馈 teardown。
 
 ### 2.5 扩展 E2E（Playwright / Selenium WebDriver）
 
@@ -73,6 +80,8 @@
 - options 保存、导入、导出、恢复和错误回滚。
 - service worker 休眠/重启后恢复。
 - Chrome 与 Firefox 最低支持版本/当前稳定版本 smoke。
+- media-anchor、media-feedback、media-churn-rate、media-policy、media-obscured、touch-overlay fixtures；默认页面不得出现视口级大面板。
+- 新媒体/重播/SPA 换集/`src` 变化/website reset 自动倍速策略；快捷键、Overlay、Popup 最终值反馈一致。
 
 执行约定：
 
@@ -102,6 +111,8 @@
 - bundle gzip 大小、首次执行和按需 chunk 预算。
 - Phase 4 PR budget 以 raw bytes 强制：background 150 KiB、content 250 KiB、page-main 200 KiB；gzip 作为诊断指标。
 - 每次发布候选至少跑一次性能 smoke；每周夜间跑完整压力。
+- Phase 6.5 记录媒体发现到控件可交互 p95 ≤150ms、命令成功到反馈可见 p95 ≤100ms、默认反馈 1.5～2.0s、覆盖面积目标 ≤20%。
+- headed visual 记录滚动/resize/fullscreen/PiP/窄媒体定位误差、焦点顺序和字幕/原生控件避让；不能以 headless DOM 坐标单独通过。
 - 阶段审查必须区分本次运行与继承证据：Phase 3/4 分别重新执行 5 秒 churn smoke，Phase 2 的 30 分钟结果只作为
   历史证据引用，不得写成后续阶段已重跑。
 
@@ -117,17 +128,23 @@
 
 `web-extension/tests/e2e/pages/` 至少维护：
 
-| 页面                       | 验证内容                     |
-| -------------------------- | ---------------------------- |
-| `basic.html`               | 单 video、常见属性和命令     |
-| `multi.html`               | 多 video、active player 选择 |
-| `spa.html`                 | 路由切换、动态插入/销毁      |
-| `shadow-open.html`         | open Shadow DOM              |
-| `iframe-same-origin.html`  | 同源 frame                   |
-| `iframe-cross-origin.html` | 跨源 frame 与权限降级        |
-| `hostile-page.html`        | 重写属性、伪造消息、异常 DOM |
-| `strict-csp.html`          | 严格 CSP/Trusted Types       |
-| `adapter-fixtures/*`       | 站点选择器和特例             |
+| 页面                       | 验证内容                                        |
+| -------------------------- | ----------------------------------------------- |
+| `basic.html`               | 单 video、常见属性和命令                        |
+| `multi.html`               | 多 video、active player 选择                    |
+| `spa.html`                 | 路由切换、动态插入/销毁                         |
+| `shadow-open.html`         | open Shadow DOM                                 |
+| `iframe-same-origin.html`  | 同源 frame                                      |
+| `iframe-cross-origin.html` | 跨源 frame 与权限降级                           |
+| `hostile-page.html`        | 重写属性、伪造消息、异常 DOM                    |
+| `strict-csp.html`          | 严格 CSP/Trusted Types                          |
+| `media-anchor.html`        | 媒体位置、滚动、resize、fullscreen 与 host 跟随 |
+| `media-feedback.html`      | 连续命令、最终值、合并、过期和 aria-live        |
+| `media-churn-rate.html`    | 动态新增/删除/复用媒体、src 变化和倍速继承      |
+| `media-policy.html`        | global/site/page/media 作用域和 website reset   |
+| `media-obscured.html`      | 广告、背景音频、不可见媒体、多播放器误控保护    |
+| `touch-overlay.html`       | 无 hover 的触控打开、焦点和收起                 |
+| `adapter-fixtures/*`       | 站点选择器和特例                                |
 
 ## 4. 测试数据与隔离
 

@@ -1,7 +1,7 @@
 # ADR-0003：配置由版本化 Storage Repository 统一管理
 
 > 状态：Accepted  
-> 日期：2026-08-10（2026-08-11 更新至 Schema V2）  
+> 日期：2026-08-10（2026-08-19 更新至 Schema V3）
 > 决策人：Architect  
 > 关联：REQ-001、ARCH-001
 
@@ -30,10 +30,10 @@ Legacy 同时使用页面 `localStorage`、GM storage、sessionStorage 和内存
 
 需要异步化 UI 和命令流程，并编写迁移测试；换来一致性、可恢复性、可导出和可审计的数据生命周期。
 
-Phase 3 当前实现为 V2：权威 key 为 `h5player.web-extension.settings`，backup key 为
+Phase 6.5 当前实现为 V3：权威 key 为 `h5player.web-extension.settings`，backup key 为
 `h5player.web-extension.settings.backup`。background repository 串行 mutation、每次重读权威值并执行字段 patch；落后
-revision 在最新数据上 rebase，不丢失无关字段。V0/V1 可向 V2 迁移；V2 将快捷键 key/command 收紧为 domain Schema，
-无效旧 binding 被过滤而不是执行。损坏恢复、future schema 不覆盖、checksum backup、262144-byte 原子导入、V1 导入、
+revision 在最新数据上 rebase，不丢失无关字段。V0/V1/V2 可向 V3 迁移；V2 已将快捷键 key/command 收紧为 domain Schema，V3 新增 global/site 下载开关和音频增益、鼠标长按时长、autoplay 策略覆盖，
+无效旧 binding 被过滤而不是执行。损坏恢复、future schema 不覆盖、checksum backup、262144-byte 原子导入、V1/V2 导入、
 分类 reset、rollback、storage change live reload 和 service worker 重启恢复均已有自动化证据。
 
 浏览器 optional host permissions、content-script registration 和本页临时停用不是 Settings 数据：前两者由浏览器

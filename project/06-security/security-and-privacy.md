@@ -1,10 +1,10 @@
 # 安全、隐私与供应链基线
 
 > 文档 ID：SEC-001  
-> 状态：Approved / Phase 6 Security and Supply-chain Baseline<br>
+> 状态：Approved Phase 6 Baseline / Phase 6.5 UX and Experimental Threat Amendment In Review<br>
 > 负责人：Security Reviewer  
-> 最后更新：2026-08-11  
-> 关联：ADR-0002、ADR-0005、QA-002
+> 最后更新：2026-08-19
+> 关联：ADR-0002、ADR-0005、ADR-0009、ADR-0015、QA-002、RISK-028
 
 ## 1. 信任边界
 
@@ -53,6 +53,8 @@
 - 需要异步响应的 listener 明确返回 true/Promise，并处理断开、超时和重复 requestId。
 
 Phase 1 补充：MAIN world 与页面脚本共享 realm，nonce 不能替代 capability authorization。页面桥只允许无特权握手/健康消息；来自 MAIN 的后续媒体数据一律按不可信输入处理，content 不得把任意 page type 翻译为 runtime type，background 仍以真实 sender 和 source allowlist 复核。
+
+实验下载补充：`media.configure-experimental` 与 `media.execute` 的页面侧握手仍经过 MAIN world 共享 `postMessage`，因此 session/nonce 只提供格式、生命周期和重放约束，不能证明消息来自扩展。已落地的缓解包括：默认关闭时不安装 MSE Hook、关闭立即恢复原生方法、capture 资源有界、`endOfStream(error)` 不下载、synthetic `Shift+D` 被拒绝、isolated content 再次按真实 settings 门禁、下载要求浏览器 user activation。实验 manager 只存在于 extension-owned MAIN registry，不挂载到页面 `window`；最终 anchor/fetch sink 已在 isolated content。剩余风险是同 realm 页面仍可在用户激活期间干扰 MediaSource、postMessage 或媒体实例，因此仍需 hostile/live-site 证据，不能宣称绝对隔离。
 
 ## 5. DOM 与内容注入
 
@@ -106,19 +108,20 @@ Phase 6 执行基线：
 
 ## 8. 威胁模型用例
 
-| 威胁                   | 影响            | 防护                                               | 验证             |
-| ---------------------- | --------------- | -------------------------------------------------- | ---------------- |
-| 页面伪造 setValue 消息 | 篡改配置        | nonce + typed bridge + sender check                | security E2E     |
-| 恶意页面触发下载       | 本地文件滥用    | 不把页面消息映射到 downloads；用户命令 + allowlist | adversarial test |
-| XSS 进入 popup/options | 扩展权限窃取    | 安全渲染、CSP、Schema、无 innerHTML                | static + E2E     |
-| CSP 绕过导致任意脚本   | 页面/扩展被利用 | 删除改写规则和动态执行                             | forbidden scan   |
-| worker 重启丢配置      | 数据损失        | storage authority + backup/migration               | restart test     |
-| 依赖供应链投毒         | 全量用户影响    | lockfile、审计、SBOM、review                       | release gate     |
-| 诊断包泄露 URL/内容    | 隐私泄露        | 默认脱敏、预览、用户确认                           | redaction test   |
-| 站点 Hook 被污染       | 功能/安全异常   | 原始引用、能力隔离、teardown                       | hostile fixture  |
-| 大截图耗尽消息/内存     | 卡顿或命令失败   | 像素/维度/4 MiB 上限、encode timeout、二次校验      | capture unit + budget/risk |
-| 进度泄露观看 URL        | 隐私泄露         | 匿名 identity、默认关闭、TTL/容量、raw-source import 拒绝 | progress tests |
-| 页面干扰 Overlay 事件   | 操作冲突         | closed ShadowRoot、event isolation、无秘密输入、可停用 | component/runtime lifecycle + ADR-0009 |
+| 威胁                   | 影响                    | 防护                                                                                                                                         | 验证                                                 |
+| ---------------------- | ----------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------- |
+| 页面伪造 setValue 消息 | 篡改配置                | nonce + typed bridge + sender check                                                                                                          | security E2E                                         |
+| 恶意页面触发下载       | 本地文件滥用            | content settings + trusted intent + user activation；最终 anchor/fetch sink 位于 isolated content，保留 hostile-page 验收                    | adversarial test                                     |
+| XSS 进入 popup/options | 扩展权限窃取            | 安全渲染、CSP、Schema、无 innerHTML                                                                                                          | static + E2E                                         |
+| CSP 绕过导致任意脚本   | 页面/扩展被利用         | 删除改写规则和动态执行                                                                                                                       | forbidden scan                                       |
+| worker 重启丢配置      | 数据损失                | storage authority + backup/migration                                                                                                         | restart test                                         |
+| 依赖供应链投毒         | 全量用户影响            | lockfile、审计、SBOM、review                                                                                                                 | release gate                                         |
+| 诊断包泄露 URL/内容    | 隐私泄露                | 默认脱敏、预览、用户确认                                                                                                                     | redaction test                                       |
+| 站点 Hook 被污染       | 功能/安全异常           | 原始引用、能力隔离、teardown                                                                                                                 | hostile fixture                                      |
+| 大截图耗尽消息/内存    | 卡顿或命令失败          | 像素/维度/4 MiB 上限、encode timeout、二次校验                                                                                               | capture unit + budget/risk                           |
+| 进度泄露观看 URL       | 隐私泄露                | 匿名 identity、默认关闭、TTL/容量、raw-source import 拒绝                                                                                    | progress tests                                       |
+| 页面干扰 Overlay 事件  | 操作冲突                | per-media anchor、closed ShadowRoot、event isolation、无秘密输入、可停用                                                                     | component/runtime lifecycle + ADR-0009/0015          |
+| 页面伪造实验配置/下载  | 安装 Hook、触发本地保存 | 当前：默认关闭、bounded capture、trusted hotkey、content settings gate、user activation；MAIN 仅 capture/prepare，isolated content 执行 sink | unit/integration 已有；EXT-154 hostile/live E2E 待补 |
 
 ## 9. 安全发布门槛
 

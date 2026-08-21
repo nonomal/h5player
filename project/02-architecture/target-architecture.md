@@ -1,10 +1,10 @@
 # Web Extension 目标架构
 
 > 文档 ID：ARCH-001  
-> 状态：Approved / Phase 4 Executed Baseline  
+> 状态：Approved Phase 4 Baseline / Phase 6.5 UX Amendment In Review
 > 负责人：Architect  
-> 最后更新：2026-08-10  
-> 关联：REQ-001、REQ-002、ADR-0001、ADR-0002、ADR-0003
+> 最后更新：2026-08-12
+> 关联：REQ-001、REQ-002、REQ-UX-001/002、ADR-0001、ADR-0002、ADR-0003、ADR-0015/0016
 
 ## 1. 架构目标
 
@@ -315,5 +315,14 @@ Domain/Application 只依赖这些接口。所有 Port 方法都返回 Promise �
 - 截图下载使用 content DOM 的 Blob/anchor，不申请 `downloads`；媒体下载仍为 Phase 7 实验能力。
 - bundle budget 在 build 后同时检查 background/content/page-main raw size，以及 required host、static content script、WAR 回退。
 
-相关决策：ADR-0009～ADR-0012。Preview 架构允许进入 Phase 5，但 capture 消息体、iframe 聚合、跨 Tab 仲裁和
+相关决策：ADR-0009～ADR-0012、ADR-0015（Phase 6.5 提案）。Preview 架构允许进入 Phase 5，但 capture 消息体、iframe 聚合、跨 Tab 仲裁和
 Overlay z-index 仍需在 Beta 前独立收敛。
+
+## 13. Phase 6.5 UX 架构复核（In Review）
+
+用户实测已证明 Phase 4 的 `document.documentElement` fixed Overlay 只满足技术 Preview，不满足交付级页面体验。
+Phase 6.5 目标由 [媒体 UI、反馈与倍速策略运行时架构](./ux-runtime-and-policy-architecture.md) 和
+[ADR-0015](./adr/ADR-0015-media-anchored-overlay-and-feedback.md) 与
+[ADR-0016](./adr/ADR-0016-playback-intent-policy-and-lifecycle.md) 定义：保留 closed ShadowRoot、typed bridge 和无 WAR
+边界，把视觉归属改为 per-media anchor，并把 playback intent/policy/lifecycle 与媒体实际状态分离。该修正仍处于用户审核阶段，
+不表示已经实施或批准。

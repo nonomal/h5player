@@ -1,9 +1,9 @@
 # 数据模型与迁移契约
 
 > 文档 ID：ARCH-005  
-> 状态：Approved / V2 + Phase 4 Progress Implemented  
+> 状态：Approved / V3 + Phase 6.5 Policies Implemented
 > 负责人：Data/Architecture Owner  
-> 最后更新：2026-08-11  
+> 最后更新：2026-08-19
 > 关联：ADR-0003、FR-CONFIG-001..006、NFR-REL-004
 
 ## 1. 数据分类与权威
@@ -26,27 +26,27 @@
 所有扩展仓储使用带版本的命名空间：
 
 ```ts
-interface PersistedEnvelopeV2<T> {
+interface PersistedEnvelopeV3<T> {
   schema: "h5player.web-extension";
-  schemaVersion: 2;
+  schemaVersion: 3;
   revision: number;
   updatedAt: number;
   data: T;
 }
 
-interface SettingsStoreV2 {
-  global: GlobalSettingsV2;
-  sites: Record<string, SiteOverrideV2>;
-  progress: Record<string, ProgressRecordV2>;
+interface SettingsStoreV3 {
+  global: GlobalSettingsV3;
+  sites: Record<string, SiteOverrideV3>;
+  progress: Record<string, ProgressRecord>;
 }
 ```
 
 `revision` 用于乐观并发控制；`updatedAt` 只作排序/诊断，不作安全凭据。未知顶层字段不能静默执行，允许保留到备份但不进入业务对象。
 
-## 3. GlobalSettingsV2
+## 3. GlobalSettingsV3
 
 ```ts
-interface GlobalSettingsV2 {
+interface GlobalSettingsV3 {
   enabled: boolean;
   ui: {
     overlayEnabled: boolean;
@@ -63,11 +63,18 @@ interface GlobalSettingsV2 {
     defaultVolume: number;
     restoreProgress: boolean;
   };
+  download: {
+    enabled: boolean;
+  };
   policies: {
     protectPlaybackRate: boolean;
     protectCurrentTime: boolean;
     protectVolume: boolean;
     allowExperimental: boolean;
+    allowAcousticGain?: boolean;
+    allowMouseLongPress?: boolean;
+    mouseLongPressMs?: number;
+    allowAutoplay?: boolean;
   };
   diagnostics: {
     localLogLevel: "error" | "warn" | "info" | "debug";
@@ -76,10 +83,10 @@ interface GlobalSettingsV2 {
 }
 ```
 
-实现中的 V2 与上述结构一致，但 `hotkeys.bindings` 的 key 必须是规范化 chord，`commandId` 必须来自
-`domain/hotkey` 的固定注册表；V1 只接受受限字符串并在迁移时过滤未知 command/chord。V2 的默认值为：全局启用、
+实现中的 V3 与上述结构一致，但 `hotkeys.bindings` 的 key 必须是规范化 chord，`commandId` 必须来自
+`domain/hotkey` 的固定注册表；V1 只接受受限字符串并在迁移时过滤未知 command/chord。高级策略字段在 wire schema 中兼容缺失值，repository/resolver 会补成当前默认值。V3 的默认值为：全局启用、
 system theme、`zh-CN`、page scope、playback rate `1`、volume `1`、不恢复进度、保护 playback rate/volume、
-实验能力关闭、error 日志和 30 天进度保留。
+实验能力关闭、下载独立开关开启、音频增益/鼠标长按/autoplay 关闭、长按 `600ms`、error 日志和 30 天进度保留。
 
 约束示例：
 
@@ -151,12 +158,13 @@ type Migration = (input: unknown) => Result<unknown, MigrationError>;
 const migrations: Record<number, Migration> = {
   1: migrateV0ToV1,
   2: migrateV1ToV2,
+  3: migrateV2ToV3,
 };
 ```
 
 规则：
 
-1. 当前生产 Schema 为 V2；只允许向前逐版本执行 `V0 -> V1 -> V2`，不在运行时猜测旧字段含义。
+1. 当前生产 Schema 为 V3；支持 `V0`、`V1`、`V2` 显式迁移至 V3，不在运行时猜测未知字段含义。
 2. 迁移前保存原 envelope 的校验和和备份 ID。
 3. 每个迁移有 golden fixtures、边界/损坏测试和逆向恢复演练。
 4. 迁移失败保留原数据，使用安全默认启动，并在 options 显示恢复入口。
@@ -179,7 +187,7 @@ interface LegacyImportFile {
 
 导入流程：选择文件 → 大小/JSON 解析 → Schema 校验 → 字段映射预览 → 用户确认 → 备份当前设置 → 原子写入 → 输出迁移报告。
 
-Web Extension 原生导出格式为 `h5player.web-extension.settings` / `formatVersion: 2`，兼容读取 V1；单文件上限
+Web Extension 原生导出格式为 `h5player.web-extension.settings` / `formatVersion: 3`，兼容读取 V1/V2；单文件上限
 262,144 bytes。导出、下载和 Blob URL 生命周期在 UI 层完成，浏览器不申请 downloads 或 clipboard 权限。
 
 自动拒绝：函数、脚本字符串、远程 URL、未知权限、DOM/Window 对象、超出范围的数值和不可识别站点规则。
@@ -200,13 +208,13 @@ Web Extension 原生导出格式为 `h5player.web-extension.settings` / `formatV
 - service worker 重启、浏览器升级和发布回滚不会丢失已确认配置。
 - 诊断导出和日志测试确认敏感字段被移除。
 
-## 10. 实现记录（Phase 1～3）
+## 10. 实现记录（Phase 1～6.5）
 
-- Schema V2 与静态类型事实源：`web-extension/src/domain/settings/schema.ts`；V1/V2 export contract 和严格 patch schema
+- Schema V3 与静态类型事实源：`web-extension/src/domain/settings/schema.ts`；V1/V2/V3 export contract 和严格 patch schema
   同源维护。
 - 默认值、字段级合并和优先级：`defaults.ts`、`merge.ts`、`resolve.ts`。
-- V0→V1→V2 migration、checksum 与 repository：`src/infrastructure/storage/`；V1→V2 将旧字符串 binding 过滤为
-  合法 chord/command。
+- V0/V1/V2→V3 migration、checksum 与 repository：`src/infrastructure/storage/`；V1 旧字符串 binding 会过滤为合法 chord/command，V2 补入 download 与高级策略默认值。
+- V3 支持 global/site `download.enabled`，并支持 `allowAcousticGain`、`allowMouseLongPress`、`mouseLongPressMs`、`allowAutoplay` 的站点覆盖、继承与单字段恢复。
 - `revision` 冲突采用 background 队列中的 field patch rebase；无变化不增加 revision。
 - 当前保存最近一次 migration/corrupt/import/rollback/reset backup；多代备份保留策略可在真实升级需求出现后扩展。
 - `storage.local` 是当前唯一权威；ADR-0008 的 sync 白名单已冻结但 Preview 不启用 `storage.sync`。

@@ -5,6 +5,8 @@
 > 决策人：Architecture / UI / Security Owner  
 > 关联：EXT-082、FR-VISUAL-004、FR-UI-003、RISK-018
 
+> Phase 6.5 复核：本 ADR 仍记录 Phase 4 Preview 的已实现安全边界；`document.documentElement` 默认视觉锚点与单一全局面板的交付方案正由 [ADR-0015](./ADR-0015-media-anchored-overlay-and-feedback.md) 提议替代。ADR-0015 未批准前不得实施，ADR-0009 也不得继续作为 UX 达标证据。
+
 ## 背景
 
 页面 Overlay 必须运行在任意第三方页面中。宿主页面可能包含全局 reset、极高 z-index、捕获阶段事件监听、
