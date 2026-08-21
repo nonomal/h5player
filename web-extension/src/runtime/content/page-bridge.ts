@@ -1,13 +1,20 @@
 import type { SchedulerPort, Teardown } from '../../application/ports/browser'
 import type {
+  SiteAdapterPageAction,
+  SiteAdapterPageActionResponse
+} from '../../application/adapter/contracts'
+import type {
   MediaCommandResultResponse,
   MediaPageState,
   MediaPageStateSummary
 } from '../../application/media'
 import type { MediaCommand } from '../../domain/command'
+import type { MediaDownloadEvent, MediaDownloadPreparation } from '../../domain/download'
 import type { ReplayGuard } from '../../infrastructure/messaging/replay-guard'
 import {
   createPageMediaRequest,
+  type ExperimentalMediaPolicy,
+  type MediaAuthorityPolicy,
   type PageMediaMessage,
   type PageMediaMessageType
 } from '../../infrastructure/messaging/page-media-protocol'
@@ -28,7 +35,15 @@ type PageBridgeOptions = {
 }
 
 type PendingRequest = {
-  readonly requestType: 'media.context' | 'media.get-state' | 'media.execute'
+  readonly requestType:
+    | 'media.context'
+    | 'media.configure-authority'
+    | 'media.configure-experimental'
+    | 'media.get-state'
+    | 'media.prepare-download'
+    | 'media.cancel-download'
+    | 'media.execute'
+    | 'media.execute-page-action'
   readonly expectedType: PageMediaMessageType
   readonly resolve: (message: PageMediaMessage) => void
   readonly reject: (error: PageBridgeError) => void
@@ -59,6 +74,7 @@ export class PageBridge {
   private startPromise: Promise<boolean> | null = null
   private readonly pending = new Map<string, PendingRequest>()
   private readonly stateListeners = new Set<(summary: MediaPageStateSummary) => void>()
+  private readonly downloadListeners = new Set<(event: MediaDownloadEvent) => void>()
 
   constructor(private readonly options: PageBridgeOptions) {}
 
@@ -86,14 +102,14 @@ export class PageBridge {
     }
   }
 
-  async configure(frameId: number): Promise<boolean> {
+  async configure(frameId: number, siteOrigin?: string, force = false): Promise<boolean> {
     if (!this.ready || this.stopped) return false
-    if (this.configured) return true
+    if (this.configured && !force) return true
     const request = createPageMediaRequest(
       'media.context',
       this.options.session.sessionId,
       this.options.session.nonce,
-      { frameId }
+      { frameId, ...(siteOrigin === undefined ? {} : { siteOrigin }) }
     )
     const response = await this.sendMediaRequest(request, 'media.context-ready')
     this.configured = response.type === 'media.context-ready'
@@ -115,6 +131,40 @@ export class PageBridge {
     return response.payload.state
   }
 
+  async configureAuthority(policy: MediaAuthorityPolicy): Promise<boolean> {
+    this.assertConfigured()
+    const request = createPageMediaRequest(
+      'media.configure-authority',
+      this.options.session.sessionId,
+      this.options.session.nonce,
+      { policy }
+    )
+    const response = await this.sendMediaRequest(request, 'media.authority-configured')
+    if (response.type !== 'media.authority-configured') {
+      throw new PageBridgeError('INVALID_RESPONSE', 'Unexpected media authority response')
+    }
+    return (
+      response.payload.policy.playbackRate === policy.playbackRate &&
+      response.payload.policy.volume === policy.volume &&
+      response.payload.policy.currentTime === policy.currentTime
+    )
+  }
+
+  async configureExperimental(policy: ExperimentalMediaPolicy): Promise<boolean> {
+    this.assertConfigured()
+    const request = createPageMediaRequest(
+      'media.configure-experimental',
+      this.options.session.sessionId,
+      this.options.session.nonce,
+      { policy }
+    )
+    const response = await this.sendMediaRequest(request, 'media.experimental-configured')
+    if (response.type !== 'media.experimental-configured') {
+      throw new PageBridgeError('INVALID_RESPONSE', 'Unexpected experimental media response')
+    }
+    return response.payload.policy.mediaDownload === policy.mediaDownload
+  }
+
   async executeMediaCommand(command: MediaCommand): Promise<MediaCommandResultResponse> {
     this.assertConfigured()
     const request = createPageMediaRequest(
@@ -130,10 +180,64 @@ export class PageBridge {
     return response.payload
   }
 
+  async prepareDownload(mediaId: string, intentId: string): Promise<MediaDownloadPreparation> {
+    this.assertConfigured()
+    const request = createPageMediaRequest(
+      'media.prepare-download',
+      this.options.session.sessionId,
+      this.options.session.nonce,
+      { mediaId, intentId }
+    )
+    const response = await this.sendMediaRequest(request, 'media.download-prepared')
+    if (response.type !== 'media.download-prepared') {
+      throw new PageBridgeError('INVALID_RESPONSE', 'Unexpected media download response')
+    }
+    return response.payload.preparation
+  }
+
+  async cancelDownload(mediaId: string): Promise<boolean> {
+    this.assertConfigured()
+    const request = createPageMediaRequest(
+      'media.cancel-download',
+      this.options.session.sessionId,
+      this.options.session.nonce,
+      { mediaId }
+    )
+    const response = await this.sendMediaRequest(request, 'media.download-cancelled')
+    if (response.type !== 'media.download-cancelled') {
+      throw new PageBridgeError(
+        'INVALID_RESPONSE',
+        'Unexpected media download cancellation response'
+      )
+    }
+    return response.payload.cancelled
+  }
+
+  async executePageAction(action: SiteAdapterPageAction): Promise<SiteAdapterPageActionResponse> {
+    this.assertConfigured()
+    const request = createPageMediaRequest(
+      'media.execute-page-action',
+      this.options.session.sessionId,
+      this.options.session.nonce,
+      { action }
+    )
+    const response = await this.sendMediaRequest(request, 'media.page-action-result')
+    if (response.type !== 'media.page-action-result') {
+      throw new PageBridgeError('INVALID_RESPONSE', 'Unexpected page action response')
+    }
+    return response.payload
+  }
+
   subscribeMediaStateChanged(listener: (summary: MediaPageStateSummary) => void): Teardown {
     if (this.stopped) return () => undefined
     this.stateListeners.add(listener)
     return () => this.stateListeners.delete(listener)
+  }
+
+  subscribeDownloadEvents(listener: (event: MediaDownloadEvent) => void): Teardown {
+    if (this.stopped) return () => undefined
+    this.downloadListeners.add(listener)
+    return () => this.downloadListeners.delete(listener)
   }
 
   ping(): void {
@@ -153,6 +257,7 @@ export class PageBridge {
       this.pending.delete(requestId)
     }
     this.stateListeners.clear()
+    this.downloadListeners.clear()
     this.finish(false)
   }
 
@@ -189,6 +294,16 @@ export class PageBridge {
           listener(mediaMessage.payload.summary)
         } catch {
           // One content observer must not break bridge request routing.
+        }
+      }
+      return
+    }
+    if (mediaMessage.type === 'media.download-event') {
+      for (const listener of [...this.downloadListeners]) {
+        try {
+          listener(mediaMessage.payload.event)
+        } catch {
+          // One download observer must not break bridge request routing.
         }
       }
       return

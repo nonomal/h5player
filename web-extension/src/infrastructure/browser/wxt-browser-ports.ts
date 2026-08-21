@@ -11,7 +11,7 @@ import type {
   TabsPort
 } from '../../application/ports/browser'
 import { createTabRequest } from '../../shared/tab-protocol'
-import { SETTINGS_STORAGE_KEY } from '../storage/settings-repository'
+import { SETTINGS_STORAGE_KEY } from '../storage/settings-storage-keys'
 
 function toRecord(value: unknown): Record<string, unknown> | null {
   return value && typeof value === 'object' && !Array.isArray(value)
@@ -44,7 +44,13 @@ export class WxtStoragePort implements BrowserStoragePort {
       }
     }
     browser.storage.onChanged.addListener(onChanged)
-    return () => browser.storage.onChanged.removeListener(onChanged)
+    return () => {
+      try {
+        browser.storage.onChanged.removeListener(onChanged)
+      } catch {
+        // The old content context may outlive an extension reload.
+      }
+    }
   }
 }
 
@@ -173,7 +179,8 @@ const CONTENT_SCRIPT_IDS = {
 
 const CONTENT_SCRIPT_FILES = {
   isolated: '/content-scripts/content.js',
-  main: '/content-scripts/page-main.js'
+  main: '/content-scripts/page-main.js',
+  experimentalMain: '/content-scripts/experimental-main.js'
 } as const
 
 export class WxtContentScriptRegistrationPort implements ContentScriptRegistrationPort {
@@ -226,6 +233,14 @@ export class WxtContentScriptRegistrationPort implements ContentScriptRegistrati
     })
   }
 
+  async injectExperimentalMain(tabId: number, frameId: number): Promise<void> {
+    await browser.scripting.executeScript({
+      target: { tabId, frameIds: [frameId] },
+      files: [CONTENT_SCRIPT_FILES.experimentalMain],
+      world: 'MAIN'
+    })
+  }
+
   async teardown(tabId: number): Promise<void> {
     await browser.tabs
       .sendMessage(tabId, createTabRequest('site.permission-revoked', {}))
@@ -268,6 +283,12 @@ export class WxtSettingsChangeSourcePort implements SettingsChangeSourcePort {
       if (area === 'local' && SETTINGS_STORAGE_KEY in changes) listener()
     }
     browser.storage.onChanged.addListener(onChanged)
-    return () => browser.storage.onChanged.removeListener(onChanged)
+    return () => {
+      try {
+        browser.storage.onChanged.removeListener(onChanged)
+      } catch {
+        // The old extension context has already released this listener.
+      }
+    }
   }
 }

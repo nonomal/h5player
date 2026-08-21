@@ -32,3 +32,10 @@ export {
   type HotkeyValidationResult,
   type KeyboardChordInput
 } from './model'
+export {
+  createHotkeyPlanningState,
+  planHotkeyCommand,
+  type HotkeyPlanInput,
+  type HotkeyPlanResult,
+  type HotkeyPlanningState
+} from './planner'

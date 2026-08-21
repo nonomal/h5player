@@ -9,6 +9,7 @@ import {
   type VisualState
 } from '../../domain/media'
 import type { CaptureArtifact, CaptureOptions } from '../../domain/capture'
+import type { MediaDownloadPreparation } from '../../domain/download'
 import type {
   AdapterRuntimeDiagnostic,
   AdapterFailureStage,
@@ -19,12 +20,12 @@ import type {
   MediaControllerContext,
   MediaControllerListener,
   ObservableMediaController,
+  SiteAdapterAction,
   SiteAdapterDefinition,
   SiteAdapterDisablePolicy,
-  SiteAdapterFeature
+  SiteAdapterFeature,
+  SiteAdapterPageAction
 } from '../../domain/adapter'
-
-export type SiteAdapterAction = 'play' | 'pause'
 
 export interface SiteAdapterHookContext {
   readonly target: HTMLMediaElement
@@ -40,9 +41,14 @@ export interface SiteAdapterHooks {
       Record<SiteAdapterAction, (context: SiteAdapterHookContext) => boolean | Promise<boolean>>
     >
   >
+  readonly seekTo?: (context: SiteAdapterHookContext, seconds: number) => boolean | Promise<boolean>
   readonly toggleFullscreen?: (
     context: SiteAdapterHookContext,
     mode: FullscreenMode
+  ) => boolean | Promise<boolean>
+  readonly setPlaybackRate?: (
+    context: SiteAdapterHookContext,
+    value: number
   ) => boolean | Promise<boolean>
 }
 
@@ -60,8 +66,12 @@ const MAX_SELECTED_MEDIA_COUNT = 128
 const MAX_SELECTOR_ANCESTOR_DEPTH = 8
 const SITE_ADAPTER_FEATURES = new Set<SiteAdapterFeature>([
   'playback',
+  'seek',
+  'playback-rate',
   'fullscreen-native',
-  'fullscreen-web'
+  'fullscreen-web',
+  'next',
+  'autoplay'
 ])
 
 interface AdapterHealth {
@@ -148,8 +158,13 @@ function validateDefinitions(definitions: readonly SiteAdapterDefinition[]): voi
     const selectorGroups: readonly (readonly string[] | undefined)[] = [
       definition.selectors.play,
       definition.selectors.pause,
+      definition.selectors.seekForward,
+      definition.selectors.seekBackward,
+      definition.selectors.playbackRate,
       definition.selectors.fullscreenNative,
-      definition.selectors.fullscreenWeb
+      definition.selectors.fullscreenWeb,
+      definition.selectors.next,
+      definition.selectors.autoplay
     ]
     for (const selectors of selectorGroups) {
       if (selectors === undefined || selectors.length > 8) {
@@ -214,12 +229,27 @@ function freezeDefinition(definition: SiteAdapterDefinition): SiteAdapterDefinit
     ...(definition.selectors.pause === undefined
       ? {}
       : { pause: Object.freeze([...definition.selectors.pause]) }),
+    ...(definition.selectors.seekForward === undefined
+      ? {}
+      : { seekForward: Object.freeze([...definition.selectors.seekForward]) }),
+    ...(definition.selectors.seekBackward === undefined
+      ? {}
+      : { seekBackward: Object.freeze([...definition.selectors.seekBackward]) }),
+    ...(definition.selectors.playbackRate === undefined
+      ? {}
+      : { playbackRate: Object.freeze([...definition.selectors.playbackRate]) }),
     ...(definition.selectors.fullscreenNative === undefined
       ? {}
       : { fullscreenNative: Object.freeze([...definition.selectors.fullscreenNative]) }),
     ...(definition.selectors.fullscreenWeb === undefined
       ? {}
-      : { fullscreenWeb: Object.freeze([...definition.selectors.fullscreenWeb]) })
+      : { fullscreenWeb: Object.freeze([...definition.selectors.fullscreenWeb]) }),
+    ...(definition.selectors.next === undefined
+      ? {}
+      : { next: Object.freeze([...definition.selectors.next]) }),
+    ...(definition.selectors.autoplay === undefined
+      ? {}
+      : { autoplay: Object.freeze([...definition.selectors.autoplay]) })
   })
 
   return Object.freeze({
@@ -357,6 +387,47 @@ export class MediaAdapterRegistry implements DiagnosableMediaAdapter<HTMLMediaEl
     )
   }
 
+  executePageAction(
+    action: SiteAdapterPageAction,
+    document: Document
+  ): Readonly<{ declared: boolean; handled: boolean; adapterId: string | null }> {
+    const definition = this.select()
+    const feature: SiteAdapterFeature = action
+    const selectors = definition?.selectors[action]
+    const declared =
+      definition !== null &&
+      this.featureEnabled(definition, feature) &&
+      selectors !== undefined &&
+      selectors.length > 0
+    if (
+      !declared ||
+      definition === null ||
+      selectors === undefined ||
+      documentQuerySelectorMethod === null ||
+      clickMethod === null
+    ) {
+      return { declared, handled: false, adapterId: definition?.id ?? null }
+    }
+
+    for (const selector of selectors) {
+      let element: Element | null
+      try {
+        element = documentQuerySelectorMethod.call(document, selector)
+      } catch {
+        this.recordFailure(definition.id, 'selector')
+        continue
+      }
+      if (element === null) continue
+      try {
+        clickMethod.call(element as HTMLElement)
+        return { declared: true, handled: true, adapterId: definition.id }
+      } catch {
+        this.recordFailure(definition.id, 'action')
+      }
+    }
+    return { declared: true, handled: false, adapterId: definition.id }
+  }
+
   select(excluded: ReadonlySet<string> = new Set()): SiteAdapterDefinition | null {
     const url = this.currentUrl()
     if (url === null) return null
@@ -464,16 +535,51 @@ class SiteMediaController implements ObservableMediaController {
     if (!(await this.invokeAction('pause'))) await this.fallback.pause()
   }
 
-  seekTo(seconds: number): Promise<void> {
-    return this.fallback.seekTo(seconds)
+  async seekTo(seconds: number): Promise<void> {
+    this.assertActive()
+    this.syncAdapter()
+    const definition = this.active
+    if (definition !== null && this.registry.featureEnabled(definition, 'seek')) {
+      const hook = this.registry.hookFor(definition.id)?.seekTo
+      if (hook !== undefined) {
+        try {
+          if (await hook(this.hookContext(), seconds)) return
+        } catch (error) {
+          this.registry.recordFailure(definition.id, 'action')
+          throw error
+        }
+      }
+    }
+    await this.fallback.seekTo(seconds)
   }
 
-  setPlaybackRate(value: number): Promise<void> {
-    return this.fallback.setPlaybackRate(value)
+  async setPlaybackRate(value: number): Promise<void> {
+    this.assertActive()
+    this.syncAdapter()
+    const definition = this.active
+    if (definition !== null && this.registry.featureEnabled(definition, 'playback-rate')) {
+      const hook = this.registry.hookFor(definition.id)?.setPlaybackRate
+      if (hook !== undefined) {
+        try {
+          if (await hook(this.hookContext(), value)) return
+        } catch (error) {
+          this.registry.recordFailure(definition.id, 'action')
+          throw error
+        }
+      }
+    }
+    await this.fallback.setPlaybackRate(value)
   }
 
   setVolume(value: number): Promise<void> {
     return this.fallback.setVolume(value)
+  }
+
+  setGain(value: number): Promise<void> {
+    const operation = this.fallback.setGain
+    return operation === undefined
+      ? Promise.reject(new Error('Audio gain is unavailable'))
+      : operation.call(this.fallback, value)
   }
 
   setMuted(value: boolean): Promise<void> {
@@ -529,6 +635,22 @@ class SiteMediaController implements ObservableMediaController {
       : operation.call(this.fallback, options)
   }
 
+  prepareDownload(intentId: string): Promise<MediaDownloadPreparation> {
+    const operation = this.fallback.prepareDownload
+    return operation === undefined
+      ? Promise.reject(new Error('Experimental media download is unavailable'))
+      : operation.call(this.fallback, intentId)
+  }
+
+  cancelDownload(): boolean {
+    const operation = this.fallback.cancelDownload
+    return operation === undefined ? false : operation.call(this.fallback)
+  }
+
+  async playNext(): Promise<void> {
+    if (!(await this.invokeAction('next'))) throw new Error('Next media is unavailable')
+  }
+
   subscribe(listener: MediaControllerListener): AdapterTeardown {
     this.assertActive()
     return this.fallback.subscribe((change) => {
@@ -553,7 +675,8 @@ class SiteMediaController implements ObservableMediaController {
     this.assertActive()
     this.syncAdapter()
     const definition = this.active
-    if (definition === null || !this.registry.featureEnabled(definition, 'playback')) return false
+    const feature: SiteAdapterFeature = action === 'next' ? 'next' : 'playback'
+    if (definition === null || !this.registry.featureEnabled(definition, feature)) return false
     const hook = this.registry.hookFor(definition.id)?.actions?.[action]
     if (hook !== undefined) {
       try {
@@ -562,10 +685,13 @@ class SiteMediaController implements ObservableMediaController {
         this.registry.recordFailure(definition.id, 'action')
       }
     }
-    return this.clickFirst(
-      definition,
-      action === 'play' ? definition.selectors.play : definition.selectors.pause
-    )
+    const selectors =
+      action === 'play'
+        ? definition.selectors.play
+        : action === 'pause'
+          ? definition.selectors.pause
+          : definition.selectors.next
+    return this.clickFirst(definition, selectors)
   }
 
   private clickFirst(
@@ -633,14 +759,20 @@ class SiteMediaController implements ObservableMediaController {
     const definition = this.active
     if (definition === null) return base
     const playback = this.registry.featureEnabled(definition, 'playback')
+    const seek = this.registry.featureEnabled(definition, 'seek')
+    const playbackRate = this.registry.featureEnabled(definition, 'playback-rate')
     const fullscreenNative = this.registry.featureEnabled(definition, 'fullscreen-native')
     const fullscreenWeb = this.registry.featureEnabled(definition, 'fullscreen-web')
+    const next = this.registry.featureEnabled(definition, 'next')
     return createMediaCapabilities({
       ...base,
       playback: base.playback || playback,
+      seek: base.seek || seek,
+      playbackRate: base.playbackRate || playbackRate,
       fullscreenNative: (base.fullscreenNative ?? false) || fullscreenNative,
       fullscreenWeb: (base.fullscreenWeb ?? false) || fullscreenWeb,
-      fullscreen: base.fullscreen || fullscreenNative || fullscreenWeb
+      fullscreen: base.fullscreen || fullscreenNative || fullscreenWeb,
+      next: (base.next ?? false) || next
     })
   }
 

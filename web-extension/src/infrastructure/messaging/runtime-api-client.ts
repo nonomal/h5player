@@ -11,6 +11,7 @@ import type { SettingsPatch } from '../../domain/settings'
 import { diagnosticResponseSchema } from '../../application/diagnostics/contracts'
 import {
   siteContextResponseSchema,
+  sitePageUiVisibilityResponseSchema,
   siteReconcileResponseSchema,
   siteTemporaryDisableResponseSchema
 } from '../../application/site/contracts'
@@ -27,10 +28,21 @@ export class RuntimeApiClient implements RuntimeApiPort {
     return this.client.request('media.get-state', {}, mediaPageStateSchema, options)
   }
 
-  executeMediaCommand(command: MediaCommand, options: { signal?: AbortSignal } = {}) {
+  executeMediaCommand(
+    command: MediaCommand,
+    options: {
+      signal?: AbortSignal
+      playbackRateScope?: 'site' | 'page' | 'media'
+    } = {}
+  ) {
     return this.client.request(
       'media.execute',
-      { command },
+      {
+        command,
+        ...(options.playbackRateScope === undefined
+          ? {}
+          : { playbackRateScope: options.playbackRateScope })
+      },
       mediaCommandResultResponseSchema,
       options
     )
@@ -95,6 +107,15 @@ export class RuntimeApiClient implements RuntimeApiPort {
       'site.set-temporary-disabled',
       { disabled },
       siteTemporaryDisableResponseSchema,
+      options
+    )
+  }
+
+  setPageUiHidden(hidden: boolean, options: { signal?: AbortSignal } = {}) {
+    return this.client.request(
+      'site.set-page-ui-hidden',
+      { hidden },
+      sitePageUiVisibilityResponseSchema,
       options
     )
   }

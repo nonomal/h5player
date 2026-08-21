@@ -1,5 +1,6 @@
 import * as z from 'zod/mini'
 import { CURRENT_EXTENSION_PHASE } from '../../shared/protocol'
+import { SETTINGS_SCHEMA_VERSION } from '../../domain/settings'
 import { adapterRuntimeDiagnosticSchema } from '../adapter'
 
 const diagnosticEventSchema = z.strictObject({
@@ -18,7 +19,7 @@ export const diagnosticSummarySchema = z.strictObject({
   build: z.string().check(z.minLength(1), z.maxLength(128)),
   phase: z.literal(CURRENT_EXTENSION_PHASE),
   protocolVersion: z.literal(1),
-  settingsSchemaVersion: z.literal(2),
+  settingsSchemaVersion: z.literal(SETTINGS_SCHEMA_VERSION),
   browser: z.strictObject({
     name: z.string().check(z.minLength(1), z.maxLength(64)),
     version: z.string().check(z.minLength(1), z.maxLength(64)),

@@ -48,6 +48,7 @@ export class DomHotkeyEventSource implements HotkeyEventSourcePort {
         isComposing: event.isComposing,
         editableTarget: isEditable(elements),
         playerFocused: isPlayerFocused(this.document, elements),
+        trusted: event.isTrusted === true,
         preventDefault: () => event.preventDefault(),
         stopPropagation: () => event.stopImmediatePropagation()
       })

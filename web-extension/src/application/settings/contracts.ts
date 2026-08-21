@@ -1,6 +1,7 @@
 import * as z from 'zod/mini'
 import {
   persistedSettingsV2Schema,
+  SETTINGS_SCHEMA_VERSION,
   settingsPatchSchema,
   settingsBackupSchema
 } from '../../domain/settings'
@@ -55,9 +56,13 @@ export const systemPingResponseSchema = z.strictObject({
   extensionVersion: z.string().check(z.minLength(1), z.maxLength(32)),
   phase: z.literal(CURRENT_EXTENSION_PHASE),
   protocol: z.literal(1),
-  settingsSchemaVersion: z.literal(2),
+  settingsSchemaVersion: z.literal(SETTINGS_SCHEMA_VERSION),
   tabId: z.optional(z.int().check(z.nonnegative())),
-  frameId: z.optional(z.int().check(z.nonnegative()))
+  frameId: z.optional(z.int().check(z.nonnegative())),
+  // The background resolves this from the browser sender metadata. Content
+  // frames must not infer a Tencent parent origin from a potentially empty
+  // referrer after a reload.
+  siteOrigin: z.optional(z.string().check(z.minLength(1), z.maxLength(256)))
 })
 
 export type SettingsUpdatePayload = z.infer<typeof settingsUpdatePayloadSchema>

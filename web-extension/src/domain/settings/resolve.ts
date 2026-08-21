@@ -16,13 +16,24 @@ function applySiteOverride(settings: GlobalSettings, override: SiteOverride): Gl
       defaultVolume: override.media?.defaultVolume ?? settings.media.defaultVolume,
       restoreProgress: override.media?.restoreProgress ?? settings.media.restoreProgress
     },
+    download: {
+      enabled: override.download?.enabled ?? settings.download?.enabled ?? true
+    },
     policies: {
       protectPlaybackRate:
         override.policies?.protectPlaybackRate ?? settings.policies.protectPlaybackRate,
       protectCurrentTime:
         override.policies?.protectCurrentTime ?? settings.policies.protectCurrentTime,
       protectVolume: override.policies?.protectVolume ?? settings.policies.protectVolume,
-      allowExperimental: override.policies?.allowExperimental ?? settings.policies.allowExperimental
+      allowExperimental:
+        override.policies?.allowExperimental ?? settings.policies.allowExperimental,
+      allowAcousticGain:
+        override.policies?.allowAcousticGain ?? settings.policies.allowAcousticGain ?? false,
+      allowMouseLongPress:
+        override.policies?.allowMouseLongPress ?? settings.policies.allowMouseLongPress ?? false,
+      mouseLongPressMs:
+        override.policies?.mouseLongPressMs ?? settings.policies.mouseLongPressMs ?? 600,
+      allowAutoplay: override.policies?.allowAutoplay ?? settings.policies.allowAutoplay ?? false
     },
     hotkeys: { ...settings.hotkeys, bindings: { ...settings.hotkeys.bindings } },
     diagnostics: { ...settings.diagnostics }
@@ -39,7 +50,14 @@ export function resolveSettings(
     ui: { ...settings.global.ui },
     hotkeys: { ...settings.global.hotkeys, bindings: { ...settings.global.hotkeys.bindings } },
     media: { ...settings.global.media },
-    policies: { ...settings.global.policies },
+    download: { enabled: settings.global.download?.enabled ?? true },
+    policies: {
+      ...settings.global.policies,
+      allowAcousticGain: settings.global.policies.allowAcousticGain ?? false,
+      allowMouseLongPress: settings.global.policies.allowMouseLongPress ?? false,
+      mouseLongPressMs: settings.global.policies.mouseLongPressMs ?? 600,
+      allowAutoplay: settings.global.policies.allowAutoplay ?? false
+    },
     diagnostics: { ...settings.global.diagnostics }
   }
 

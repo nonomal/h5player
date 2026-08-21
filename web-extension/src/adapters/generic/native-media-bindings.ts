@@ -61,14 +61,27 @@ const exitFullscreenMethod = documentPrototype?.exitFullscreen ?? null
 const exitPictureInPictureMethod = documentPrototype?.exitPictureInPicture ?? null
 const getRootNodeMethod = nodePrototype?.getRootNode ?? null
 const containsMethod = nodePrototype?.contains ?? null
-const getComputedStyleMethod =
-  typeof Window === 'undefined' ? null : Window.prototype.getComputedStyle
+const getComputedStyleMethod = (() => {
+  const view = typeof window === 'undefined' ? null : window
+  if (view === null) return null
+  const descriptor = findDescriptor(view, 'getComputedStyle')
+  if (typeof descriptor?.value === 'function') {
+    return descriptor.value as Window['getComputedStyle']
+  }
+  try {
+    return typeof view.getComputedStyle === 'function' ? view.getComputedStyle : null
+  } catch {
+    return null
+  }
+})()
 const parentElementGetter = findDescriptor(nodePrototype, 'parentElement')?.get as
   ((this: Node) => HTMLElement | null) | undefined
 const setStylePropertyMethod = stylePrototype?.setProperty ?? null
 const getStylePropertyValueMethod = stylePrototype?.getPropertyValue ?? null
 
 const currentTimeAccessor = captureAccessor<HTMLMediaElement, number>(mediaPrototype, 'currentTime')
+const currentSrcAccessor = captureAccessor<HTMLMediaElement, string>(mediaPrototype, 'currentSrc')
+const srcAccessor = captureAccessor<HTMLMediaElement, string>(mediaPrototype, 'src')
 const durationAccessor = captureAccessor<HTMLMediaElement, number>(mediaPrototype, 'duration')
 const volumeAccessor = captureAccessor<HTMLMediaElement, number>(mediaPrototype, 'volume')
 const playbackRateAccessor = captureAccessor<HTMLMediaElement, number>(
@@ -253,6 +266,8 @@ export const nativeMediaBindings = Object.freeze({
   },
 
   readCurrentTime: (element: HTMLMediaElement) => readOr(currentTimeAccessor, element, 0),
+  readCurrentSrc: (element: HTMLMediaElement) =>
+    readOr(currentSrcAccessor, element, '') || readOr(srcAccessor, element, ''),
   readDuration: (element: HTMLMediaElement) => readOr(durationAccessor, element, Number.NaN),
   readVolume: (element: HTMLMediaElement) => readOr(volumeAccessor, element, 1),
   readPlaybackRate: (element: HTMLMediaElement) => readOr(playbackRateAccessor, element, 1),
@@ -391,6 +406,17 @@ export const nativeMediaBindings = Object.freeze({
     }
   },
 
+  readOpacity(element: HTMLMediaElement): number {
+    const view = element.ownerDocument.defaultView
+    if (view === null || getComputedStyleMethod === null) return 1
+    try {
+      const value = Number(getComputedStyleMethod.call(view, element).opacity)
+      return Number.isFinite(value) ? Math.min(1, Math.max(0, value)) : 1
+    } catch {
+      return 1
+    }
+  },
+
   getBoundingClientRect(element: HTMLMediaElement): DOMRect | null {
     if (getBoundingClientRectMethod === null) return null
     try {
@@ -412,8 +438,7 @@ export const nativeMediaBindings = Object.freeze({
         if (
           style.display === 'none' ||
           style.visibility === 'hidden' ||
-          style.visibility === 'collapse' ||
-          (style.opacity.trim() !== '' && Number(style.opacity) === 0)
+          style.visibility === 'collapse'
         ) {
           return false
         }

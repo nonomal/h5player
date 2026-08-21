@@ -40,10 +40,14 @@ import {
 import { createRequestId } from '../../shared/ids'
 import { failure, success, type Result } from '../../shared/result'
 import { checksumUnknown } from './checksum'
-import { classifyPersistedSettings, migrateSettingsDataV1 } from './settings-migrations'
+import {
+  classifyPersistedSettings,
+  migrateSettingsDataV1,
+  migrateSettingsDataV2
+} from './settings-migrations'
+import { SETTINGS_BACKUP_KEY, SETTINGS_STORAGE_KEY } from './settings-storage-keys'
 
-export const SETTINGS_STORAGE_KEY = 'h5player.web-extension.settings'
-export const SETTINGS_BACKUP_KEY = 'h5player.web-extension.settings.backup'
+export { SETTINGS_BACKUP_KEY, SETTINGS_STORAGE_KEY } from './settings-storage-keys'
 export const MAX_IMPORT_BYTES = 262_144
 
 export type SettingsRepositoryOptions = Readonly<{
@@ -177,7 +181,9 @@ export class SettingsRepository implements SettingsRepositoryPort {
       const importedData: SettingsData =
         imported.data.formatVersion === SETTINGS_EXPORT_FORMAT_VERSION
           ? imported.data.data
-          : migrateSettingsDataV1(imported.data.data)
+          : imported.data.formatVersion === 2
+            ? migrateSettingsDataV2(imported.data.data as SettingsData)
+            : migrateSettingsDataV1(imported.data.data)
       if (!validateIdentities(importedData)) {
         return failure(
           settingsError('IMPORT_INVALID', 'Import contains invalid site or progress identities')

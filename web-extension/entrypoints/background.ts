@@ -2,7 +2,8 @@ import { browser } from 'wxt/browser'
 import { SettingsService } from '../src/application/settings/settings-service'
 import { DiagnosticsService } from '../src/application/diagnostics/diagnostics-service'
 import { SiteAccessService } from '../src/application/site/site-access-service'
-import { CrossTabMediaEventService } from '../src/application/media'
+import { FrameRuntimeRegistry } from '../src/application/site/frame-runtime-registry'
+import { CrossTabMediaEventService, PictureInPictureControlService } from '../src/application/media'
 import { ProgressService } from '../src/application/progress'
 import {
   WxtContentScriptRegistrationPort,
@@ -11,6 +12,7 @@ import {
   WxtStoragePort,
   WxtTabsPort
 } from '../src/infrastructure/browser/wxt-browser-ports'
+import { consumeChromeRuntimeLastError } from '../src/infrastructure/browser/runtime-reconnect'
 import { StructuredLogger } from '../src/infrastructure/logging/structured-logger'
 import { ReplayGuard } from '../src/infrastructure/messaging/replay-guard'
 import { SettingsRepository } from '../src/infrastructure/storage/settings-repository'
@@ -19,12 +21,15 @@ import { BackgroundRuntime } from '../src/runtime/background/background-runtime'
 import type { RuntimeSenderMetadata } from '../src/runtime/background/sender-policy'
 import { CURRENT_EXTENSION_PHASE } from '../src/shared/protocol'
 
+const FRAME_RUNTIME_PORT_PREFIX = 'h5player-frame-runtime:'
+
 function senderMetadata(
   sender: Parameters<Parameters<typeof browser.runtime.onMessage.addListener>[0]>[1]
 ): RuntimeSenderMetadata {
   const metadata: RuntimeSenderMetadata = {}
   if (sender.id) metadata.id = sender.id
   if (sender.url) metadata.url = sender.url
+  if (sender.tab?.url) metadata.tabUrl = sender.tab.url
   if (sender.tab?.id !== undefined) metadata.tabId = sender.tab.id
   if (sender.frameId !== undefined) metadata.frameId = sender.frameId
   return metadata
@@ -37,11 +42,16 @@ export default defineBackground(() => {
   const progress = new ProgressService(repository)
   const tabs = new WxtTabsPort()
   const permissions = new WxtPermissionsPort()
+  const frameRegistry = new FrameRuntimeRegistry({ now: () => systemClock.now() })
+  const pictureInPicture = new PictureInPictureControlService(tabs, systemClock, {
+    frameIds: (tabId) => frameRegistry.frameIds(tabId)
+  })
   const siteAccess = new SiteAccessService(
     settings,
     tabs,
     permissions,
-    new WxtContentScriptRegistrationPort()
+    new WxtContentScriptRegistrationPort(),
+    frameRegistry
   )
   const crossTab = new CrossTabMediaEventService(tabs, systemClock)
   const buildValue = (import.meta.env as unknown as { ['VITE_BUILD_SHA']?: unknown })[
@@ -65,8 +75,10 @@ export default defineBackground(() => {
     logger,
     tabs,
     siteAccess,
+    frameRegistry,
     diagnostics,
     crossTab,
+    pictureInPicture,
     progress
   })
 
@@ -86,10 +98,32 @@ export default defineBackground(() => {
     return true
   })
 
+  browser.runtime.onConnect.addListener((port) => {
+    if (!port.name.startsWith(FRAME_RUNTIME_PORT_PREFIX)) return
+    const sessionId = port.name.slice(FRAME_RUNTIME_PORT_PREFIX.length)
+    const tabId = port.sender?.tab?.id
+    const frameId = port.sender?.frameId
+    if (sessionId.length < 16 || tabId === undefined || frameId === undefined) {
+      port.disconnect()
+      return
+    }
+    frameRegistry.connect({ tabId, frameId, sessionId })
+    port.onDisconnect.addListener(() => {
+      consumeChromeRuntimeLastError()
+      frameRegistry.remove({ tabId, frameId, sessionId })
+      pictureInPicture.removeFrame({ tabId, frameId, sessionId })
+    })
+  })
+
   browser.permissions.onAdded.addListener(() => {
     void siteAccess.reconcile(false)
   })
   browser.permissions.onRemoved.addListener(() => {
     void siteAccess.reconcile(false)
+  })
+  browser.tabs.onRemoved.addListener((tabId) => {
+    frameRegistry.removeTab(tabId)
+    pictureInPicture.removeTab(tabId)
+    siteAccess.clearTabRuntimeState(tabId)
   })
 })

@@ -2,7 +2,7 @@
 defineProps<{
   modelValue: boolean
   label: string
-  description?: string
+  description?: string | undefined
   disabled?: boolean
 }>()
 

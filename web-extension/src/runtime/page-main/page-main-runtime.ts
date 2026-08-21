@@ -2,6 +2,7 @@ import { ReplayGuard } from '../../infrastructure/messaging/replay-guard'
 import type { MediaPageStateSummary } from '../../application/media'
 import {
   createPageMediaNotification,
+  createPageMediaDownloadNotification,
   createPageMediaResponse,
   parsePageMediaMessage,
   type PageMediaMessage,
@@ -10,7 +11,9 @@ import {
 } from '../../infrastructure/messaging/page-media-protocol'
 import { systemClock } from '../../infrastructure/time/system-time'
 import { createBridgeMessage, parseBridgeMessage } from '../../shared/protocol'
+import { defaultMediaAuthorityPolicy, MediaControlAuthority } from './media-control-authority'
 import { MediaPageRuntime } from './media-page-runtime'
+import { ExperimentalMediaDownloadManager } from '../../adapters/generic/experimental-media-download'
 
 const RUNTIME_KEY = Symbol.for('h5player.web-extension.page-runtime.v1')
 const RUNTIME_BRAND = 'h5player.web-extension.page-runtime'
@@ -45,12 +48,29 @@ export function startPageMainRuntime(window: Window, document: Document): () => 
   const marker = installRuntimeMarker(window)
   if (marker === null) return () => undefined
 
+  const authority = new MediaControlAuthority(window, document)
+  authority.install()
+  const experimentalDownload = new ExperimentalMediaDownloadManager(window, document)
   const replayGuard = new ReplayGuard(systemClock)
   let session: { sessionId: string; nonce: string; origin: string } | null = null
   let mediaRuntime: MediaPageRuntime | null = null
   let mediaStateSubscription: (() => void) | null = null
+  let mediaDownloadSubscription: (() => void) | null = null
   let mediaFrameId = 0
   let stopped = false
+
+  const publishDiagnostics = (): void => {
+    if (root === null) return
+    try {
+      root.dataset['h5playerWebextPageDiagnostics'] = JSON.stringify({
+        mediaRuntime: mediaRuntime?.diagnostics() ?? null,
+        authority: authority.diagnosticsSummary(),
+        session: session === null ? 'none' : 'ready'
+      })
+    } catch {
+      // Diagnostics are best effort and must never affect page control.
+    }
+  }
 
   const teardown = (): void => {
     if (stopped) return
@@ -59,8 +79,17 @@ export function startPageMainRuntime(window: Window, document: Document): () => 
     mediaRuntime?.teardown()
     mediaStateSubscription?.()
     mediaStateSubscription = null
+    mediaDownloadSubscription?.()
+    mediaDownloadSubscription = null
     mediaRuntime = null
+    authority.teardown()
+    experimentalDownload.teardown()
     session = null
+    try {
+      delete root?.dataset['h5playerWebextPageDiagnostics']
+    } catch {
+      // The page may have replaced the dataset implementation.
+    }
     const descriptor = Object.getOwnPropertyDescriptor(window, RUNTIME_KEY)
     if (descriptor?.value === marker) {
       try {
@@ -120,8 +149,13 @@ export function startPageMainRuntime(window: Window, document: Document): () => 
       {
         requestType:
           request.type === 'media.context' ||
+          request.type === 'media.configure-authority' ||
+          request.type === 'media.configure-experimental' ||
           request.type === 'media.get-state' ||
-          request.type === 'media.execute'
+          request.type === 'media.prepare-download' ||
+          request.type === 'media.cancel-download' ||
+          request.type === 'media.execute' ||
+          request.type === 'media.execute-page-action'
             ? request.type
             : 'media.get-state',
         code,
@@ -145,6 +179,20 @@ export function startPageMainRuntime(window: Window, document: Document): () => 
     }
   }
 
+  const postMediaDownloadEvent = (
+    event: Parameters<typeof createPageMediaDownloadNotification>[2],
+    activeSession: { sessionId: string; nonce: string; origin: string }
+  ): void => {
+    try {
+      window.postMessage(
+        createPageMediaDownloadNotification(activeSession.sessionId, activeSession.nonce, event),
+        activeSession.origin
+      )
+    } catch {
+      // Invalid page data is contained at the page boundary.
+    }
+  }
+
   const handleMediaMessage = (message: PageMediaMessage): void => {
     if (!session) return
     const scope = `content:${session.sessionId}`
@@ -154,11 +202,21 @@ export function startPageMainRuntime(window: Window, document: Document): () => 
       if (mediaRuntime !== null && mediaFrameId !== message.payload.frameId) {
         mediaStateSubscription?.()
         mediaStateSubscription = null
+        mediaDownloadSubscription?.()
+        mediaDownloadSubscription = null
         mediaRuntime.teardown()
         mediaRuntime = null
       }
       try {
-        mediaRuntime ??= new MediaPageRuntime(window, document, message.payload.frameId)
+        mediaRuntime ??= new MediaPageRuntime(
+          window,
+          document,
+          message.payload.frameId,
+          Date.now,
+          authority,
+          message.payload.siteOrigin,
+          experimentalDownload
+        )
         mediaFrameId = message.payload.frameId
         if (mediaStateSubscription === null) {
           const runtime = mediaRuntime
@@ -166,14 +224,56 @@ export function startPageMainRuntime(window: Window, document: Document): () => 
           if (typeof subscribe === 'function') {
             mediaStateSubscription = Reflect.apply(subscribe, runtime, [
               (summary: MediaPageStateSummary) => {
+                publishDiagnostics()
                 if (session) postMediaStateChanged(summary, session)
               }
             ]) as () => void
           }
         }
+        if (mediaDownloadSubscription === null) {
+          mediaDownloadSubscription = mediaRuntime.subscribeDownloadEvents((event) => {
+            if (session) postMediaDownloadEvent(event, session)
+          })
+        }
+        publishDiagnostics()
         postMedia('media.context-ready', message.requestId, {}, session)
       } catch {
         postMediaError(message, 'INTERNAL_ERROR', 'media.error.runtime-init')
+      }
+      return
+    }
+
+    if (message.type === 'media.configure-authority') {
+      try {
+        authority.configure(message.payload.policy)
+        publishDiagnostics()
+        postMedia(
+          'media.authority-configured',
+          message.requestId,
+          { policy: message.payload.policy },
+          session
+        )
+      } catch {
+        postMediaError(message, 'INTERNAL_ERROR', 'media.error.authority-configure-failed')
+      }
+      return
+    }
+
+    if (message.type === 'media.configure-experimental') {
+      try {
+        // The isolated content runtime has already passed the background
+        // experiment policy gate before this typed request reaches MAIN.
+        experimentalDownload.configure(message.payload.policy.mediaDownload)
+        mediaRuntime?.refresh()
+        publishDiagnostics()
+        postMedia(
+          'media.experimental-configured',
+          message.requestId,
+          { policy: message.payload.policy },
+          session
+        )
+      } catch {
+        postMediaError(message, 'INTERNAL_ERROR', 'media.error.experimental-configure-failed')
       }
       return
     }
@@ -192,13 +292,60 @@ export function startPageMainRuntime(window: Window, document: Document): () => 
       return
     }
 
+    if (message.type === 'media.prepare-download') {
+      void mediaRuntime
+        .prepareDownload(message.payload.mediaId, message.payload.intentId)
+        .then((preparation) => {
+          if (session) {
+            postMedia('media.download-prepared', message.requestId, { preparation }, session)
+          }
+        })
+        .catch(() =>
+          postMediaError(message, 'INTERNAL_ERROR', 'media.error.download-prepare-failed')
+        )
+      return
+    }
+
+    if (message.type === 'media.cancel-download') {
+      try {
+        postMedia(
+          'media.download-cancelled',
+          message.requestId,
+          { cancelled: mediaRuntime.cancelDownload(message.payload.mediaId) },
+          session
+        )
+      } catch {
+        postMediaError(message, 'INTERNAL_ERROR', 'media.error.download-cancel-failed')
+      }
+      return
+    }
+
     if (message.type === 'media.execute') {
+      if (message.payload.command.type === 'media.download') {
+        postMediaError(message, 'INVALID_PAYLOAD', 'media.error.download-route-required')
+        return
+      }
       void mediaRuntime
         .execute(message.payload.command)
         .then((response) => {
+          publishDiagnostics()
           if (session) postMedia('media.command-result', message.requestId, response, session)
         })
         .catch(() => postMediaError(message, 'INTERNAL_ERROR', 'media.error.command-failed'))
+      return
+    }
+
+    if (message.type === 'media.execute-page-action') {
+      try {
+        postMedia(
+          'media.page-action-result',
+          message.requestId,
+          mediaRuntime.executePageAction(message.payload.action),
+          session
+        )
+      } catch {
+        postMediaError(message, 'INTERNAL_ERROR', 'media.error.page-action-failed')
+      }
     }
   }
 
@@ -212,7 +359,17 @@ export function startPageMainRuntime(window: Window, document: Document): () => 
           session &&
           (session.sessionId !== lifecycle.sessionId || session.nonce !== lifecycle.nonce)
         ) {
-          return
+          mediaStateSubscription?.()
+          mediaStateSubscription = null
+          mediaDownloadSubscription?.()
+          mediaDownloadSubscription = null
+          mediaRuntime?.teardown()
+          mediaRuntime = null
+          mediaFrameId = 0
+          authority.configure(defaultMediaAuthorityPolicy())
+          experimentalDownload.configure(false)
+          session = null
+          publishDiagnostics()
         }
         session ??= {
           sessionId: lifecycle.sessionId,
@@ -253,5 +410,6 @@ export function startPageMainRuntime(window: Window, document: Document): () => 
   }
 
   window.addEventListener('message', onMessage)
+  publishDiagnostics()
   return teardown
 }

@@ -20,7 +20,12 @@ const MESSAGE_KEYS: Record<CommandErrorCode, CommandErrorMessageKey> = {
   CAPTURE_NOT_READY: 'capture.error.notReady',
   CAPTURE_BLOCKED: 'capture.error.blocked',
   CAPTURE_TOO_LARGE: 'capture.error.tooLarge',
-  CAPTURE_FAILED: 'capture.error.failed'
+  CAPTURE_FAILED: 'capture.error.failed',
+  DOWNLOAD_UNAVAILABLE: 'download.error.unavailable',
+  DOWNLOAD_BLOCKED: 'download.error.blocked',
+  DOWNLOAD_TOO_LARGE: 'download.error.tooLarge',
+  DOWNLOAD_FAILED: 'download.error.failed',
+  DOWNLOAD_CANCELLED: 'download.error.cancelled'
 }
 
 const SAFE_ERROR_NAMES = new Set([

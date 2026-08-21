@@ -1,13 +1,25 @@
-import type { MediaId, MediaSnapshot } from '../media'
+import { MIN_FOREGROUND_MEDIA_OPACITY, type MediaId, type MediaSnapshot } from '../media'
 
 const VISIBLE_WEIGHT = 1_000_000
 const FOCUSED_WEIGHT = 200_000
 const RECENT_INTERACTION_WEIGHT = 150_000
 const PLAYING_WEIGHT = 100_000
+const OPACITY_WEIGHT = 50_000
 const VIDEO_WEIGHT = 10_000
 const MAX_AREA_WEIGHT = VIDEO_WEIGHT - 1
 
 export const DEFAULT_INTERACTION_WINDOW_MS = 15_000
+
+function foregroundCandidates(
+  candidates: readonly ActivePlayerCandidate[]
+): readonly ActivePlayerCandidate[] {
+  const foreground = candidates.filter(
+    (candidate) => (candidate.snapshot.metrics.opacity ?? 1) >= MIN_FOREGROUND_MEDIA_OPACITY
+  )
+  // A translucent-only page remains controllable, but a preview/background
+  // layer must never displace a real foreground player.
+  return foreground.length > 0 ? foreground : candidates
+}
 
 export interface ActivePlayerCandidate {
   readonly snapshot: MediaSnapshot
@@ -22,6 +34,7 @@ export interface ActivePlayerScore {
   readonly focused: number
   readonly recentInteraction: number
   readonly playing: number
+  readonly opacity: number
   readonly preferredKind: number
   readonly area: number
 }
@@ -62,14 +75,18 @@ export function scoreActivePlayer(
   const focused = candidate.focused ? FOCUSED_WEIGHT : 0
   const recentInteraction = interactionScore(candidate.lastInteractionAt, now, interactionWindowMs)
   const playing = candidate.snapshot.state === 'active' ? PLAYING_WEIGHT : 0
+  const opacity = Math.round(
+    Math.min(1, Math.max(0, candidate.snapshot.metrics.opacity ?? 1)) * OPACITY_WEIGHT
+  )
   const preferredKind = candidate.snapshot.kind === 'audio' ? 0 : VIDEO_WEIGHT
 
   return {
-    total: visible + focused + recentInteraction + playing + preferredKind + area,
+    total: visible + focused + recentInteraction + playing + opacity + preferredKind + area,
     visible,
     focused,
     recentInteraction,
     playing,
+    opacity,
     preferredKind,
     area
   }
@@ -119,7 +136,8 @@ export function selectActivePlayer(
         : Math.max(0, options.interactionWindowMs)
   }
   return (
-    [...candidates].sort((left, right) => compareCandidates(left, right, resolvedOptions))[0] ??
-    null
+    [...foregroundCandidates(candidates)].sort((left, right) =>
+      compareCandidates(left, right, resolvedOptions)
+    )[0] ?? null
   )
 }

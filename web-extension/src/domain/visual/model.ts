@@ -199,6 +199,18 @@ export function toggleVisualFlip(state: VisualState, axis: 'horizontal' | 'verti
   )
 }
 
+export function resetVisualTransform(state: VisualState): VisualState {
+  return freezeVisualState(
+    visualStateSchema.parse({
+      ...state,
+      zoom: DEFAULT_VISUAL_STATE.zoom,
+      pan: DEFAULT_VISUAL_STATE.pan,
+      rotation: DEFAULT_VISUAL_STATE.rotation,
+      flip: DEFAULT_VISUAL_STATE.flip
+    })
+  )
+}
+
 export function setVisualFilter(
   state: VisualState,
   name: VisualFilterName,

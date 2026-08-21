@@ -27,7 +27,7 @@ export type OptionsSnapshot = Readonly<{
 }>
 
 export type ImportPreview = Readonly<{
-  formatVersion: 1 | 2
+  formatVersion: 1 | 2 | 3
   exportedAt: string
   siteRuleCount: number
   progressCount: number
@@ -42,6 +42,13 @@ export type HotkeyEditResult =
       readonly code: 'INVALID_CHORD' | 'INVALID_COMMAND' | 'CONFLICT'
       readonly conflictCommandId?: HotkeyCommandId
     }
+
+type ExperimentalSitePolicyPatch = Pick<
+  NonNullable<SiteOverride['policies']>,
+  'allowAcousticGain' | 'allowMouseLongPress' | 'mouseLongPressMs' | 'allowAutoplay'
+>
+
+type ExperimentalSitePolicyKey = keyof ExperimentalSitePolicyPatch
 
 export class OptionsApplication {
   private snapshot: OptionsSnapshot | null = null
@@ -91,6 +98,134 @@ export class OptionsApplication {
     const current = this.requireSnapshot()
     const existing = current.settings.settings.data.sites[origin]
     const override: SiteOverride = { ...existing, enabled }
+    return this.update({ sites: { [origin]: override } }, options)
+  }
+
+  setSitePlaybackRate(
+    origin: string,
+    value: number,
+    options: { signal?: AbortSignal } = {}
+  ): Promise<OptionsSnapshot> {
+    const current = this.requireSnapshot()
+    const existing = current.settings.settings.data.sites[origin]
+    const override: SiteOverride = {
+      ...existing,
+      enabled: existing?.enabled ?? true,
+      media: {
+        ...existing?.media,
+        defaultPlaybackRate: value
+      }
+    }
+    return this.update({ sites: { [origin]: override } }, options)
+  }
+
+  setSitePlaybackProtection(
+    origin: string,
+    protectPlaybackRate: boolean,
+    options: { signal?: AbortSignal } = {}
+  ): Promise<OptionsSnapshot> {
+    const current = this.requireSnapshot()
+    const existing = current.settings.settings.data.sites[origin]
+    const override: SiteOverride = {
+      ...existing,
+      enabled: existing?.enabled ?? true,
+      policies: {
+        ...existing?.policies,
+        protectPlaybackRate
+      }
+    }
+    return this.update({ sites: { [origin]: override } }, options)
+  }
+
+  setSiteDownloadEnabled(
+    origin: string,
+    enabled: boolean,
+    options: { signal?: AbortSignal } = {}
+  ): Promise<OptionsSnapshot> {
+    const current = this.requireSnapshot()
+    const existing = current.settings.settings.data.sites[origin]
+    const override: SiteOverride = {
+      ...existing,
+      enabled: existing?.enabled ?? true,
+      download: { ...existing?.download, enabled }
+    }
+    return this.update({ sites: { [origin]: override } }, options)
+  }
+
+  setSiteExperimentalPolicy(
+    origin: string,
+    patch: ExperimentalSitePolicyPatch,
+    options: { signal?: AbortSignal } = {}
+  ): Promise<OptionsSnapshot> {
+    const current = this.requireSnapshot()
+    const existing = current.settings.settings.data.sites[origin]
+    const override: SiteOverride = {
+      ...existing,
+      enabled: existing?.enabled ?? true,
+      policies: { ...existing?.policies, ...patch }
+    }
+    return this.update({ sites: { [origin]: override } }, options)
+  }
+
+  restoreSiteExperimentalPolicy(
+    origin: string,
+    key: ExperimentalSitePolicyKey,
+    options: { signal?: AbortSignal } = {}
+  ): Promise<OptionsSnapshot> {
+    const current = this.requireSnapshot()
+    const existing = current.settings.settings.data.sites[origin]
+    if (!existing?.policies) return Promise.resolve(current)
+    const policies = { ...existing.policies }
+    delete policies[key]
+    const override: SiteOverride = { ...existing }
+    if (Object.keys(policies).length === 0) delete override.policies
+    else override.policies = policies
+    return this.update({ sites: { [origin]: override } }, options)
+  }
+
+  restoreSiteDownload(
+    origin: string,
+    options: { signal?: AbortSignal } = {}
+  ): Promise<OptionsSnapshot> {
+    const current = this.requireSnapshot()
+    const existing = current.settings.settings.data.sites[origin]
+    if (!existing) return Promise.resolve(current)
+    const override: SiteOverride = { ...existing }
+    delete override.download
+    return this.update({ sites: { [origin]: override } }, options)
+  }
+
+  restoreSitePlaybackRate(
+    origin: string,
+    options: { signal?: AbortSignal } = {}
+  ): Promise<OptionsSnapshot> {
+    const current = this.requireSnapshot()
+    const existing = current.settings.settings.data.sites[origin]
+    if (!existing) return Promise.resolve(current)
+    const media = { ...existing.media }
+    delete media.defaultPlaybackRate
+    const override: SiteOverride = {
+      ...existing,
+      ...(Object.keys(media).length === 0 ? {} : { media })
+    }
+    if (Object.keys(media).length === 0) delete override.media
+    return this.update({ sites: { [origin]: override } }, options)
+  }
+
+  restoreSitePlaybackProtection(
+    origin: string,
+    options: { signal?: AbortSignal } = {}
+  ): Promise<OptionsSnapshot> {
+    const current = this.requireSnapshot()
+    const existing = current.settings.settings.data.sites[origin]
+    if (!existing) return Promise.resolve(current)
+    const policies = { ...existing.policies }
+    delete policies.protectPlaybackRate
+    const override: SiteOverride = {
+      ...existing,
+      ...(Object.keys(policies).length === 0 ? {} : { policies })
+    }
+    if (Object.keys(policies).length === 0) delete override.policies
     return this.update({ sites: { [origin]: override } }, options)
   }
 

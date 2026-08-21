@@ -37,7 +37,16 @@ export interface MediaAdapter<TTarget = unknown> {
 export type SiteAdapterTier = 1 | 2
 export type SiteAdapterSupportLevel = 'preview' | 'best-effort'
 
-export type SiteAdapterFeature = 'playback' | 'fullscreen-native' | 'fullscreen-web'
+export type SiteAdapterFeature =
+  | 'playback'
+  | 'seek'
+  | 'playback-rate'
+  | 'fullscreen-native'
+  | 'fullscreen-web'
+  | 'next'
+  | 'autoplay'
+export type SiteAdapterAction = 'play' | 'pause' | 'next'
+export type SiteAdapterPageAction = 'next' | 'autoplay'
 
 export interface SiteAdapterMatchRule {
   readonly hostname: string
@@ -48,8 +57,13 @@ export interface SiteAdapterMatchRule {
 export interface SiteAdapterSelectorMap {
   readonly play?: readonly string[]
   readonly pause?: readonly string[]
+  readonly seekForward?: readonly string[]
+  readonly seekBackward?: readonly string[]
+  readonly playbackRate?: readonly string[]
   readonly fullscreenNative?: readonly string[]
   readonly fullscreenWeb?: readonly string[]
+  readonly next?: readonly string[]
+  readonly autoplay?: readonly string[]
 }
 
 export interface SiteAdapterDefinition {

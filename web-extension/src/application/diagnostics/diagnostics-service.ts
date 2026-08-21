@@ -8,6 +8,7 @@ import {
   type DiagnosticSummary
 } from './contracts'
 import { CURRENT_EXTENSION_PHASE } from '../../shared/protocol'
+import { SETTINGS_SCHEMA_VERSION } from '../../domain/settings'
 
 const MAX_DIAGNOSTIC_BYTES = 1_048_576
 
@@ -41,7 +42,7 @@ export class DiagnosticsService {
       build: this.options.buildId,
       phase: CURRENT_EXTENSION_PHASE,
       protocolVersion: 1,
-      settingsSchemaVersion: 2,
+      settingsSchemaVersion: SETTINGS_SCHEMA_VERSION,
       browser: {
         name: environment.browserName,
         version: environment.browserVersion,

@@ -19,11 +19,18 @@ export function createDefaultSettings(): SettingsData {
         defaultVolume: 1,
         restoreProgress: false
       },
+      download: {
+        enabled: true
+      },
       policies: {
         protectPlaybackRate: true,
         protectCurrentTime: false,
         protectVolume: true,
-        allowExperimental: false
+        allowExperimental: false,
+        allowAcousticGain: false,
+        allowMouseLongPress: false,
+        mouseLongPressMs: 600,
+        allowAutoplay: false
       },
       diagnostics: {
         localLogLevel: 'error',

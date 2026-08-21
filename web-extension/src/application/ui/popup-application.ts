@@ -4,6 +4,7 @@ import type { SettingsSnapshotResponse, SystemPingResponse } from '../settings/c
 import type { SiteContextResponse } from '../site/contracts'
 import type { MediaCommandResultResponse, MediaPageState } from '../media'
 import type { MediaCommand } from '../../domain/command'
+import type { PlaybackRateWriteScope } from '../playback'
 import { normalizeSiteOrigin, toHostPermissionPattern } from '../../domain/settings'
 
 export type PopupSnapshot = Readonly<{
@@ -126,13 +127,33 @@ export class PopupApplication {
     return this.load(options)
   }
 
+  async setPageUiHidden(
+    hidden: boolean,
+    options: { signal?: AbortSignal } = {}
+  ): Promise<PopupSnapshot> {
+    await this.api.setPageUiHidden(hidden, options)
+    return this.load(options)
+  }
+
   async execute(
     command: MediaCommand,
-    options: { signal?: AbortSignal } = {}
+    options: { signal?: AbortSignal; playbackRateScope?: PlaybackRateWriteScope } = {}
   ): Promise<MediaCommandResultResponse> {
     const response = await this.api.executeMediaCommand(command, options)
     const current = this.requireSnapshot()
-    this.snapshot = { ...current, media: response.state }
+    if (
+      response.result.ok &&
+      (command.type === 'media.set-rate' || command.type === 'media.adjust-rate')
+    ) {
+      try {
+        const site = await this.api.getSiteContext(options)
+        this.snapshot = { ...current, site, media: response.state }
+      } catch {
+        this.snapshot = { ...current, media: response.state }
+      }
+    } else {
+      this.snapshot = { ...current, media: response.state }
+    }
     return response
   }
 

@@ -7,9 +7,12 @@ const requestIdSchema = z.string().check(z.minLength(16), z.maxLength(128))
 export const tabRequestTypeSchema = z.enum([
   'media.get-state',
   'media.execute',
+  'media.picture-in-picture.owner-changed',
   'media.cross-tab.event',
   'site.get-state',
+  'site.refresh-frame-state',
   'site.set-temporary-disabled',
+  'site.set-page-ui-hidden',
   'site.permission-revoked'
 ])
 

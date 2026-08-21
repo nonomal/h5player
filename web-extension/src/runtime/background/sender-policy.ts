@@ -1,9 +1,12 @@
 import type { RuntimeRequestEnvelope } from '../../shared/protocol'
 import { failure, success, type Result } from '../../shared/result'
+import { viewportMediaSiteOriginForFrame } from '../../shared/viewport-media-surface'
+import { normalizeSiteOrigin } from '../../domain/settings'
 
 export type RuntimeSenderMetadata = {
   id?: string
   url?: string
+  tabUrl?: string
   tabId?: number
   frameId?: number
 }
@@ -13,6 +16,7 @@ export type AuthorizedSender = {
   tabId?: number
   frameId?: number
   sessionId?: string
+  siteOrigin?: string
 }
 
 const allowedRequestTypes = {
@@ -20,10 +24,20 @@ const allowedRequestTypes = {
     'protocol.cancel',
     'system.ping',
     'settings.get',
+    'playback.set-site-intent',
+    'site.set-page-ui-hidden',
+    'site.report-frame-state',
+    'experimental.ensure-main',
+    'media.get-state',
+    'media.execute',
+    'media.picture-in-picture.presence',
+    'media.picture-in-picture.get-state',
+    'media.picture-in-picture.execute',
     'media.cross-tab.publish',
     'progress.read',
     'progress.save',
     'progress.delete',
+    'progress.toggle-restore',
     'progress.prune'
   ]),
   popup: new Set([
@@ -34,6 +48,7 @@ const allowedRequestTypes = {
     'settings.reset',
     'site.get-context',
     'site.set-temporary-disabled',
+    'site.set-page-ui-hidden',
     'site.reconcile',
     'diagnostics.get',
     'media.get-state',
@@ -93,11 +108,21 @@ export function authorizeRuntimeSender(
     ) {
       return failure('UNAUTHORIZED_SOURCE')
     }
+    const normalized = sender.url ? normalizeSiteOrigin(sender.url) : null
+    const delegatedSiteOrigin =
+      sender.url === undefined || sender.tabUrl === undefined
+        ? null
+        : viewportMediaSiteOriginForFrame(sender.url, sender.tabUrl)
     return success({
       scope: `content:${sender.tabId}:${sender.frameId}:${request.sessionId}`,
       tabId: sender.tabId,
       frameId: sender.frameId,
-      sessionId: request.sessionId
+      sessionId: request.sessionId,
+      ...(delegatedSiteOrigin !== null
+        ? { siteOrigin: delegatedSiteOrigin }
+        : normalized?.ok
+          ? { siteOrigin: normalized.value }
+          : {})
     })
   }
 

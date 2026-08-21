@@ -40,7 +40,9 @@ export const mediaCapabilitiesSchema = z.strictObject({
   fullscreenNative: z.optional(z.boolean()),
   fullscreenWeb: z.optional(z.boolean()),
   pictureInPicture: z.boolean(),
+  audioGain: z.optional(z.boolean()),
   capture: z.boolean(),
+  next: z.optional(z.boolean()),
   downloadExperimental: z.boolean()
 })
 
@@ -51,8 +53,13 @@ export const mediaMetricsSchema = z
     duration: z.nullable(nonNegativeNumberSchema),
     currentTime: nonNegativeNumberSchema,
     volume: z.number().check(z.gte(MIN_VOLUME), z.lte(MAX_VOLUME)),
+    gain: z.optional(z.number().check(z.gte(1), z.lte(6))),
     playbackRate: z.number().check(z.gte(MIN_PLAYBACK_RATE), z.lte(MAX_PLAYBACK_RATE)),
     muted: z.boolean(),
+    // Computed opacity is a presentation hint used to distinguish foreground
+    // content from low-opacity preview/background media. It is optional so
+    // custom and viewport-proxy controllers can omit it safely.
+    opacity: z.optional(z.number().check(z.gte(0), z.lte(1))),
     visible: z.boolean()
   })
   .check(
@@ -62,6 +69,7 @@ export const mediaMetricsSchema = z
 export const mediaSessionSchema = z.strictObject({
   id: mediaIdSchema,
   frameId: z.int().check(z.nonnegative()),
+  sourceKey: z.optional(boundedIdentifierSchema),
   kind: mediaKindSchema,
   state: mediaStateSchema,
   metrics: mediaMetricsSchema,
@@ -93,7 +101,9 @@ export const MEDIA_CAPABILITY_KEYS = [
   'fullscreenNative',
   'fullscreenWeb',
   'pictureInPicture',
+  'audioGain',
   'capture',
+  'next',
   'downloadExperimental'
 ] as const satisfies readonly (keyof MediaCapabilities)[]
 
@@ -106,6 +116,7 @@ export const DEFAULT_MEDIA_CAPABILITIES: MediaCapabilities = Object.freeze({
   fullscreen: false,
   pictureInPicture: false,
   capture: false,
+  next: false,
   downloadExperimental: false
 })
 

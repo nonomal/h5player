@@ -16,7 +16,8 @@ import {
   isDefaultVisualState,
   parseVisualState,
   serializeVisualFilter,
-  serializeVisualTransform
+  serializeVisualTransform,
+  clampAudioGain
 } from '../../domain/media'
 import type {
   AdapterTeardown,
@@ -27,8 +28,12 @@ import type {
   ObservableMediaController
 } from '../../domain/adapter'
 import type { CaptureOptions } from '../../domain/capture'
+import type { MediaDownloadPreparation } from '../../domain/download'
+import { resolveViewportMediaSurface } from '../../shared/viewport-media-surface'
 import { nativeMediaBindings } from './native-media-bindings'
 import { nativeCaptureBindings } from './native-capture-bindings'
+import type { ExperimentalMediaDownloadPort } from './experimental-media-download'
+import { canUseAudioGain, MediaElementAudioGain } from './audio-gain'
 
 const STATE_EVENTS = [
   'durationchange',
@@ -87,6 +92,17 @@ function normalizeTimestamp(value: number): number {
   return Number.isFinite(value) && value >= 0 ? value : 0
 }
 
+function sourceKey(value: string): string | undefined {
+  const normalized = value.trim()
+  if (normalized === '') return undefined
+  let hash = 0x811c9dc5
+  for (let index = 0; index < normalized.length; index += 1) {
+    hash ^= normalized.charCodeAt(index)
+    hash = Math.imul(hash, 0x01000193) >>> 0
+  }
+  return `source-${hash.toString(16).padStart(8, '0')}`
+}
+
 function asError(value: unknown, fallbackMessage: string): Error {
   return value instanceof Error ? value : new Error(fallbackMessage)
 }
@@ -111,33 +127,50 @@ function visibleDimensions(element: HTMLMediaElement): {
   readonly visible: boolean
 } {
   const rect = nativeMediaBindings.getBoundingClientRect(element)
+  const view = element.ownerDocument.defaultView
+  const viewportSurface = resolveViewportMediaSurface({
+    url: element.ownerDocument.URL,
+    mediaKind: nativeMediaBindings.isVideo(element) ? 'video' : 'audio',
+    elementWidth: rect?.width ?? 0,
+    elementHeight: rect?.height ?? 0,
+    viewportWidth: view?.innerWidth ?? 0,
+    viewportHeight: view?.innerHeight ?? 0
+  })
   const attributeWidth = nativeMediaBindings.getNumericAttribute(element, 'width')
   const attributeHeight = nativeMediaBindings.getNumericAttribute(element, 'height')
   const intrinsicWidth = nativeMediaBindings.readVideoWidth(element)
   const intrinsicHeight = nativeMediaBindings.readVideoHeight(element)
-  const width = firstPositive(
-    rect?.width ?? 0,
-    nativeMediaBindings.readClientWidth(element),
-    nativeMediaBindings.readDisplayWidth(element),
-    attributeWidth,
-    intrinsicWidth
-  )
-  const height = firstPositive(
-    rect?.height ?? 0,
-    nativeMediaBindings.readClientHeight(element),
-    nativeMediaBindings.readDisplayHeight(element),
-    attributeHeight,
-    intrinsicHeight
-  )
+  const width =
+    viewportSurface?.width ??
+    firstPositive(
+      rect?.width ?? 0,
+      nativeMediaBindings.readClientWidth(element),
+      nativeMediaBindings.readDisplayWidth(element),
+      attributeWidth,
+      intrinsicWidth
+    )
+  const height =
+    viewportSurface?.height ??
+    firstPositive(
+      rect?.height ?? 0,
+      nativeMediaBindings.readClientHeight(element),
+      nativeMediaBindings.readDisplayHeight(element),
+      attributeHeight,
+      intrinsicHeight
+    )
   const hasDimensions = width > 0 && height > 0
-  const documentVisible = element.ownerDocument.visibilityState !== 'hidden'
   const connected = nativeMediaBindings.readIsConnected(element)
-  const explicitlyHidden = nativeMediaBindings.readHidden(element)
-  const rendered = nativeMediaBindings.isRendered(element)
+  const explicitlyHidden = viewportSurface === null && nativeMediaBindings.readHidden(element)
+  const rendered = viewportSurface !== null || nativeMediaBindings.isRendered(element)
 
   let intersectsViewport = true
-  const view = element.ownerDocument.defaultView
-  if (rect !== null && view !== null && rect.width > 0 && rect.height > 0) {
+  if (
+    viewportSurface === null &&
+    rect !== null &&
+    view !== null &&
+    rect.width > 0 &&
+    rect.height > 0
+  ) {
     intersectsViewport =
       rect.bottom > 0 &&
       rect.right > 0 &&
@@ -148,19 +181,12 @@ function visibleDimensions(element: HTMLMediaElement): {
   return {
     width,
     height,
-    visible:
-      connected &&
-      documentVisible &&
-      !explicitlyHidden &&
-      rendered &&
-      hasDimensions &&
-      intersectsViewport
+    visible: connected && !explicitlyHidden && rendered && hasDimensions && intersectsViewport
   }
 }
 
 export class GenericMediaController implements ObservableMediaController {
   readonly mediaId: MediaId
-  readonly capabilities: MediaCapabilities
 
   private readonly element: HTMLMediaElement
   private readonly frameId: number
@@ -178,8 +204,16 @@ export class GenericMediaController implements ObservableMediaController {
   private notificationGeneration = 0
   private pendingReason: MediaControllerChangeReason = 'state'
   private pendingObservedAt = 0
+  private readonly baseCapabilities: MediaCapabilities
+  private audioGainAvailable: boolean
+  private audioGain: MediaElementAudioGain | null = null
+  private audioGainValue = 1
 
-  constructor(element: HTMLMediaElement, context: MediaControllerContext) {
+  constructor(
+    element: HTMLMediaElement,
+    context: MediaControllerContext,
+    private readonly experimentalDownload?: ExperimentalMediaDownloadPort
+  ) {
     if (!nativeMediaBindings.isMediaElement(element)) {
       throw new TypeError('GenericMediaController requires an HTML video or audio element')
     }
@@ -193,13 +227,15 @@ export class GenericMediaController implements ObservableMediaController {
     this.originalFilter = nativeMediaBindings.readStyleProperty(element, 'filter')
     this.visualState = cloneVisualState(DEFAULT_VISUAL_STATE)
     const isVideo = nativeMediaBindings.isVideo(element)
+    const view = element.ownerDocument.defaultView
+    this.audioGainAvailable = view !== null && canUseAudioGain(element, view)
     const visual = isVideo && nativeMediaBindings.hasVisualStyles
     const fullscreenNative =
       isVideo &&
       nativeMediaBindings.hasFullscreenNative &&
       nativeMediaBindings.isFullscreenEnabled(element)
     const fullscreenWeb = isVideo && nativeMediaBindings.hasFullscreenWeb
-    this.capabilities = Object.freeze(
+    this.baseCapabilities = Object.freeze(
       createMediaCapabilities({
         playback: nativeMediaBindings.hasPlayback,
         seek: nativeMediaBindings.hasSeek,
@@ -215,6 +251,14 @@ export class GenericMediaController implements ObservableMediaController {
         downloadExperimental: false
       })
     )
+  }
+
+  get capabilities(): MediaCapabilities {
+    return createMediaCapabilities({
+      ...this.baseCapabilities,
+      ...(this.audioGainAvailable ? { audioGain: true } : {}),
+      downloadExperimental: this.experimentalDownload?.canDownload(this.element) ?? false
+    })
   }
 
   getSnapshot(): MediaSnapshot {
@@ -238,15 +282,19 @@ export class GenericMediaController implements ObservableMediaController {
       duration,
       currentTime,
       volume: normalizeVolume(nativeMediaBindings.readVolume(this.element)),
+      ...(this.audioGainAvailable ? { gain: this.audioGainValue } : {}),
       playbackRate: normalizePlaybackRate(nativeMediaBindings.readPlaybackRate(this.element)),
       muted: nativeMediaBindings.readMuted(this.element),
+      opacity: nativeMediaBindings.readOpacity(this.element),
       visible: dimensions.visible
     })
     const presentation = this.getPresentationState()
+    const currentSourceKey = sourceKey(nativeMediaBindings.readCurrentSrc(this.element))
 
     return Object.freeze({
       id: this.mediaId,
       frameId: this.frameId,
+      ...(currentSourceKey === undefined ? {} : { sourceKey: currentSourceKey }),
       kind: nativeMediaBindings.isVideo(this.element) ? 'video' : 'audio',
       state,
       metrics,
@@ -299,6 +347,33 @@ export class GenericMediaController implements ObservableMediaController {
       nativeMediaBindings.writeVolume(this.element, clampUnit(value))
       this.queueNotification('state')
     }, 'Native media volume update failed')
+  }
+
+  setGain(value: number): Promise<void> {
+    return runOperation(() => {
+      this.assertUsable('audioGain', 'set audio gain')
+      const normalized = clampAudioGain(value)
+      let graph = this.audioGain
+      try {
+        if (normalized > 1 && graph === null) {
+          const view = this.element.ownerDocument.defaultView
+          if (view === null) throw new Error('Web Audio gain is unavailable')
+          graph = new MediaElementAudioGain(this.element, view)
+        }
+        graph?.setGain(normalized)
+      } catch (error) {
+        graph?.dispose()
+        if (this.audioGain !== graph) this.audioGain?.dispose()
+        this.audioGain = null
+        this.audioGainValue = 1
+        this.audioGainAvailable = false
+        this.queueNotification('state')
+        throw error
+      }
+      this.audioGain = graph
+      this.audioGainValue = normalized
+      this.queueNotification('state')
+    }, 'Native media audio gain update failed')
   }
 
   setMuted(muted: boolean): Promise<void> {
@@ -370,6 +445,18 @@ export class GenericMediaController implements ObservableMediaController {
     return nativeCaptureBindings.captureVideoFrame(this.element, options)
   }
 
+  prepareDownload(intentId: string): Promise<MediaDownloadPreparation> {
+    this.assertUsable('downloadExperimental', 'prepare media download')
+    if (this.experimentalDownload === undefined) {
+      return Promise.reject(new Error('Experimental media download is unavailable'))
+    }
+    return this.experimentalDownload.prepareDownload(this.element, intentId)
+  }
+
+  cancelDownload(): boolean {
+    return this.experimentalDownload?.cancelDownload(this.element) ?? false
+  }
+
   subscribe(listener: MediaControllerListener): AdapterTeardown {
     this.assertNotDisposed()
     this.listeners.add(listener)
@@ -399,6 +486,8 @@ export class GenericMediaController implements ObservableMediaController {
     if (nativeMediaBindings.readPictureInPictureElement(this.element) === this.element) {
       void nativeMediaBindings.exitPictureInPicture(this.element).catch(() => undefined)
     }
+    this.audioGain?.dispose()
+    this.audioGain = null
   }
 
   private readonly handleStateEvent: EventListener = () => {

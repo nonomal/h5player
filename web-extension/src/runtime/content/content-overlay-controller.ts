@@ -77,6 +77,33 @@ function commandNotice(
         'The frame exceeds capture limits.'
       )
     }
+    if (error.code === 'DOWNLOAD_UNAVAILABLE') {
+      return localized(
+        locale,
+        '当前媒体没有可下载数据。',
+        'No downloadable media data is available.'
+      )
+    }
+    if (error.code === 'DOWNLOAD_BLOCKED') {
+      return localized(locale, '浏览器阻止了媒体下载。', 'The browser blocked the media download.')
+    }
+    if (error.code === 'DOWNLOAD_TOO_LARGE') {
+      return localized(
+        locale,
+        '媒体缓存超过安全上限。',
+        'The captured media exceeded the safety limit.'
+      )
+    }
+    if (error.code === 'DOWNLOAD_FAILED') {
+      return localized(locale, '媒体下载失败。', 'The media download failed.')
+    }
+    if (error.code === 'DOWNLOAD_CANCELLED') {
+      return localized(
+        locale,
+        '已取消等待中的媒体下载。',
+        'The pending media download was cancelled.'
+      )
+    }
     if (error.code === 'CAPABILITY_UNAVAILABLE') {
       return localized(locale, '当前媒体不支持此操作。', 'This media does not support the action.')
     }
@@ -140,16 +167,7 @@ export class ContentOverlayController {
       return
     }
     if (intent.type === 'download.request') {
-      this.notice = {
-        tone: 'info',
-        message: localized(
-          this.locale,
-          '媒体下载保留为后续实验能力，Preview 阶段未启用。',
-          'Media download remains disabled in this Preview.'
-        )
-      }
-      this.publish()
-      return
+      // Download follows the same typed command path as every other media action.
     }
 
     const control = controlForIntent(intent)
@@ -227,7 +245,10 @@ export class ContentOverlayController {
         fullscreen: active?.capabilities.fullscreen ?? false,
         pictureInPicture: active?.capabilities.pictureInPicture ?? false,
         capture: active?.capabilities.capture ?? false,
-        download: false
+        download:
+          Boolean(active?.capabilities.downloadExperimental) &&
+          Boolean(state?.settings.policies.allowExperimental) &&
+          Boolean(state?.settings.download.enabled)
       },
       busyControls: [...this.busyControls],
       statusDetail:
@@ -319,10 +340,23 @@ export class ContentOverlayController {
         command = { type: 'media.capture', mediaId: intent.mediaId, mimeType: 'image/png' }
         break
       case 'download.request':
-        return
+        command = { type: 'media.download', mediaId: intent.mediaId }
+        break
     }
     const response = await this.options.media.executeMediaCommand(command)
     this.applyResponse(response)
+    if (intent.type === 'download.request' && response.result.ok) {
+      this.notice = {
+        tone: 'success',
+        message: localized(
+          this.locale,
+          response.result.value.changed ? '下载已开始。' : '媒体结束后将自动下载。',
+          response.result.value.changed
+            ? 'The download has started.'
+            : 'The download will start when the media ends.'
+        )
+      }
+    }
     if (response.result.ok && response.result.value.artifact !== undefined) {
       try {
         this.options.downloadCapture(response.result.value.artifact)

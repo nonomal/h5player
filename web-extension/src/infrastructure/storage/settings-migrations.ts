@@ -4,7 +4,9 @@ import {
   persistedSettingsV0Schema,
   persistedSettingsV1Schema,
   persistedSettingsV2Schema,
+  persistedSettingsLegacyV2Schema,
   SETTINGS_SCHEMA_VERSION,
+  type GlobalSettings,
   type PersistedSettingsV2,
   type SettingsData,
   type SettingsDataV1
@@ -21,6 +23,16 @@ function readSchemaVersion(value: unknown): number | null {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return null
   const version = (value as Record<string, unknown>)['schemaVersion']
   return typeof version === 'number' && Number.isInteger(version) ? version : null
+}
+
+function normalizeGlobalPolicies(policies: GlobalSettings['policies']): GlobalSettings['policies'] {
+  return {
+    ...policies,
+    allowAcousticGain: policies.allowAcousticGain ?? false,
+    allowMouseLongPress: policies.allowMouseLongPress ?? false,
+    mouseLongPressMs: policies.mouseLongPressMs ?? 600,
+    allowAutoplay: policies.allowAutoplay ?? false
+  }
 }
 
 export function migrateSettingsDataV1(data: SettingsDataV1): SettingsData {
@@ -45,12 +57,28 @@ export function migrateSettingsDataV1(data: SettingsDataV1): SettingsData {
         bindings
       },
       media: { ...data.global.media },
-      policies: { ...data.global.policies },
+      download: { enabled: true },
+      policies: normalizeGlobalPolicies(data.global.policies),
       diagnostics: { ...data.global.diagnostics }
     },
     sites: { ...data.sites },
     progress: { ...data.progress }
   }
+}
+
+function normalizeSettingsData(data: SettingsData): SettingsData {
+  return {
+    ...data,
+    global: {
+      ...data.global,
+      download: { enabled: data.global.download?.enabled ?? true },
+      policies: normalizeGlobalPolicies(data.global.policies)
+    }
+  }
+}
+
+export function migrateSettingsDataV2(data: SettingsData): SettingsData {
+  return normalizeSettingsData(data)
 }
 
 function createCurrentEnvelope(
@@ -73,11 +101,28 @@ export function classifyPersistedSettings(raw: unknown, now: number): SettingsMi
   }
 
   const current = persistedSettingsV2Schema.safeParse(raw)
-  if (current.success) return { kind: 'current', value: current.data }
+  if (current.success)
+    return {
+      kind: 'current',
+      value: { ...current.data, data: normalizeSettingsData(current.data.data) }
+    }
 
   const schemaVersion = readSchemaVersion(raw)
   if (schemaVersion !== null && schemaVersion > SETTINGS_SCHEMA_VERSION) {
     return { kind: 'future', schemaVersion }
+  }
+
+  const previousV2 = persistedSettingsLegacyV2Schema.safeParse(raw)
+  if (previousV2.success) {
+    return {
+      kind: 'migrated',
+      raw,
+      value: createCurrentEnvelope(
+        now,
+        previousV2.data.revision + 1,
+        migrateSettingsDataV2(previousV2.data.data as SettingsData)
+      )
+    }
   }
 
   const previous = persistedSettingsV1Schema.safeParse(raw)

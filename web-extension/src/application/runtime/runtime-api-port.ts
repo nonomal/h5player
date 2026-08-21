@@ -1,6 +1,7 @@
 import type { SettingsPatch } from '../../domain/settings'
 import type { MediaCommand } from '../../domain/command'
 import type { MediaCommandResultResponse, MediaPageState } from '../media'
+import type { PlaybackRateWriteScope } from '../playback'
 import type {
   SettingsMutationResponse,
   SettingsSnapshotResponse,
@@ -9,6 +10,7 @@ import type {
 import type { DiagnosticResponse } from '../diagnostics/contracts'
 import type {
   SiteContextResponse,
+  SitePageUiVisibilityResponse,
   SiteReconcileResponse,
   SiteTemporaryDisableResponse
 } from '../site/contracts'
@@ -18,7 +20,7 @@ export interface RuntimeApiPort {
   getMediaState(options?: { signal?: AbortSignal }): Promise<MediaPageState>
   executeMediaCommand(
     command: MediaCommand,
-    options?: { signal?: AbortSignal }
+    options?: { signal?: AbortSignal; playbackRateScope?: PlaybackRateWriteScope }
   ): Promise<MediaCommandResultResponse>
   getSettings(options?: { signal?: AbortSignal }): Promise<SettingsSnapshotResponse>
   updateSettings(
@@ -45,6 +47,10 @@ export interface RuntimeApiPort {
     disabled: boolean,
     options?: { signal?: AbortSignal }
   ): Promise<SiteTemporaryDisableResponse>
+  setPageUiHidden(
+    hidden: boolean,
+    options?: { signal?: AbortSignal }
+  ): Promise<SitePageUiVisibilityResponse>
   reconcileSiteAccess(
     bootstrapCurrentTab: boolean,
     options?: { signal?: AbortSignal }

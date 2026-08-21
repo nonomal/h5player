@@ -1,9 +1,11 @@
 import {
   clampMediaTime,
   clampPlaybackRate,
+  clampAudioGain,
   clampUnit,
   DEFAULT_VISUAL_STATE,
   panVisual,
+  resetVisualTransform,
   rotateVisual,
   roundMediaValue,
   setVisualFilter,
@@ -18,17 +20,23 @@ import {
   errorName,
   type AdjustRateCommand,
   type AdjustVolumeCommand,
+  type AdjustGainCommand,
   type CommandHandler,
   type MediaCommand,
   type PauseCommand,
+  type PlayNextCommand,
   type PlayCommand,
+  type ResetTransformCommand,
   type ResolvedCommandContext,
   type SeekCommand,
+  type StepFrameCommand,
   type SetMutedCommand,
   type SetRateCommand,
   type SetVolumeCommand,
+  type SetGainCommand,
   type ToggleMuteCommand
 } from '../../domain/command'
+
 import { isCaptureFailure } from '../../domain/capture'
 import type {
   CaptureCommand,
@@ -41,9 +49,30 @@ import type {
   ToggleFullscreenCommand,
   TogglePictureInPictureCommand
 } from '../../domain/command'
+import type { DownloadCommand } from '../../domain/command'
+
+const LEGACY_FRAME_RATE = 30
 
 function changedResult(command: MediaCommand, context: ResolvedCommandContext) {
   return commandSuccess(command, context.controller.getSnapshot(), true)
+}
+
+function verifiedPlaybackRateResult(
+  command: SetRateCommand | AdjustRateCommand,
+  context: ResolvedCommandContext,
+  target: number
+) {
+  const snapshot = context.controller.getSnapshot()
+  if (!mediaValuesEqual(snapshot.metrics.playbackRate, target)) {
+    return commandFailure('COMMAND_EXECUTION_FAILED', {
+      commandType: command.type,
+      mediaId: context.snapshot.id,
+      phase: 'playback-rate-postcondition',
+      expectedRate: target,
+      actualRate: snapshot.metrics.playbackRate
+    })
+  }
+  return commandSuccess(command, snapshot, true)
 }
 
 function mediaValuesEqual(left: number, right: number): boolean {
@@ -157,6 +186,30 @@ export const seekCommandHandler: CommandHandler<SeekCommand> = {
   }
 }
 
+export const stepFrameCommandHandler: CommandHandler<StepFrameCommand> = {
+  type: 'media.step-frame',
+  requiredCapability: 'seek',
+  async execute(command, context) {
+    if (command.frames === 0) return commandSuccess(command, context.snapshot, false)
+    if (!context.snapshot.capabilities.playback) {
+      return commandFailure('CAPABILITY_UNAVAILABLE', {
+        mediaId: context.snapshot.id,
+        capability: 'playback'
+      })
+    }
+    const target = clampMediaTime(
+      context.snapshot.metrics.currentTime + command.frames / LEGACY_FRAME_RATE,
+      context.snapshot.metrics.duration
+    )
+    const shouldPause = context.snapshot.state === 'active'
+    const shouldSeek = !mediaValuesEqual(target, context.snapshot.metrics.currentTime)
+    if (!shouldPause && !shouldSeek) return commandSuccess(command, context.snapshot, false)
+    if (shouldPause) await context.controller.pause()
+    if (shouldSeek) await context.controller.seekTo(target)
+    return changedResult(command, context)
+  }
+}
+
 export const setRateCommandHandler: CommandHandler<SetRateCommand> = {
   type: 'media.set-rate',
   requiredCapability: 'playbackRate',
@@ -166,7 +219,7 @@ export const setRateCommandHandler: CommandHandler<SetRateCommand> = {
       return commandSuccess(command, context.snapshot, false)
     }
     await context.controller.setPlaybackRate(target)
-    return changedResult(command, context)
+    return verifiedPlaybackRateResult(command, context, target)
   }
 }
 
@@ -185,7 +238,7 @@ export const adjustRateCommandHandler: CommandHandler<AdjustRateCommand> = {
       return commandSuccess(command, context.snapshot, false)
     }
     await context.controller.setPlaybackRate(target)
-    return changedResult(command, context)
+    return verifiedPlaybackRateResult(command, context, target)
   }
 }
 
@@ -207,6 +260,47 @@ export const adjustVolumeCommandHandler: CommandHandler<AdjustVolumeCommand> = {
     }
     const target = roundMediaValue(clampUnit(context.snapshot.metrics.volume + command.delta), 2)
     return applyVolume(command, context, target)
+  }
+}
+
+export const setGainCommandHandler: CommandHandler<SetGainCommand> = {
+  type: 'media.set-gain',
+  requiredCapability: 'audioGain',
+  async execute(command, context) {
+    const target = roundMediaValue(clampAudioGain(command.value), 2)
+    const current = context.snapshot.metrics.gain ?? 1
+    if (mediaValuesEqual(target, current)) {
+      return commandSuccess(command, context.snapshot, false)
+    }
+    if (context.controller.setGain === undefined) {
+      return commandFailure('CAPABILITY_UNAVAILABLE', {
+        mediaId: context.snapshot.id,
+        capability: 'audioGain'
+      })
+    }
+    await context.controller.setGain(target)
+    return changedResult(command, context)
+  }
+}
+
+export const adjustGainCommandHandler: CommandHandler<AdjustGainCommand> = {
+  type: 'media.adjust-gain',
+  requiredCapability: 'audioGain',
+  async execute(command, context) {
+    if (command.delta === 0) return commandSuccess(command, context.snapshot, false)
+    const current = context.snapshot.metrics.gain ?? 1
+    const target = roundMediaValue(clampAudioGain(current + command.delta), 2)
+    if (mediaValuesEqual(target, current)) {
+      return commandSuccess(command, context.snapshot, false)
+    }
+    if (context.controller.setGain === undefined) {
+      return commandFailure('CAPABILITY_UNAVAILABLE', {
+        mediaId: context.snapshot.id,
+        capability: 'audioGain'
+      })
+    }
+    await context.controller.setGain(target)
+    return changedResult(command, context)
   }
 }
 
@@ -301,6 +395,18 @@ export const resetVisualCommandHandler: CommandHandler<ResetVisualCommand> = {
   }
 }
 
+export const resetTransformCommandHandler: CommandHandler<ResetTransformCommand> = {
+  type: 'media.reset-transform',
+  requiredCapability: 'visual',
+  async execute(command, context) {
+    return applyVisualState(
+      command,
+      context,
+      resetVisualTransform(visualStateFromSnapshot(context.snapshot))
+    )
+  }
+}
+
 function hasFullscreenModeCapability(
   context: ResolvedCommandContext,
   mode: ToggleFullscreenCommand['mode']
@@ -386,14 +492,58 @@ export const captureCommandHandler: CommandHandler<CaptureCommand> = {
   }
 }
 
+export const downloadCommandHandler: CommandHandler<DownloadCommand> = {
+  type: 'media.download',
+  requiredCapability: 'downloadExperimental',
+  execute(command, context) {
+    // A download has a browser-owned side effect and therefore cannot be
+    // completed by the DOM-free command registry. Content runtime creates a
+    // one-shot intent and routes preparation through the page bridge.
+    return Promise.resolve(
+      commandFailure('DOWNLOAD_UNAVAILABLE', {
+        mediaId: context.snapshot.id,
+        phase: 'download-route-required'
+      })
+    )
+  }
+}
+
+export const playNextCommandHandler: CommandHandler<PlayNextCommand> = {
+  type: 'media.play-next',
+  requiredCapability: 'next',
+  async execute(command, context) {
+    if (context.controller.playNext === undefined) {
+      return commandFailure('COMMAND_EXECUTION_FAILED', {
+        commandType: command.type,
+        mediaId: context.snapshot.id,
+        phase: 'next-port'
+      })
+    }
+    try {
+      await context.controller.playNext()
+    } catch (error) {
+      return commandFailure('COMMAND_EXECUTION_FAILED', {
+        commandType: command.type,
+        mediaId: context.snapshot.id,
+        phase: 'next',
+        cause: errorName(error)
+      })
+    }
+    return changedResult(command, context)
+  }
+}
+
 export const MEDIA_COMMAND_HANDLERS: readonly CommandHandler[] = [
   playCommandHandler,
   pauseCommandHandler,
   seekCommandHandler,
+  stepFrameCommandHandler,
   setRateCommandHandler,
   adjustRateCommandHandler,
   setVolumeCommandHandler,
   adjustVolumeCommandHandler,
+  setGainCommandHandler,
+  adjustGainCommandHandler,
   setMutedCommandHandler,
   toggleMuteCommandHandler,
   setZoomCommandHandler,
@@ -402,7 +552,10 @@ export const MEDIA_COMMAND_HANDLERS: readonly CommandHandler[] = [
   toggleFlipCommandHandler,
   setFilterCommandHandler,
   resetVisualCommandHandler,
+  resetTransformCommandHandler,
   toggleFullscreenCommandHandler,
   togglePictureInPictureCommandHandler,
-  captureCommandHandler
+  captureCommandHandler,
+  downloadCommandHandler,
+  playNextCommandHandler
 ]

@@ -16,10 +16,15 @@ type GeneralDraft = {
   defaultPlaybackRate: number
   defaultVolume: number
   restoreProgress: boolean
+  downloadEnabled: boolean
   protectPlaybackRate: boolean
   protectCurrentTime: boolean
   protectVolume: boolean
   allowExperimental: boolean
+  allowAcousticGain: boolean
+  allowMouseLongPress: boolean
+  mouseLongPressMs: number
+  allowAutoplay: boolean
   localLogLevel: 'error' | 'warn' | 'info' | 'debug'
   retainProgressDays: number
 }
@@ -33,10 +38,15 @@ const draft = reactive<GeneralDraft>({
   defaultPlaybackRate: 1,
   defaultVolume: 1,
   restoreProgress: false,
+  downloadEnabled: true,
   protectPlaybackRate: true,
   protectCurrentTime: false,
   protectVolume: true,
   allowExperimental: false,
+  allowAcousticGain: false,
+  allowMouseLongPress: false,
+  mouseLongPressMs: 600,
+  allowAutoplay: false,
   localLogLevel: 'error',
   retainProgressDays: 30
 })
@@ -57,10 +67,15 @@ function syncFromSnapshot(): void {
     defaultPlaybackRate: global.media.defaultPlaybackRate,
     defaultVolume: global.media.defaultVolume,
     restoreProgress: global.media.restoreProgress,
+    downloadEnabled: global.download?.enabled ?? true,
     protectPlaybackRate: global.policies.protectPlaybackRate,
     protectCurrentTime: global.policies.protectCurrentTime,
     protectVolume: global.policies.protectVolume,
     allowExperimental: global.policies.allowExperimental,
+    allowAcousticGain: global.policies.allowAcousticGain ?? false,
+    allowMouseLongPress: global.policies.allowMouseLongPress ?? false,
+    mouseLongPressMs: global.policies.mouseLongPressMs ?? 600,
+    allowAutoplay: global.policies.allowAutoplay ?? false,
     localLogLevel: global.diagnostics.localLogLevel,
     retainProgressDays: global.diagnostics.retainProgressDays
   })
@@ -78,6 +93,9 @@ const valid = computed(
     Number.isFinite(draft.defaultVolume) &&
     draft.defaultVolume >= 0 &&
     draft.defaultVolume <= 1 &&
+    Number.isInteger(draft.mouseLongPressMs) &&
+    draft.mouseLongPressMs >= 200 &&
+    draft.mouseLongPressMs <= 2_000 &&
     Number.isInteger(draft.retainProgressDays) &&
     draft.retainProgressDays >= 0 &&
     draft.retainProgressDays <= 365
@@ -107,11 +125,16 @@ async function save(): Promise<void> {
           defaultVolume: draft.defaultVolume,
           restoreProgress: draft.restoreProgress
         },
+        download: { enabled: draft.downloadEnabled },
         policies: {
           protectPlaybackRate: draft.protectPlaybackRate,
           protectCurrentTime: draft.protectCurrentTime,
           protectVolume: draft.protectVolume,
-          allowExperimental: draft.allowExperimental
+          allowExperimental: draft.allowExperimental,
+          allowAcousticGain: draft.allowAcousticGain,
+          allowMouseLongPress: draft.allowMouseLongPress,
+          mouseLongPressMs: draft.mouseLongPressMs,
+          allowAutoplay: draft.allowAutoplay
         },
         diagnostics: {
           localLogLevel: draft.localLogLevel,
@@ -188,6 +211,13 @@ async function save(): Promise<void> {
         :title="t('options.mediaDefaults')"
         :description="t('options.mediaDefaultsDescription')"
       >
+        <p class="scope-guidance">
+          {{
+            locale === 'zh-CN'
+              ? '全局默认仅在站点没有独立倍速策略时生效。页面控件默认“锁定本站”，也可显式选择“仅本页”或“仅当前媒体”，临时值不会写入设置。'
+              : 'The global default applies when a site has no playback policy. Page controls default to this site, with explicit page-only and current-media temporary scopes.'
+          }}
+        </p>
         <div class="field-grid">
           <label class="field-control">
             <span>{{ t('options.defaultRate') }}</span>
@@ -222,6 +252,39 @@ async function save(): Promise<void> {
             v-model="draft.allowExperimental"
             :label="t('options.allowExperimental')"
             :description="t('options.allowExperimentalDescription')"
+          />
+          <BaseToggle
+            v-model="draft.downloadEnabled"
+            :label="t('options.downloadEnabled')"
+            :description="t('options.downloadEnabledDescription')"
+          />
+          <BaseToggle
+            v-model="draft.allowAcousticGain"
+            :label="t('options.allowAcousticGain')"
+            :description="t('options.allowAcousticGainDescription')"
+          />
+          <BaseToggle
+            v-model="draft.allowMouseLongPress"
+            :label="t('options.allowMouseLongPress')"
+            :description="t('options.allowMouseLongPressDescription')"
+          />
+          <label class="field-control experimental-number">
+            <span>{{ t('options.mouseLongPressMs') }}</span>
+            <input
+              v-model.number="draft.mouseLongPressMs"
+              type="number"
+              min="200"
+              max="2000"
+              step="50"
+              inputmode="numeric"
+              :disabled="!draft.allowMouseLongPress"
+            />
+            <small>{{ t('options.mouseLongPressRange') }}</small>
+          </label>
+          <BaseToggle
+            v-model="draft.allowAutoplay"
+            :label="t('options.allowAutoplay')"
+            :description="t('options.allowAutoplayDescription')"
           />
         </div>
       </SettingsPanel>
@@ -281,6 +344,17 @@ async function save(): Promise<void> {
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: var(--h5-space-4);
   margin-top: var(--h5-space-4);
+}
+
+.scope-guidance {
+  margin: 0;
+  color: var(--h5-text-muted);
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.experimental-number {
+  padding: var(--h5-space-4) 0;
 }
 
 .field-control {

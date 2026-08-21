@@ -63,6 +63,7 @@ export type ContentScriptRegistration = Readonly<{
 export interface ContentScriptRegistrationPort {
   reconcile(origins: readonly string[]): Promise<void>
   bootstrap(tabId: number): Promise<void>
+  injectExperimentalMain(tabId: number, frameId: number): Promise<void>
   teardown(tabId: number): Promise<void>
 }
 

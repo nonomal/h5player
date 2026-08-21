@@ -10,6 +10,7 @@ export const SETTINGS_SYNC_WHITELIST = [
   'global.media.defaultPlaybackRate',
   'global.media.defaultVolume',
   'global.media.restoreProgress',
+  'global.download.enabled',
   'global.policies.protectPlaybackRate',
   'global.policies.protectCurrentTime',
   'global.policies.protectVolume'
@@ -25,7 +26,7 @@ export function isSettingsSyncPath(value: string): value is SettingsSyncPath {
 
 export function pickSyncSettings(
   global: GlobalSettings
-): Pick<GlobalSettings, 'enabled' | 'ui' | 'hotkeys' | 'media' | 'policies'> {
+): Pick<GlobalSettings, 'enabled' | 'ui' | 'hotkeys' | 'media' | 'policies' | 'download'> {
   return {
     enabled: global.enabled,
     ui: {
@@ -42,6 +43,9 @@ export function pickSyncSettings(
       defaultPlaybackRate: global.media.defaultPlaybackRate,
       defaultVolume: global.media.defaultVolume,
       restoreProgress: global.media.restoreProgress
+    },
+    download: {
+      enabled: global.download?.enabled ?? true
     },
     policies: {
       protectPlaybackRate: global.policies.protectPlaybackRate,
@@ -67,6 +71,7 @@ export function createSyncPatch(global: GlobalSettings): SettingsPatch {
         scope: picked.hotkeys.scope
       },
       media: picked.media,
+      download: picked.download,
       policies: {
         protectPlaybackRate: picked.policies.protectPlaybackRate,
         protectCurrentTime: picked.policies.protectCurrentTime,

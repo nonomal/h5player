@@ -8,6 +8,10 @@ export const HOTKEY_COMMAND_IDS = [
   'media.seek-forward-30',
   'media.volume-down',
   'media.volume-up',
+  'media.volume-down-20',
+  'media.volume-up-20',
+  'media.gain-down',
+  'media.gain-up',
   'media.rate-down',
   'media.rate-up',
   'media.rate-reset',
@@ -15,16 +19,47 @@ export const HOTKEY_COMMAND_IDS = [
   'media.rate-2',
   'media.rate-3',
   'media.rate-4',
-  'media.toggle-mute'
+  'media.toggle-mute',
+  'media.fullscreen-native',
+  'media.fullscreen-web',
+  'media.picture-in-picture',
+  'media.capture',
+  'media.download',
+  'media.flip-horizontal',
+  'media.flip-vertical',
+  'media.zoom-out',
+  'media.zoom-in',
+  'media.reset-transform',
+  'media.pan-left',
+  'media.pan-right',
+  'media.pan-up',
+  'media.pan-down',
+  'media.step-frame-forward',
+  'media.step-frame-backward',
+  'media.brightness-down',
+  'media.brightness-up',
+  'media.contrast-down',
+  'media.contrast-up',
+  'media.saturation-down',
+  'media.saturation-up',
+  'media.hue-down',
+  'media.hue-up',
+  'media.blur-down',
+  'media.blur-up',
+  'media.reset-all',
+  'media.rotate',
+  'media.play-next',
+  'settings.toggle-restore-progress'
 ] as const
 
 export const hotkeyCommandIdSchema = z.enum(HOTKEY_COMMAND_IDS)
 
 export const HOTKEY_MODIFIERS = ['Ctrl', 'Alt', 'Shift', 'Meta'] as const
 
-const supportedCodePattern = /^(?:Key[A-Z]|Digit[0-9]|Arrow(?:Left|Right|Up|Down)|Space|Enter)$/
+const supportedCodePattern =
+  /^(?:Key[A-Z]|Digit[0-9]|Numpad[0-9]|Arrow(?:Left|Right|Up|Down)|Space|Enter)$/
 const canonicalChordPattern =
-  /^(?:(?:Ctrl|Alt|Shift|Meta)\+)*(?:Key[A-Z]|Digit[0-9]|Arrow(?:Left|Right|Up|Down)|Space|Enter)$/
+  /^(?:(?:Ctrl|Alt|Shift|Meta)\+)*(?:Key[A-Z]|Digit[0-9]|Numpad[0-9]|Arrow(?:Left|Right|Up|Down)|Space|Enter)$/
 
 const reservedBrowserShortcuts = new Set([
   'Ctrl+KeyL',
@@ -81,6 +116,8 @@ function canonicalCode(code: string): string | null {
   const lower = trimmed.toLowerCase()
   if (/^[a-z]$/.test(lower)) return `Key${lower.toUpperCase()}`
   if (/^[0-9]$/.test(lower)) return `Digit${lower}`
+  const numpad = lower.match(/^numpad([0-9])$/)
+  if (numpad) return `Numpad${numpad[1]}`
 
   const aliases: Readonly<Record<string, string>> = {
     space: 'Space',
@@ -174,7 +211,9 @@ export function displayHotkeyChord(chord: HotkeyChord, platform: 'mac' | 'other'
     ? key.slice(3)
     : key.startsWith('Digit')
       ? key.slice(5)
-      : (keyLabels[key] ?? key)
+      : key.startsWith('Numpad')
+        ? `Numpad ${key.slice(6)}`
+        : (keyLabels[key] ?? key)
 
   if (platform === 'mac') {
     const modifierLabels: Readonly<Record<string, string>> = {

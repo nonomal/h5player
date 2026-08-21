@@ -13,6 +13,9 @@ import type { MediaCapabilities, MediaId, MediaSnapshot } from '../../domain/med
 import { createMediaId, visualStateEquals, type MediaControllerResolver } from '../../domain/media'
 import { scanMediaTree, type MediaDiscoveryRoot } from './media-tree-scan'
 
+export const MEDIA_ELEMENT_ID_ATTRIBUTE = 'data-h5player-webext-media-id' as const
+export const MEDIA_PRESENTATION_REFRESH_INTERVAL_MS = 1_000
+
 export interface MediaDiscoveryUpdate {
   readonly revision: number
   readonly current: readonly MediaSnapshot[]
@@ -35,8 +38,21 @@ export interface MediaDiscoveryService extends MediaControllerResolver {
   active(): MediaSnapshot | null
   controllerFor(mediaId: MediaId): MediaController | undefined
   subscribe(listener: MediaDiscoveryListener): AdapterTeardown
+  /** Read-only lifecycle counters for local churn diagnostics. */
+  diagnostics(): MediaDiscoveryDiagnostics
   teardown(): void
 }
+
+export type MediaDiscoveryDiagnostics = Readonly<{
+  mediaRecords: number
+  mutationObservers: number
+  resizeObserver: boolean
+  intersectionObserver: boolean
+  presentationRefreshTimer: boolean
+  pendingControllerChanges: number
+  reconcileQueued: boolean
+  controllerFlushQueued: boolean
+}>
 
 export interface DomMediaDiscoveryOptions {
   readonly root: MediaDiscoveryRoot
@@ -45,6 +61,18 @@ export interface DomMediaDiscoveryOptions {
   readonly now?: () => number
   readonly schedule?: (callback: () => void) => void
   readonly createMediaId?: (frameId: number, sequence: number) => MediaId
+  /**
+   * Rechecks computed presentation metrics when a frame owns multiple media
+   * instances. CSS/Web Animations can change opacity without mutating the DOM.
+   * Set to zero only in deterministic tests that explicitly drive refresh().
+   */
+  readonly presentationRefreshIntervalMs?: number
+  /**
+   * Binds a discovered native media instance to the page-main control
+   * authority. The discovery service owns the returned teardown and releases
+   * it before disposing the controller or forgetting the element.
+   */
+  readonly bindMediaAuthority?: (element: HTMLMediaElement, mediaId: MediaId) => AdapterTeardown
 }
 
 interface MediaIdentity {
@@ -56,6 +84,7 @@ interface MediaRecord extends MediaIdentity {
   readonly element: HTMLMediaElement
   readonly controller: ObservableMediaController
   readonly unsubscribeController: AdapterTeardown
+  readonly releaseMediaAuthority: AdapterTeardown
   snapshot: MediaSnapshot
   lastInteractionAt: number | null
 }
@@ -136,6 +165,7 @@ function sameSnapshot(left: MediaSnapshot, right: MediaSnapshot): boolean {
   return (
     left.id === right.id &&
     left.frameId === right.frameId &&
+    left.sourceKey === right.sourceKey &&
     left.kind === right.kind &&
     left.state === right.state &&
     left.adapterId === right.adapterId &&
@@ -146,6 +176,7 @@ function sameSnapshot(left: MediaSnapshot, right: MediaSnapshot): boolean {
     left.metrics.volume === right.metrics.volume &&
     left.metrics.playbackRate === right.metrics.playbackRate &&
     left.metrics.muted === right.metrics.muted &&
+    (left.metrics.opacity ?? 1) === (right.metrics.opacity ?? 1) &&
     left.metrics.visible === right.metrics.visible &&
     sameCapabilities(left.capabilities, right.capabilities) &&
     visualEqual &&
@@ -190,6 +221,8 @@ export class DomMediaDiscoveryService implements MediaDiscoveryService {
   private readonly now: () => number
   private readonly schedule: (callback: () => void) => void
   private readonly createMediaId: (frameId: number, sequence: number) => MediaId
+  private readonly presentationRefreshIntervalMs: number
+  private readonly bindMediaAuthority: NonNullable<DomMediaDiscoveryOptions['bindMediaAuthority']>
   private readonly identityByElement = new WeakMap<HTMLMediaElement, MediaIdentity>()
   private readonly records = new Map<MediaId, MediaRecord>()
   private readonly allocatedIds = new Set<MediaId>()
@@ -198,6 +231,7 @@ export class DomMediaDiscoveryService implements MediaDiscoveryService {
   private readonly pendingControllerChanges = new Map<MediaId, MediaControllerChange>()
   private resizeObserver: ResizeObserver | null = null
   private intersectionObserver: IntersectionObserver | null = null
+  private presentationRefreshTimer: number | null = null
   private currentSnapshots: readonly MediaSnapshot[] = Object.freeze([])
   private activeMediaId: MediaId | null = null
   private revision = 0
@@ -218,6 +252,12 @@ export class DomMediaDiscoveryService implements MediaDiscoveryService {
     this.now = options.now ?? Date.now
     this.schedule = options.schedule ?? scheduleMicrotask
     this.createMediaId = options.createMediaId ?? defaultMediaId
+    this.presentationRefreshIntervalMs =
+      options.presentationRefreshIntervalMs === undefined ||
+      !Number.isFinite(options.presentationRefreshIntervalMs)
+        ? MEDIA_PRESENTATION_REFRESH_INTERVAL_MS
+        : Math.max(0, Math.floor(options.presentationRefreshIntervalMs))
+    this.bindMediaAuthority = options.bindMediaAuthority ?? (() => () => undefined)
   }
 
   start(): AdapterTeardown {
@@ -260,6 +300,19 @@ export class DomMediaDiscoveryService implements MediaDiscoveryService {
     return () => this.listeners.delete(listener)
   }
 
+  diagnostics(): MediaDiscoveryDiagnostics {
+    return Object.freeze({
+      mediaRecords: this.records.size,
+      mutationObservers: this.mutationObservers.size,
+      resizeObserver: this.resizeObserver !== null,
+      intersectionObserver: this.intersectionObserver !== null,
+      presentationRefreshTimer: this.presentationRefreshTimer !== null,
+      pendingControllerChanges: this.pendingControllerChanges.size,
+      reconcileQueued: this.reconcileQueued,
+      controllerFlushQueued: this.controllerFlushQueued
+    })
+  }
+
   teardown(): void {
     if (this.disposed) return
     this.disposed = true
@@ -275,6 +328,7 @@ export class DomMediaDiscoveryService implements MediaDiscoveryService {
     this.resizeObserver = null
     this.intersectionObserver?.disconnect()
     this.intersectionObserver = null
+    this.clearPresentationRefreshTimer()
     this.removeDocumentObservers()
 
     for (const record of this.records.values()) this.disposeRecord(record)
@@ -321,12 +375,14 @@ export class DomMediaDiscoveryService implements MediaDiscoveryService {
       }
     }
 
+    this.syncPresentationRefreshTimer()
     this.commit(added, updated, removed, force)
   }
 
   private createRecord(element: HTMLMediaElement, identity: MediaIdentity): MediaRecord | null {
     let controller: ObservableMediaController
     try {
+      element.setAttribute(MEDIA_ELEMENT_ID_ATTRIBUTE, identity.id)
       controller = this.adapter.createController(element, {
         mediaId: identity.id,
         frameId: this.frameId,
@@ -337,10 +393,19 @@ export class DomMediaDiscoveryService implements MediaDiscoveryService {
       return null
     }
 
+    const releaseMediaAuthority = (() => {
+      try {
+        return this.bindMediaAuthority(element, identity.id)
+      } catch {
+        return () => undefined
+      }
+    })()
+
     let snapshot: MediaSnapshot
     try {
       snapshot = controller.getSnapshot()
     } catch {
+      releaseMediaAuthority()
       controller.teardown()
       return null
     }
@@ -351,6 +416,7 @@ export class DomMediaDiscoveryService implements MediaDiscoveryService {
       controller,
       snapshot,
       lastInteractionAt: null,
+      releaseMediaAuthority,
       unsubscribeController: () => undefined
     } satisfies MediaRecord
     const unsubscribeController = controller.subscribe((change) => {
@@ -363,7 +429,11 @@ export class DomMediaDiscoveryService implements MediaDiscoveryService {
     this.resizeObserver?.unobserve(record.element)
     this.intersectionObserver?.unobserve(record.element)
     record.unsubscribeController()
+    record.releaseMediaAuthority()
     record.controller.teardown()
+    if (record.element.getAttribute(MEDIA_ELEMENT_ID_ATTRIBUTE) === record.id) {
+      record.element.removeAttribute(MEDIA_ELEMENT_ID_ATTRIBUTE)
+    }
     this.pendingControllerChanges.delete(record.id)
   }
 
@@ -569,6 +639,31 @@ export class DomMediaDiscoveryService implements MediaDiscoveryService {
         this.queueSnapshotRefresh(entries.map((entry) => entry.target))
       })
     }
+  }
+
+  private syncPresentationRefreshTimer(): void {
+    const shouldRefresh =
+      this.started &&
+      !this.disposed &&
+      this.presentationRefreshIntervalMs > 0 &&
+      this.records.size > 1
+    if (!shouldRefresh) {
+      this.clearPresentationRefreshTimer()
+      return
+    }
+    if (this.presentationRefreshTimer !== null) return
+    const view = rootDocument(this.root).defaultView
+    if (view === null) return
+    this.presentationRefreshTimer = view.setInterval(() => {
+      if (rootDocument(this.root).visibilityState === 'hidden') return
+      this.queueSnapshotRefresh()
+    }, this.presentationRefreshIntervalMs)
+  }
+
+  private clearPresentationRefreshTimer(): void {
+    if (this.presentationRefreshTimer === null) return
+    rootDocument(this.root).defaultView?.clearInterval(this.presentationRefreshTimer)
+    this.presentationRefreshTimer = null
   }
 
   private readonly handleDocumentChange: EventListener = () => {

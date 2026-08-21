@@ -1,5 +1,6 @@
 import type { FullscreenMode, VisualState } from '../visual'
 import type { CaptureArtifact, CaptureOptions } from '../capture'
+import type { MediaDownloadPreparation } from '../download'
 import type { MediaCapabilities, MediaId, MediaSnapshot } from './model'
 
 /**
@@ -15,6 +16,8 @@ export interface MediaController {
   seekTo(seconds: number): Promise<void>
   setPlaybackRate(value: number): Promise<void>
   setVolume(value: number): Promise<void>
+  /** Optional Web Audio gain port; values are perceived volume multipliers. */
+  setGain?(value: number): Promise<void>
   setMuted(value: boolean): Promise<void>
   /** Optional for compatibility with non-visual/site-specific controllers. */
   setVisualState?(state: VisualState): Promise<void>
@@ -22,6 +25,9 @@ export interface MediaController {
   toggleFullscreen?(mode: FullscreenMode): Promise<void>
   togglePictureInPicture?(): Promise<void>
   captureFrame?(options: CaptureOptions): Promise<CaptureArtifact>
+  prepareDownload?(intentId: string): Promise<MediaDownloadPreparation>
+  cancelDownload?(): boolean
+  playNext?(): Promise<void>
 }
 
 export interface MediaControllerResolver {

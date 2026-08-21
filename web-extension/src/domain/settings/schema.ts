@@ -2,8 +2,8 @@ import * as z from 'zod/mini'
 import { hotkeyChordSchema, hotkeyCommandIdSchema } from '../hotkey'
 import { isNormalizedSiteOrigin } from './site-identity'
 
-export const SETTINGS_SCHEMA_VERSION = 2 as const
-export const SETTINGS_EXPORT_FORMAT_VERSION = 2 as const
+export const SETTINGS_SCHEMA_VERSION = 3 as const
+export const SETTINGS_EXPORT_FORMAT_VERSION = 3 as const
 
 const boundedKeySchema = z.string().check(z.minLength(1), z.maxLength(256))
 const siteOriginSchema = boundedKeySchema.check(z.refine(isNormalizedSiteOrigin))
@@ -25,11 +25,24 @@ const mediaSettingsSchema = z.strictObject({
   restoreProgress: z.boolean()
 })
 
+const downloadSettingsSchema = z.strictObject({ enabled: z.boolean() })
+
+// These switches are deliberately optional on the wire so settings written by
+// the previous schema remain readable. The repository normalizes them to the
+// current defaults before exposing GlobalSettings to runtime code.
+const experimentalPolicyFields = {
+  allowAcousticGain: z.optional(z.boolean()),
+  allowMouseLongPress: z.optional(z.boolean()),
+  mouseLongPressMs: z.optional(z.int().check(z.gte(200), z.lte(2_000))),
+  allowAutoplay: z.optional(z.boolean())
+} as const
+
 const policySettingsSchema = z.strictObject({
   protectPlaybackRate: z.boolean(),
   protectCurrentTime: z.boolean(),
   protectVolume: z.boolean(),
-  allowExperimental: z.boolean()
+  allowExperimental: z.boolean(),
+  ...experimentalPolicyFields
 })
 
 const diagnosticSettingsSchema = z.strictObject({
@@ -58,6 +71,7 @@ const globalSettingsV1Schema = z.strictObject({
       .check(z.refine((value) => Object.keys(value).length <= 256))
   }),
   media: mediaSettingsSchema,
+  download: z.optional(downloadSettingsSchema),
   policies: policySettingsSchema,
   diagnostics: diagnosticSettingsSchema
 })
@@ -73,6 +87,7 @@ export const globalSettingsSchema = z.strictObject({
       .check(z.refine((value) => Object.keys(value).length <= 256))
   }),
   media: mediaSettingsSchema,
+  download: downloadSettingsSchema,
   policies: policySettingsSchema,
   diagnostics: diagnosticSettingsSchema
 })
@@ -92,12 +107,18 @@ export const siteOverrideSchema = z.strictObject({
       restoreProgress: z.optional(z.boolean())
     })
   ),
+  download: z.optional(
+    z.strictObject({
+      enabled: z.optional(z.boolean())
+    })
+  ),
   policies: z.optional(
     z.strictObject({
       protectPlaybackRate: z.optional(z.boolean()),
       protectCurrentTime: z.optional(z.boolean()),
       protectVolume: z.optional(z.boolean()),
-      allowExperimental: z.optional(z.boolean())
+      allowExperimental: z.optional(z.boolean()),
+      ...experimentalPolicyFields
     })
   )
 })
@@ -161,12 +182,14 @@ export const settingsPatchSchema = z.strictObject({
           restoreProgress: z.optional(z.boolean())
         })
       ),
+      download: z.optional(z.strictObject({ enabled: z.optional(z.boolean()) })),
       policies: z.optional(
         z.strictObject({
           protectPlaybackRate: z.optional(z.boolean()),
           protectCurrentTime: z.optional(z.boolean()),
           protectVolume: z.optional(z.boolean()),
-          allowExperimental: z.optional(z.boolean())
+          allowExperimental: z.optional(z.boolean()),
+          ...experimentalPolicyFields
         })
       ),
       diagnostics: z.optional(
@@ -190,6 +213,33 @@ export const persistedSettingsV2Schema = z.strictObject({
   revision: revisionSchema,
   updatedAt: timestampSchema,
   data: settingsDataSchema
+})
+
+const settingsDataV2Schema = z.strictObject({
+  global: z.strictObject({
+    enabled: z.boolean(),
+    ui: uiSettingsSchema,
+    hotkeys: z.strictObject({
+      enabled: z.boolean(),
+      scope: z.enum(['page', 'player']),
+      bindings: z
+        .record(hotkeyChordSchema, hotkeyBindingSchema)
+        .check(z.refine((value) => Object.keys(value).length <= 256))
+    }),
+    media: mediaSettingsSchema,
+    policies: policySettingsSchema,
+    diagnostics: diagnosticSettingsSchema
+  }),
+  sites: siteMapSchema,
+  progress: progressMapSchema
+})
+
+export const persistedSettingsLegacyV2Schema = z.strictObject({
+  schema: z.literal('h5player.web-extension'),
+  schemaVersion: z.literal(2),
+  revision: revisionSchema,
+  updatedAt: timestampSchema,
+  data: settingsDataV2Schema
 })
 
 export const persistedSettingsV1Schema = z.strictObject({
@@ -234,8 +284,16 @@ export const settingsExportFileSchema = z.strictObject({
   data: settingsDataSchema
 })
 
+export const settingsExportFileV2Schema = z.strictObject({
+  format: z.literal('h5player.web-extension.settings'),
+  formatVersion: z.literal(2),
+  exportedAt: z.string().check(z.minLength(20), z.maxLength(64)),
+  data: settingsDataV2Schema
+})
+
 export const settingsImportFileSchema = z.union([
   settingsExportFileSchema,
+  settingsExportFileV2Schema,
   settingsExportFileV1Schema
 ])
 
@@ -247,8 +305,12 @@ export type SettingsData = z.infer<typeof settingsDataSchema>
 export type SettingsDataV1 = z.infer<typeof settingsDataV1Schema>
 export type SettingsPatch = z.infer<typeof settingsPatchSchema>
 export type PersistedSettingsV2 = z.infer<typeof persistedSettingsV2Schema>
+export type PersistedSettingsLegacyV2 = z.infer<typeof persistedSettingsLegacyV2Schema>
 export type PersistedSettingsV1 = z.infer<typeof persistedSettingsV1Schema>
 export type PersistedSettingsV0 = z.infer<typeof persistedSettingsV0Schema>
 export type SettingsBackup = z.infer<typeof settingsBackupSchema>
 export type SettingsExportFile = z.infer<typeof settingsExportFileSchema>
+export type SettingsExportFileV2 = z.infer<typeof settingsExportFileV2Schema>
+
+export type DownloadSettings = { enabled: boolean }
 export type SettingsExportFileV1 = z.infer<typeof settingsExportFileV1Schema>

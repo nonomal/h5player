@@ -27,6 +27,7 @@ export function mergeSettings(current: SettingsData, patch: SettingsPatch): Sett
       bindings: { ...current.global.hotkeys.bindings }
     },
     media: { ...current.global.media },
+    download: { enabled: current.global.download?.enabled ?? true },
     policies: { ...current.global.policies },
     diagnostics: { ...current.global.diagnostics }
   }
@@ -100,6 +101,18 @@ export function mergeSettings(current: SettingsData, patch: SettingsPatch): Sett
       )
     }
 
+    if (patch.global.download) {
+      const download = global.download ?? { enabled: true }
+      global.download = download
+      setIfChanged(
+        download,
+        'enabled',
+        patch.global.download.enabled,
+        'global.download.enabled',
+        changedPaths
+      )
+    }
+
     if (patch.global.policies) {
       setIfChanged(
         global.policies,
@@ -127,6 +140,34 @@ export function mergeSettings(current: SettingsData, patch: SettingsPatch): Sett
         'allowExperimental',
         patch.global.policies.allowExperimental,
         'global.policies.allowExperimental',
+        changedPaths
+      )
+      setIfChanged(
+        global.policies,
+        'allowAcousticGain',
+        patch.global.policies.allowAcousticGain,
+        'global.policies.allowAcousticGain',
+        changedPaths
+      )
+      setIfChanged(
+        global.policies,
+        'allowMouseLongPress',
+        patch.global.policies.allowMouseLongPress,
+        'global.policies.allowMouseLongPress',
+        changedPaths
+      )
+      setIfChanged(
+        global.policies,
+        'mouseLongPressMs',
+        patch.global.policies.mouseLongPressMs,
+        'global.policies.mouseLongPressMs',
+        changedPaths
+      )
+      setIfChanged(
+        global.policies,
+        'allowAutoplay',
+        patch.global.policies.allowAutoplay,
+        'global.policies.allowAutoplay',
         changedPaths
       )
     }

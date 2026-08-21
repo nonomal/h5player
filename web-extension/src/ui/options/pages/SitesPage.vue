@@ -12,6 +12,10 @@ import { useOptionsContext } from '../options-context'
 const { application, snapshot, busy, t, run } = useOptionsContext()
 const revokeDialogOpen = ref(false)
 const pendingRemoval = ref<string | null>(null)
+const playbackRateDrafts = ref<Record<string, string>>({})
+const playbackRateErrors = ref<Record<string, boolean>>({})
+const mouseLongPressDrafts = ref<Record<string, string>>({})
+const mouseLongPressErrors = ref<Record<string, boolean>>({})
 
 const grantedOrigins = computed(() => snapshot.value?.grantedOrigins ?? [])
 const siteEntries = computed(() =>
@@ -28,7 +32,42 @@ const siteEntries = computed(() =>
         origin,
         rule,
         hostname,
-        monogram: hostname.slice(0, 1).toUpperCase() || '?'
+        monogram: hostname.slice(0, 1).toUpperCase() || '?',
+        playbackRate:
+          rule.media?.defaultPlaybackRate ??
+          snapshot.value?.settings.settings.data.global.media.defaultPlaybackRate ??
+          1,
+        inheritsPlaybackRate: rule.media?.defaultPlaybackRate === undefined,
+        protectPlaybackRate:
+          rule.policies?.protectPlaybackRate ??
+          snapshot.value?.settings.settings.data.global.policies.protectPlaybackRate ??
+          false,
+        inheritsProtection: rule.policies?.protectPlaybackRate === undefined,
+        downloadEnabled:
+          rule.download?.enabled ??
+          snapshot.value?.settings.settings.data.global.download?.enabled ??
+          true,
+        inheritsDownload: rule.download?.enabled === undefined,
+        allowAcousticGain:
+          rule.policies?.allowAcousticGain ??
+          snapshot.value?.settings.settings.data.global.policies.allowAcousticGain ??
+          false,
+        inheritsAcousticGain: rule.policies?.allowAcousticGain === undefined,
+        allowMouseLongPress:
+          rule.policies?.allowMouseLongPress ??
+          snapshot.value?.settings.settings.data.global.policies.allowMouseLongPress ??
+          false,
+        inheritsMouseLongPress: rule.policies?.allowMouseLongPress === undefined,
+        mouseLongPressMs:
+          rule.policies?.mouseLongPressMs ??
+          snapshot.value?.settings.settings.data.global.policies.mouseLongPressMs ??
+          600,
+        inheritsMouseLongPressMs: rule.policies?.mouseLongPressMs === undefined,
+        allowAutoplay:
+          rule.policies?.allowAutoplay ??
+          snapshot.value?.settings.settings.data.global.policies.allowAutoplay ??
+          false,
+        inheritsAutoplay: rule.policies?.allowAutoplay === undefined
       }
     })
 )
@@ -49,6 +88,73 @@ async function revokeAllSites(): Promise<void> {
 
 async function setSiteEnabled(origin: string, enabled: boolean): Promise<void> {
   await run(() => application.setSiteEnabled(origin, enabled))
+}
+
+async function setSitePlaybackRate(origin: string, raw: string): Promise<void> {
+  playbackRateDrafts.value[origin] = raw
+  const value = Number(raw)
+  if (!Number.isFinite(value) || value < 0.1 || value > 16) {
+    playbackRateErrors.value[origin] = true
+    return
+  }
+  playbackRateErrors.value[origin] = false
+  const saved = await run(() => application.setSitePlaybackRate(origin, value))
+  if (saved) delete playbackRateDrafts.value[origin]
+}
+
+async function setSitePlaybackProtection(origin: string, enabled: boolean): Promise<void> {
+  await run(() => application.setSitePlaybackProtection(origin, enabled))
+}
+
+async function restoreSitePlaybackRate(origin: string): Promise<void> {
+  playbackRateErrors.value[origin] = false
+  delete playbackRateDrafts.value[origin]
+  await run(() => application.restoreSitePlaybackRate(origin))
+}
+
+async function restoreSitePlaybackProtection(origin: string): Promise<void> {
+  await run(() => application.restoreSitePlaybackProtection(origin))
+}
+
+async function setSiteDownload(origin: string, enabled: boolean): Promise<void> {
+  await run(() => application.setSiteDownloadEnabled(origin, enabled))
+}
+
+async function restoreSiteDownload(origin: string): Promise<void> {
+  await run(() => application.restoreSiteDownload(origin))
+}
+
+async function setSiteExperimentalPolicy(
+  origin: string,
+  patch: {
+    allowAcousticGain?: boolean
+    allowMouseLongPress?: boolean
+    mouseLongPressMs?: number
+    allowAutoplay?: boolean
+  }
+): Promise<void> {
+  await run(() => application.setSiteExperimentalPolicy(origin, patch))
+}
+
+async function restoreSiteExperimentalPolicy(
+  origin: string,
+  key: 'allowAcousticGain' | 'allowMouseLongPress' | 'mouseLongPressMs' | 'allowAutoplay'
+): Promise<void> {
+  await run(() => application.restoreSiteExperimentalPolicy(origin, key))
+}
+
+async function setSiteMouseLongPressMs(origin: string, raw: string): Promise<void> {
+  mouseLongPressDrafts.value[origin] = raw
+  const value = Number(raw)
+  if (!Number.isInteger(value) || value < 200 || value > 2_000) {
+    mouseLongPressErrors.value[origin] = true
+    return
+  }
+  mouseLongPressErrors.value[origin] = false
+  const saved = await run(() =>
+    application.setSiteExperimentalPolicy(origin, { mouseLongPressMs: value })
+  )
+  if (saved) delete mouseLongPressDrafts.value[origin]
 }
 
 async function removeSite(): Promise<void> {
@@ -130,6 +236,217 @@ async function removeSite(): Promise<void> {
               </div>
             </div>
             <div class="site-actions">
+              <div class="site-policy-field">
+                <label :for="`site-playback-rate-${entry.origin}`">
+                  {{ t('options.sitePlaybackRate') }}
+                </label>
+                <span class="site-policy-input">
+                  <input
+                    :id="`site-playback-rate-${entry.origin}`"
+                    :value="playbackRateDrafts[entry.origin] ?? entry.playbackRate"
+                    :name="`site-playback-rate-${entry.hostname}`"
+                    type="number"
+                    min="0.1"
+                    max="16"
+                    step="0.1"
+                    inputmode="decimal"
+                    autocomplete="off"
+                    :aria-invalid="playbackRateErrors[entry.origin] ? 'true' : 'false'"
+                    :aria-describedby="
+                      playbackRateErrors[entry.origin]
+                        ? `site-playback-rate-error-${entry.origin}`
+                        : undefined
+                    "
+                    :disabled="busy"
+                    @input="
+                      playbackRateDrafts[entry.origin] = ($event.target as HTMLInputElement).value
+                    "
+                    @change="
+                      setSitePlaybackRate(entry.origin, ($event.target as HTMLInputElement).value)
+                    "
+                  />
+                  <small v-if="entry.inheritsPlaybackRate">{{ t('options.inheritsGlobal') }}</small>
+                  <small
+                    v-if="playbackRateErrors[entry.origin]"
+                    :id="`site-playback-rate-error-${entry.origin}`"
+                    class="site-policy-error"
+                    role="alert"
+                  >
+                    {{ t('options.sitePlaybackRateError') }}
+                  </small>
+                  <BaseButton
+                    v-if="!entry.inheritsPlaybackRate"
+                    kind="quiet"
+                    size="sm"
+                    :disabled="busy"
+                    @click="restoreSitePlaybackRate(entry.origin)"
+                  >
+                    {{ t('options.restoreGlobalPlaybackRate') }}
+                  </BaseButton>
+                </span>
+              </div>
+              <div class="site-protection-field">
+                <BaseToggle
+                  :model-value="entry.protectPlaybackRate"
+                  :label="t('options.siteProtectRate')"
+                  :description="
+                    entry.inheritsProtection ? t('options.inheritsGlobalProtection') : undefined
+                  "
+                  :disabled="busy"
+                  @update:model-value="setSitePlaybackProtection(entry.origin, $event)"
+                />
+                <BaseButton
+                  v-if="!entry.inheritsProtection"
+                  kind="quiet"
+                  size="sm"
+                  :disabled="busy"
+                  @click="restoreSitePlaybackProtection(entry.origin)"
+                >
+                  {{ t('options.restoreGlobalProtection') }}
+                </BaseButton>
+              </div>
+              <div class="site-protection-field">
+                <BaseToggle
+                  :model-value="entry.downloadEnabled"
+                  :label="t('options.siteDownloadEnabled')"
+                  :description="
+                    entry.inheritsDownload ? t('options.inheritsGlobalDownload') : undefined
+                  "
+                  :disabled="busy"
+                  @update:model-value="setSiteDownload(entry.origin, $event)"
+                />
+                <BaseButton
+                  v-if="!entry.inheritsDownload"
+                  kind="quiet"
+                  size="sm"
+                  :disabled="busy"
+                  @click="restoreSiteDownload(entry.origin)"
+                >
+                  {{ t('options.restoreGlobalDownload') }}
+                </BaseButton>
+              </div>
+              <div class="site-experimental-fields">
+                <div class="site-protection-field">
+                  <BaseToggle
+                    :model-value="entry.allowAcousticGain"
+                    :label="t('options.siteAllowAcousticGain')"
+                    :description="
+                      entry.inheritsAcousticGain
+                        ? t('options.inheritsGlobalExperimentalPolicy')
+                        : undefined
+                    "
+                    :disabled="busy"
+                    @update:model-value="
+                      setSiteExperimentalPolicy(entry.origin, { allowAcousticGain: $event })
+                    "
+                  />
+                  <BaseButton
+                    v-if="!entry.inheritsAcousticGain"
+                    kind="quiet"
+                    size="sm"
+                    :disabled="busy"
+                    @click="restoreSiteExperimentalPolicy(entry.origin, 'allowAcousticGain')"
+                  >
+                    {{ t('options.restoreGlobalExperimentalPolicy') }}
+                  </BaseButton>
+                </div>
+                <div class="site-protection-field">
+                  <BaseToggle
+                    :model-value="entry.allowMouseLongPress"
+                    :label="t('options.siteAllowMouseLongPress')"
+                    :description="
+                      entry.inheritsMouseLongPress
+                        ? t('options.inheritsGlobalExperimentalPolicy')
+                        : undefined
+                    "
+                    :disabled="busy"
+                    @update:model-value="
+                      setSiteExperimentalPolicy(entry.origin, { allowMouseLongPress: $event })
+                    "
+                  />
+                  <BaseButton
+                    v-if="!entry.inheritsMouseLongPress"
+                    kind="quiet"
+                    size="sm"
+                    :disabled="busy"
+                    @click="restoreSiteExperimentalPolicy(entry.origin, 'allowMouseLongPress')"
+                  >
+                    {{ t('options.restoreGlobalExperimentalPolicy') }}
+                  </BaseButton>
+                </div>
+                <div class="site-policy-field">
+                  <label :for="`site-mouse-long-press-${entry.origin}`">
+                    {{ t('options.siteMouseLongPressMs') }}
+                  </label>
+                  <span class="site-policy-input">
+                    <input
+                      :id="`site-mouse-long-press-${entry.origin}`"
+                      :value="mouseLongPressDrafts[entry.origin] ?? entry.mouseLongPressMs"
+                      type="number"
+                      min="200"
+                      max="2000"
+                      step="50"
+                      inputmode="numeric"
+                      :disabled="busy"
+                      :aria-invalid="mouseLongPressErrors[entry.origin] ? 'true' : 'false'"
+                      @input="
+                        mouseLongPressDrafts[entry.origin] = (
+                          $event.target as HTMLInputElement
+                        ).value
+                      "
+                      @change="
+                        setSiteMouseLongPressMs(
+                          entry.origin,
+                          ($event.target as HTMLInputElement).value
+                        )
+                      "
+                    />
+                    <small v-if="entry.inheritsMouseLongPressMs">
+                      {{ t('options.inheritsGlobalExperimentalPolicy') }}
+                    </small>
+                    <small
+                      v-if="mouseLongPressErrors[entry.origin]"
+                      class="site-policy-error"
+                      role="alert"
+                    >
+                      {{ t('options.mouseLongPressRange') }}
+                    </small>
+                    <BaseButton
+                      v-if="!entry.inheritsMouseLongPressMs"
+                      kind="quiet"
+                      size="sm"
+                      :disabled="busy"
+                      @click="restoreSiteExperimentalPolicy(entry.origin, 'mouseLongPressMs')"
+                    >
+                      {{ t('options.restoreGlobalExperimentalPolicy') }}
+                    </BaseButton>
+                  </span>
+                </div>
+                <div class="site-protection-field">
+                  <BaseToggle
+                    :model-value="entry.allowAutoplay"
+                    :label="t('options.siteAllowAutoplay')"
+                    :description="
+                      entry.inheritsAutoplay
+                        ? t('options.inheritsGlobalExperimentalPolicy')
+                        : undefined
+                    "
+                    :disabled="busy"
+                    @update:model-value="
+                      setSiteExperimentalPolicy(entry.origin, { allowAutoplay: $event })
+                    "
+                  />
+                  <BaseButton
+                    v-if="!entry.inheritsAutoplay"
+                    kind="quiet"
+                    size="sm"
+                    :disabled="busy"
+                    @click="restoreSiteExperimentalPolicy(entry.origin, 'allowAutoplay')"
+                  >
+                    {{ t('options.restoreGlobalExperimentalPolicy') }}
+                  </BaseButton>
+                </div>
+              </div>
               <BaseToggle
                 :model-value="entry.rule.enabled"
                 :label="t('options.siteEnabled')"
@@ -283,8 +600,60 @@ code {
 
 .site-actions {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: var(--h5-space-4);
+}
+
+.site-experimental-fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(180px, 1fr));
+  gap: var(--h5-space-3);
+}
+
+.site-policy-field {
+  display: grid;
+  gap: 5px;
+  color: var(--h5-text-muted);
+  font-size: 11px;
+  font-weight: 650;
+}
+
+.site-policy-input {
+  display: grid;
+  justify-items: end;
+  gap: 2px;
+}
+
+.site-protection-field {
+  display: grid;
+  justify-items: end;
+}
+
+.site-policy-input input {
+  width: 82px;
+  min-height: 36px;
+  padding: 0 9px;
+  border: 1px solid var(--h5-border);
+  border-radius: var(--h5-radius-sm);
+  background: var(--h5-bg-elevated);
+  color: var(--h5-accent-strong);
+  font-family: var(--h5-font-mono);
+}
+
+.site-policy-input small {
+  color: var(--h5-text-faint);
+  font-size: 9px;
+}
+
+.site-policy-input .site-policy-error {
+  max-width: 200px;
+  color: var(--h5-danger);
+  text-align: right;
+}
+
+.site-policy-input input[aria-invalid='true'] {
+  border-color: var(--h5-danger);
 }
 
 .empty-state {

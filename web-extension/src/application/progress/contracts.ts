@@ -1,5 +1,5 @@
 import * as z from 'zod/mini'
-import { progressRecordSchema } from '../../domain/settings'
+import { persistedSettingsV2Schema, progressRecordSchema } from '../../domain/settings'
 
 const pageUrlSchema = z.string().check(z.minLength(1), z.maxLength(8_192))
 const optionalUrlSchema = z.optional(z.string().check(z.maxLength(8_192)))
@@ -51,6 +51,13 @@ export const progressPruneResponseSchema = z.strictObject({
   normalizedCount: z.int().check(z.nonnegative()),
   remainingCount: z.int().check(z.nonnegative()),
   revision: z.int().check(z.nonnegative())
+})
+
+export const progressRestoreToggleResponseSchema = z.strictObject({
+  origin: z.string().check(z.minLength(1), z.maxLength(256)),
+  enabled: z.boolean(),
+  settings: persistedSettingsV2Schema,
+  changedPaths: z.array(z.string().check(z.minLength(1), z.maxLength(512)))
 })
 
 export type ProgressReadPayload = z.infer<typeof progressReadPayloadSchema>

@@ -2,6 +2,7 @@
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import type { PopupApplication, PopupSnapshot } from '../../application/ui'
 import type { MediaCommand } from '../../domain/command'
+import type { PlaybackRateWriteScope } from '../../application/playback'
 import BaseButton from '../components/BaseButton.vue'
 import BaseToggle from '../components/BaseToggle.vue'
 import MetricTile from '../components/MetricTile.vue'
@@ -13,6 +14,7 @@ const snapshot = ref<PopupSnapshot | null>(null)
 const state = ref<'loading' | 'ready' | 'error'>('loading')
 const busy = ref(false)
 const error = ref<string | null>(null)
+const playbackRateScope = ref<PlaybackRateWriteScope>('site')
 const abortController = new AbortController()
 
 const locale = computed<Locale>(
@@ -27,6 +29,14 @@ const activeMedia = computed(() => {
   return media.media.find((item) => item.id === media.activeMediaId) ?? null
 })
 
+const playbackPolicy = computed(() => snapshot.value?.site.activePlaybackPolicy ?? null)
+
+const policySourceLabel = computed(() => {
+  const source = playbackPolicy.value?.source
+  if (!source) return t('policy.unresolved')
+  return t(`policy.source.${source}`)
+})
+
 const statusKey = computed<MessageKey>(() => {
   const reason = snapshot.value?.site.reason
   const map: Partial<Record<NonNullable<typeof reason>, MessageKey>> = {
@@ -37,6 +47,7 @@ const statusKey = computed<MessageKey>(() => {
     'site-disabled': 'status.siteDisabled',
     'temporarily-disabled': 'status.temporaryDisabled',
     'no-media': 'status.noMedia',
+    'iframe-media': 'status.iframeMedia',
     'initialization-failed': 'status.initializationFailed',
     none: 'status.ready'
   }
@@ -50,6 +61,10 @@ const statusTone = computed<'success' | 'warning' | 'danger' | 'info'>(() => {
   if (reason && reason !== 'no-media') return 'warning'
   return 'info'
 })
+
+const emptyHintKey = computed<MessageKey>(() =>
+  snapshot.value?.site.reason === 'iframe-media' ? 'popup.iframeMediaHint' : 'popup.noMediaHint'
+)
 
 function applyTheme(value: PopupSnapshot): void {
   const theme = value.settings.settings.data.global.ui.theme
@@ -95,11 +110,14 @@ async function perform(operation: () => Promise<PopupSnapshot>): Promise<void> {
   }
 }
 
-async function execute(command: MediaCommand): Promise<void> {
+async function execute(command: MediaCommand, rateScope?: PlaybackRateWriteScope): Promise<void> {
   busy.value = true
   error.value = null
   try {
-    const result = await props.application.execute(command, { signal: abortController.signal })
+    const result = await props.application.execute(command, {
+      signal: abortController.signal,
+      ...(rateScope === undefined ? {} : { playbackRateScope: rateScope })
+    })
     if (!result.result.ok) error.value = result.result.error.code
     snapshot.value = props.application.current()
   } catch (caught) {
@@ -116,6 +134,16 @@ async function toggleTemporaryDisabled(): Promise<void> {
   if (!current) return
   await perform(() =>
     props.application.setTemporaryDisabled(!current.site.temporaryDisabled, {
+      signal: abortController.signal
+    })
+  )
+}
+
+async function togglePageUiHidden(): Promise<void> {
+  const current = snapshot.value
+  if (!current) return
+  await perform(() =>
+    props.application.setPageUiHidden(!current.site.pageUiHidden, {
       signal: abortController.signal
     })
   )
@@ -178,6 +206,31 @@ onBeforeUnmount(() => abortController.abort())
           />
         </div>
 
+        <div class="policy-strip" data-testid="playback-policy">
+          <span>{{ t('policy.effectiveSource') }} · {{ policySourceLabel }}</span>
+          <span>
+            {{
+              playbackPolicy?.protectAgainstSiteReset
+                ? t('policy.resetProtectionOn')
+                : t('policy.resetProtectionOff')
+            }}
+          </span>
+        </div>
+
+        <label class="rate-scope-control">
+          <span id="playback-rate-scope-label">{{ t('popup.rateScope') }}</span>
+          <select
+            v-model="playbackRateScope"
+            aria-labelledby="playback-rate-scope-label"
+            :disabled="busy"
+          >
+            <option value="site">{{ t('scope.site') }}</option>
+            <option value="page">{{ t('scope.page') }}</option>
+            <option value="media">{{ t('scope.media') }}</option>
+          </select>
+          <small>{{ t(`scope.${playbackRateScope}Hint`) }}</small>
+        </label>
+
         <div class="controls-grid" :aria-label="t('a11y.mediaControls')">
           <BaseButton
             kind="primary"
@@ -206,13 +259,23 @@ onBeforeUnmount(() => abortController.abort())
           </BaseButton>
           <BaseButton
             :disabled="busy || !activeMedia.capabilities.playbackRate"
-            @click="execute({ type: 'media.adjust-rate', mediaId: activeMedia.id, delta: -0.1 })"
+            @click="
+              execute(
+                { type: 'media.adjust-rate', mediaId: activeMedia.id, delta: -0.1 },
+                playbackRateScope
+              )
+            "
           >
             {{ t('popup.rateDown') }}
           </BaseButton>
           <BaseButton
             :disabled="busy || !activeMedia.capabilities.playbackRate"
-            @click="execute({ type: 'media.adjust-rate', mediaId: activeMedia.id, delta: 0.1 })"
+            @click="
+              execute(
+                { type: 'media.adjust-rate', mediaId: activeMedia.id, delta: 0.1 },
+                playbackRateScope
+              )
+            "
           >
             {{ t('popup.rateUp') }}
           </BaseButton>
@@ -241,7 +304,7 @@ onBeforeUnmount(() => abortController.abort())
         <span class="empty-icon" aria-hidden="true">◫</span>
         <div>
           <h2 id="empty-title">{{ t(statusKey) }}</h2>
-          <p>{{ t('popup.noMediaHint') }}</p>
+          <p>{{ t(emptyHintKey) }}</p>
         </div>
       </section>
 
@@ -288,6 +351,13 @@ onBeforeUnmount(() => abortController.abort())
             "
           />
           <div class="access-actions">
+            <BaseButton kind="quiet" size="sm" :disabled="busy" @click="togglePageUiHidden">
+              {{
+                snapshot.site.pageUiHidden
+                  ? t('mediaControls.restorePage')
+                  : t('mediaControls.hidePage')
+              }}
+            </BaseButton>
             <BaseButton kind="quiet" size="sm" :disabled="busy" @click="toggleTemporaryDisabled">
               {{
                 snapshot.site.temporaryDisabled
@@ -470,6 +540,45 @@ h2 {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: var(--h5-space-2);
+}
+
+.policy-strip {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 4px 10px;
+  margin-top: var(--h5-space-2);
+  color: var(--h5-text-muted);
+  font-family: var(--h5-font-mono);
+  font-size: 10px;
+}
+
+.rate-scope-control {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: center;
+  gap: 5px 10px;
+  margin-top: var(--h5-space-3);
+  color: var(--h5-text-muted);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.rate-scope-control select {
+  min-height: 34px;
+  width: 100%;
+  padding: 0 9px;
+  border: 1px solid var(--h5-border);
+  border-radius: var(--h5-radius-sm);
+  background: var(--h5-bg-elevated);
+  color: var(--h5-text);
+}
+
+.rate-scope-control small {
+  grid-column: 1 / -1;
+  color: var(--h5-text-faint);
+  font-weight: 500;
+  line-height: 1.45;
 }
 
 .controls-grid {

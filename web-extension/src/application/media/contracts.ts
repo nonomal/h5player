@@ -39,8 +39,14 @@ export const mediaPageStateSummarySchema = z.strictObject({
 
 export const mediaGetStatePayloadSchema = z.strictObject({})
 
+export const experimentalEnsureMainResponseSchema = z.strictObject({
+  injected: z.boolean(),
+  allowed: z.boolean()
+})
+
 export const mediaExecutePayloadSchema = z.strictObject({
-  command: mediaCommandSchema
+  command: mediaCommandSchema,
+  playbackRateScope: z.optional(z.union([z.literal('site'), z.literal('page'), z.literal('media')]))
 })
 
 export const mediaCommandResultResponseSchema = z.strictObject({
@@ -52,3 +58,4 @@ export type MediaPageState = z.infer<typeof mediaPageStateSchema>
 export type MediaPageStateSummary = z.infer<typeof mediaPageStateSummarySchema>
 export type MediaExecutePayload = z.infer<typeof mediaExecutePayloadSchema>
 export type MediaCommandResultResponse = z.infer<typeof mediaCommandResultResponseSchema>
+export type ExperimentalEnsureMainResponse = z.infer<typeof experimentalEnsureMainResponseSchema>

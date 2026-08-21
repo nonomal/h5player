@@ -2,6 +2,10 @@ export const MIN_PLAYBACK_RATE = 0.1
 export const MAX_PLAYBACK_RATE = 16
 export const MIN_VOLUME = 0
 export const MAX_VOLUME = 1
+export const MIN_AUDIO_GAIN = 1
+export const MAX_AUDIO_GAIN = 6
+/** Opacity threshold separating foreground playback from preview layers. */
+export const MIN_FOREGROUND_MEDIA_OPACITY = 0.5
 
 export function clamp(value: number, minimum: number, maximum: number): number {
   if (!Number.isFinite(minimum) || !Number.isFinite(maximum) || minimum > maximum) {
@@ -13,6 +17,10 @@ export function clamp(value: number, minimum: number, maximum: number): number {
 
 export function clampUnit(value: number): number {
   return clamp(value, MIN_VOLUME, MAX_VOLUME)
+}
+
+export function clampAudioGain(value: number): number {
+  return clamp(value, MIN_AUDIO_GAIN, MAX_AUDIO_GAIN)
 }
 
 export function clampPlaybackRate(value: number): number {
