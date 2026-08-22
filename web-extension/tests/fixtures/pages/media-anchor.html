@@ -49,7 +49,7 @@
       </div>
     </header>
     <main id="stage">
-      <video id="anchored-video" controls></video>
+      <video id="anchored-video" controls tabindex="0"></video>
     </main>
     <script>
       const stage = document.querySelector('#stage')
@@ -71,6 +71,7 @@
         const replacement = document.createElement('video')
         replacement.id = 'anchored-video'
         replacement.controls = true
+        replacement.tabIndex = 0
         replacement.style.cssText = previous.style.cssText
         previous.replaceWith(replacement)
       })

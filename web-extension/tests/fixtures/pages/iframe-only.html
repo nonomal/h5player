@@ -39,7 +39,13 @@
       document.querySelector('#remove-frame').addEventListener('click', () => {
         slot.querySelector('iframe')?.remove()
       })
-      document.querySelector('#restore-frame').addEventListener('click', mount)
+      document.querySelector('#restore-frame').addEventListener('click', () => {
+        if (slot.querySelector('iframe')) return
+        const previousSource = frameSource
+        frameSource = `${previousSource}${previousSource.includes('?') ? '&' : '?'}restore=${Date.now()}`
+        mount()
+        frameSource = previousSource
+      })
       document.querySelector('#reload-frame').addEventListener('click', () => {
         const frame = slot.querySelector('iframe')
         if (frame) {

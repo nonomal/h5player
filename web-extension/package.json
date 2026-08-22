@@ -32,6 +32,7 @@
     "test:e2e": "pnpm build:chrome && playwright test",
     "test:e2e:live": "pnpm build:chrome && H5PLAYER_LIVE_SMOKE=1 playwright test --config=playwright.live.config.ts",
     "test:e2e:firefox": "pnpm build:firefox && web-ext lint --source-dir .output/firefox-mv3 && tsx scripts/firefox-e2e.ts",
+    "test:e2e:firefox:ux": "pnpm build:firefox && web-ext lint --source-dir .output/firefox-mv3 && tsx scripts/firefox-headed-ux.ts",
     "test:churn:smoke": "H5PLAYER_CHURN_DURATION_MS=5000 playwright test tests/e2e/extension-smoke.spec.ts --grep 'configured media churn' --workers=1",
     "test:churn": "H5PLAYER_CHURN_DURATION_MS=1800000 playwright test tests/e2e/extension-smoke.spec.ts --grep 'configured media churn' --workers=1",
     "test:security": "tsx scripts/security-scan.ts && vitest run tests/security",
