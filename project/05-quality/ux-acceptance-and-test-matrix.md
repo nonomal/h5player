@@ -1,9 +1,9 @@
 # 媒体 UI、反馈与控制权体验质量验收矩阵
 
 > 文档 ID：QUAL-UX-001  
-> 状态：In Review / Phase 6.5 Live Evidence Added  
+> 状态：In Review / Phase 6.5 Live + Firefox Headed Fixture Evidence Added
 > 负责人：Quality Owner / UX Owner  
-> 最后更新：2026-08-16  
+> 最后更新：2026-08-22
 > 关联：REQ-UX-001、REQ-UX-002、ARCH-UX-001、ADR-0015/0016/0017、NFR-PERF/UXREL/A11Y、RISK-016/018/021/028/029/030
 
 ## 1. 证据分层
@@ -50,31 +50,46 @@ Tier 2 fresh run 为 `2026-08-14T23-50-00-000Z`；Ixigua 负向 run 为 `2026-08
 Tier 2 的 `4 passed` 是 Playwright 用例完成状态，不覆盖 TED report outcome=`blocked`；Ixigua strict smoke 因 `REQUIRE_MEDIA=1` 按预期失败。
 UX 验收必须读取 report outcome、warnings、pointer method 和截图，不能只读取测试退出码。
 
+## 1.2 Firefox headed fixture 快照
+
+2026-08-22 使用 Firefox `153.0`、生产 `.output/firefox-mv3`、`headless=false` 和 `1440x900` 请求窗口执行。完整证据见
+[Phase 6.5 Firefox Headed UX 证据审查](../09-reviews/phase-6.5-firefox-headed-ux-review-2026-08-22.md)。
+
+| 能力 | 结果 | 验收边界 |
+| --- | --- | --- |
+| per-media anchor | baseline/scroll/resize distance 均为 `0` | 支持 UX-ACC-001；真实站点安全区仍待补 |
+| 低干扰显隐 | 默认收起、扩大透明 hitbox、播放后 opacity `0`、暂停保持收起 | 支持 UX-ACC-003；宿主控件碰撞仍待补 |
+| 快捷键与反馈 | `KeyC 1→1.1×`、状态区复用、feedback expiry | 支持 UX-ACC-004/005/013；低扰动 p95 尚未测量 |
+| frame 生命周期 | iframe remove/restore 后 runtime 与 media host 恢复 | 支持 UX-ACC-012/021 fixture 路径 |
+| 浏览器回收 | headed/headless 完整入口均退出，无残留 driver/browser | harness 生命周期通过 |
+
+Firefox fixture 通过不计入 Firefox live-site smoke，不覆盖原生权限确认框、200% zoom、theme、reduced-motion、字幕、站点原生控件、ESR/最低版本或用户 Exit Review。
+
 ## 2. 需求追踪与验收项
 
 | ID         | 验收标准                                                                                                                   | 证据                                          | 阻断级别 |
 | ---------- | -------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------- | -------- |
-| UX-ACC-001 | 默认页面不显示视口级大面板；控件 host 与媒体 DOMRect 误差在滚动/resize 后保持在 UI 设计阈值内                              | component + headed screenshot + Chromium E2E  | P0       |
+| UX-ACC-001 | 默认页面不显示视口级大面板；控件 host 与媒体 DOMRect 误差在滚动/resize 后保持在 UI 设计阈值内                              | component + Chromium E2E + Firefox headed fixture | P0       |
 | UX-ACC-002 | 同一媒体最多一个 UI host；移除、停用、撤权后 host/listener/timer 全部清理                                                  | unit + integration + churn                    | P0       |
-| UX-ACC-003 | 播放中 UI 不持续遮挡视频主体；暂停时已展开面板立即收起且不得被状态反馈重新打开；仅倍速状态区的悬停/焦点/触控明确手势可展开 | component + headed manual + visual regression | P0       |
-| UX-ACC-004 | 快捷键和 UI 产生同一 `FeedbackEvent`，连续同类操作只保留最终值                                                             | unit + component + E2E                        | P0       |
-| UX-ACC-005 | 倍速反馈出现在当前媒体右上角安全区，约 1.5～2 秒后消失，不抢焦点，不拦截视频操作                                           | component + headed manual                     | P0       |
+| UX-ACC-003 | 播放中 UI 不持续遮挡视频主体；暂停时已展开面板立即收起且不得被状态反馈重新打开；仅倍速状态区的悬停/焦点/触控明确手势可展开 | component + Firefox headed fixture + live manual | P0       |
+| UX-ACC-004 | 快捷键和 UI 产生同一 `FeedbackEvent`，连续同类操作只保留最终值                                                             | unit + component + dual-browser E2E           | P0       |
+| UX-ACC-005 | 倍速反馈出现在当前媒体右上角安全区，约 1.5～2 秒后消失，不抢焦点，不拦截视频操作                                           | component + Firefox headed fixture + live manual | P0       |
 | UX-ACC-006 | 新媒体、重播、SPA 换集和 src 变化自动应用 effective rate，用户无需重复设置                                                 | integration + real-extension E2E              | P0       |
 | UX-ACC-007 | website reset 在保护开启时有界重应用并显示最终状态；保护关闭时显示可解释降级                                               | unit + hostile fixture + live smoke           | P0       |
 | UX-ACC-008 | 全局默认、站点策略、页面临时覆盖、当前媒体临时意图、媒体实际值五个概念可区分；Popup/Options 显示有效来源                   | unit + component + E2E                        | P0       |
 | UX-ACC-009 | 当前媒体设置与页面策略写回范围可预测；“仅当前媒体”不会污染站点/全局设置                                                    | unit + integration + E2E                      | P0       |
 | UX-ACC-010 | 多媒体页面不误控第二个内容媒体、广告或背景音频；active media 变化时 UI/反馈归属同步                                        | integration + multi-player E2E                | P0       |
 | UX-ACC-011 | audio 无媒体矩形时使用紧凑页面反馈，不出现大面板                                                                           | component + headed manual                     | P1       |
-| UX-ACC-012 | 无 anchor、iframe-only、能力不支持、权限撤销和站点停用显示独立降级态                                                       | component + E2E                               | P0       |
-| UX-ACC-013 | 输入框/可编辑元素内快捷键不触发；Popup/Options/Overlay 入口命令语义一致                                                    | unit + E2E                                    | P0       |
-| UX-ACC-014 | zh-CN/en-US、深色/浅色、200% 缩放、reduced-motion、键盘焦点通过 a11y 基线                                                  | axe + keyboard + headed manual                | P1       |
+| UX-ACC-012 | 无 anchor、iframe-only、能力不支持、权限撤销和站点停用显示独立降级态                                                       | component + dual-browser E2E                  | P0       |
+| UX-ACC-013 | 输入框/可编辑元素内快捷键不触发；Popup/Options/Overlay 入口命令语义一致                                                    | unit + dual-browser E2E                       | P0       |
+| UX-ACC-014 | zh-CN/en-US、深色/浅色、200% 缩放、reduced-motion、键盘焦点通过 a11y 基线                                                  | axe + keyboard + Firefox headed fixture + manual | P1       |
 | UX-ACC-015 | 空白页、无媒体页和媒体 churn 不产生持续长任务或 listener/host 单调增长                                                     | performance + churn                           | P0       |
 | UX-ACC-016 | 保护开启后，网站普通 setter 和 50～200ms 轮询不能覆盖已确认的 `playbackRate`；相同值写入不报错，关闭保护后网站值可生效     | unit + hostile real-extension E2E             | P0       |
 | UX-ACC-017 | `protectVolume` 同时保护 volume/muted；网站自动静音、恢复音量和延迟回写不能覆盖用户值，关闭后恢复透明                      | unit + hostile real-extension E2E             | P0       |
 | UX-ACC-018 | `protectCurrentTime` 默认关闭；开启后只在扩展 seek/恢复的短租约内阻止冲突跳转，自然播放持续推进，租约外站点 seek 可生效    | unit + integration + headed fixture           | P0       |
 | UX-ACC-019 | 未绑定媒体、第二媒体、广告/背景媒体和保护关闭属性完全透传；单一 binding teardown 后不再拦截，prototype descriptor 可恢复   | unit + multi-player + churn                   | P0       |
 | UX-ACC-020 | 自定义媒体元素/adapter 只有在真实 actual value 已变化后返回成功；腾讯切片/换集后连续快捷键仍控制真实播放实例               | unit + Tencent live smoke                     | P0       |
-| UX-ACC-021 | 扩展 reload/撤权/frame 销毁不会留下 wrapper、timer 或未处理 `Extension context invalidated`；失败按属性降级且有诊断        | integration + E2E + console audit             | P0       |
+| UX-ACC-021 | 扩展 reload/撤权/frame 销毁不会留下 wrapper、timer 或未处理 `Extension context invalidated`；失败按属性降级且有诊断        | integration + dual-browser E2E + console audit | P0       |
 
 ## 3. 建议新增自动化场景
 
@@ -103,7 +118,7 @@ UX 验收必须读取 report outcome、warnings、pointer method 和截图，不
 ### 3.3 端侧与人工
 
 - Chromium headed：至少验证 basic、multi-player、SPA、strict CSP、hostile、Shadow DOM、iframe。
-- Firefox headed：验证定位、feedback、快捷键和临时扩展 teardown；不要只复用 headless harness。
+- Firefox headed fixture 已自动验证定位、feedback、快捷键、暂停收起和 iframe teardown/restore；继续验证真实站点、原生权限确认、临时扩展重启与最低版本。
 - Tier 1 live smoke：YouTube、Bilibili、Tencent Video、iQIYI、Youku；Tier 2 smoke：Netflix、Ixigua、AcFun、Sohu Video、TED；记录浏览器、OS、扩展 fingerprint、页面类别、换集/广告/登录态，并将真实 pointer、DOM fallback、blocked/no-media 分开计分。
 - 腾讯专项：正常 HTMLMediaElement 与 WASM `<fake-video>` 双路径；等待实际播放、触发切片/换集、连续调速，至少读取两个时间点的真实 rate/播放进度；仅 storage、扩展 snapshot 或隐藏辅助实例变化判为 inconclusive。
 - 视觉记录：默认播放中、暂停、悬停展开、快捷键反馈、站点原生控件共存、字幕和窄屏。
@@ -126,7 +141,7 @@ UX 验收必须读取 report outcome、warnings、pointer method 和截图，不
 
 ## 6. 完成门禁
 
-当前 live smoke 仅使 UX-ACC-001/004/006/010 获得部分真实证据；UX-ACC-016～021 尚无完整实现与 fresh evidence。Netflix 背景媒体误暴露已由 2026-08-19 前景 owner run 关闭；Tencent 宿主碰撞、iQIYI/Youku pointer、Sohu/TED 碰撞、
-TED reload 外跳、Ixigua no-media、iQIYI scroll、换集/广告/登录态、Firefox headed 和 30 分钟 churn 仍未关闭。UX-ACC-001～010、012、
+当前 live smoke 仅使 UX-ACC-001/004/006/010 获得部分真实证据；Firefox headed fixture 为 UX-ACC-001/003～005/012～014/021 增加浏览器内证据，但不计真实站点通过。Netflix 背景媒体误暴露已关闭；Tencent 宿主碰撞、iQIYI/Youku pointer、Sohu/TED 碰撞、
+TED reload 外跳、Ixigua no-media、iQIYI scroll、换集/广告/登录态、Firefox live-site/权限 UX 仍未关闭；30 分钟 churn 与 Firefox fixture 基线已通过。UX-ACC-001～010、012、
 013、015～021 的 P0 未全部完成前，Phase 7 保持冻结；不得以“Popup 能控制媒体”“unit 通过”“fixture 全绿”“Playwright passed”或
 “report outcome=passed”替代页面体验证据。UX-ACC-011/014 的 P1 缺口必须显式评审和接受。

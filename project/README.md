@@ -29,7 +29,7 @@
 8. Phase 6 已建立单一版本源、确定性 Chrome/Firefox release bundle、供应链 evidence 和分层 no-publish CI；该能力不等于
    真实 Beta、商店提交或 Stable 批准。
 9. Stable 当前明确为 `NO-GO`；两个连续真实 Beta RC、真实浏览器/站点/权限矩阵、商店签字和观察窗口不可由本地 fixture 替代。
-10. 2026-08-12 用户实测确认页面 Overlay、媒体级反馈和倍速继承未达交付标准；Phase 6.5 核心实现现已进入审查，Tier 1/Tier 2 live smoke 已取得条件证据。Netflix 前景归属以及 frame/session 生命周期、停用恢复 hydration 和 bundle 预算已分别由 2026-08-19/20 证据关闭工程硬阻塞，但其它宿主碰撞、Ixigua no-media、Firefox headed、增强诊断 30 分钟 churn 和用户 Exit 证据仍未闭环，当前保持 `UX NO-GO / Phase 7 HOLD`。
+10. 2026-08-12 用户实测确认页面 Overlay、媒体级反馈和倍速继承未达交付标准；Phase 6.5 核心实现现已进入审查，Tier 1/Tier 2 live smoke 已取得条件证据。Netflix 前景归属、frame/session 生命周期、bundle 预算、增强诊断 30 分钟 churn 和 Firefox headed fixture 基线已取得工程证据；其它宿主碰撞、Ixigua no-media、Firefox 真实站点/权限 UX 和用户 Exit 证据仍未闭环，当前保持 `UX NO-GO / Phase 7 HOLD`。
 11. Legacy 实验总开关直接覆盖的下载与 MSE 捕获已作为 EXT-153 工程预览迁入；global/site 独立下载开关、资源预算、失败终态和清理已有自动化证据，EXT-154 的 MAIN capture 与 isolated-content 最终 sink 边界也已落地。hostile/live/headed 验收仍未完成，不能据此解冻 Phase 7 或 Stable。
 
 ## 3. 文档地图
@@ -87,6 +87,8 @@
 | 审查   | [Legacy 能力对齐审查](./09-reviews/legacy-capability-parity-review-2026-08-18.md)                | 核心命令、实验下载追加、验证证据和剩余安全/站点边界               |
 | 审查   | [Netflix 前景媒体归属审查](./09-reviews/netflix-foreground-media-ownership-review-2026-08-19.md) | 背景预览筛除、前景命令/UI owner、Tier 1 回归与最终 live 证据      |
 | 审查   | [iframe 生命周期与控制竞态审查](./09-reviews/iframe-lifecycle-control-race-fix-2026-08-20.md)    | frame/session owner、页面状态顺序、恢复 hydration、churn 与预算   |
+| 审查   | [Phase 6.5 长稳态与 Legacy 隔离审查](./09-reviews/phase-6.5-churn-and-legacy-isolation-review-2026-08-22.md) | 30 分钟诊断 churn、Legacy detached 构建与冻结边界                 |
+| 审查   | [Phase 6.5 Firefox Headed UX 审查](./09-reviews/phase-6.5-firefox-headed-ux-review-2026-08-22.md) | Firefox fixture 锚定、显隐、反馈、暂停、iframe 与证据边界        |
 | 审查   | [UltraQA 场景矩阵](./09-reviews/ultraqa-scenario-matrix-2026-08-19.md)                            | 对抗场景、fresh 命令证据、清理状态与 Phase 7 停止条件             |
 | 审查   | [审查清单](./09-reviews/review-checklists.md)                                                    | 需求、架构、安全、测试和发布审查                                  |
 | 模板   | [模板目录](./templates/README.md)                                                                | 新需求、任务、ADR、风险和发布记录模板                             |
@@ -116,6 +118,8 @@
 [Tier 1/2 Live Smoke 审查](./09-reviews/live-site-smoke-review-2026-08-15.md)、
 [Netflix 前景媒体归属审查](./09-reviews/netflix-foreground-media-ownership-review-2026-08-19.md)、
 [iframe 生命周期与控制竞态审查](./09-reviews/iframe-lifecycle-control-race-fix-2026-08-20.md)、
+[Phase 6.5 长稳态与 Legacy 隔离审查](./09-reviews/phase-6.5-churn-and-legacy-isolation-review-2026-08-22.md)、
+[Phase 6.5 Firefox Headed UX 审查](./09-reviews/phase-6.5-firefox-headed-ux-review-2026-08-22.md)、
 [UltraQA 场景矩阵](./09-reviews/ultraqa-scenario-matrix-2026-08-19.md)、
 [体验差距审查](./09-reviews/ux-gap-review-2026-08-12.md) 和 [Phase 6 Exit Review](./09-reviews/phase-6-exit-review-2026-08-11.md)
 共同为准：Phase 6 repository release-engineering baseline 继续有效，Phase 6.5 核心实现进入审查，但页面 UX 尚未 GO，
